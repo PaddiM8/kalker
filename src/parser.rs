@@ -68,7 +68,7 @@ impl Parser {
         if self.match_token(TokenKind::Identifier) {
             return match self.peek_next().kind {
                 TokenKind::Equals => self.parse_var_decl_stmt(),
-                TokenKind::Identifier => self.parse_identifier_stmt(),
+                TokenKind::OpenParenthesis => self.parse_identifier_stmt(),
                 _ => Stmt::Expr(Box::new(self.parse_expr())),
             };
         }
@@ -81,7 +81,7 @@ impl Parser {
         let primary = self.parse_primary(); // Since function declarations and function calls look the same at first, simply parse a "function call", and re-use the data.
 
         // If `primary` is followed by an equal sign, it is a function declaration.
-        if self.peek().kind.compare(&TokenKind::Equals) {
+        if let TokenKind::Equals = self.peek().kind {
             self.advance();
             let expr = self.parse_expr();
 
