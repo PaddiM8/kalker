@@ -75,11 +75,16 @@ impl Visitor<f64, f64> for Interpreter {
                 self.symbol_table.insert(identifier.clone(), stmt.clone());
                 0f64
             }
-            Stmt::FnDecl(identifier, argument, _) => {
-                self.visit_stmt(&Stmt::VarDecl(
-                    argument.clone(),
-                    Box::new(Expr::Literal(String::from("0"))),
-                ));
+            Stmt::FnDecl(identifier, arguments, _) => {
+                // Initialise each of the arguments as their own variable.
+                for argument in arguments {
+                    self.visit_stmt(&Stmt::VarDecl(
+                        argument.clone(),
+                        Box::new(Expr::Literal(String::from("0"))),
+                    ));
+                }
+
+                // Add the function to the symbol table.
                 self.symbol_table
                     .insert(format!("{}()", identifier.clone()), stmt.clone());
                 0f64
@@ -134,9 +139,16 @@ impl Visitor<f64, f64> for Interpreter {
             }
             Expr::Literal(value) => value.parse().unwrap(),
             Expr::Group(expr) => self.visit_expr(&expr),
-            Expr::FnCall(identifier, expr) => {
-                let x = self.visit_expr(&expr);
-                if let Some(result) = self.prelude.call_unary_func(identifier, x) {
+            Expr::FnCall(identifier, expressions) => {
+                let prelude_func = match expressions.len() {
+                    1 => {
+                        let x = self.visit_expr(&expressions[0]);
+                        self.prelude.call_unary_func(identifier, x)
+                    }
+                    _ => None,
+                };
+
+                if let Some(result) = prelude_func {
                     result
                 } else {
                     let stmt = self
@@ -144,13 +156,24 @@ impl Visitor<f64, f64> for Interpreter {
                         .get(&format!("{}()", identifier))
                         .expect("Undefined function")
                         .clone();
-                    match stmt {
-                        Stmt::FnDecl(_, argument, fn_body) => {
-                            self.visit_stmt(&Stmt::VarDecl(argument.clone(), expr.clone()));
-                            self.visit_expr(&*fn_body)
+
+                    if let Stmt::FnDecl(_, arguments, fn_body) = stmt {
+                        if arguments.len() != expressions.len() {
+                            panic!("Incorrect amount of arguments.");
                         }
-                        _ => panic!(),
+
+                        // Initialise the arguments as their own variables.
+                        for (i, argument) in arguments.iter().enumerate() {
+                            self.visit_stmt(&Stmt::VarDecl(
+                                argument.clone(),
+                                Box::new(expressions[i].clone()),
+                            ));
+                        }
+
+                        return self.visit_expr(&*fn_body);
                     }
+
+                    panic!("Unexpected error.");
                 }
             }
         }

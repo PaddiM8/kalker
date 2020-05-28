@@ -5,7 +5,7 @@ use crate::lexer::{Token, TokenKind};
 #[derive(Debug, Clone)]
 pub enum Stmt {
     VarDecl(String, Box<Expr>),
-    FnDecl(String, String, Box<Expr>),
+    FnDecl(String, Vec<String>, Box<Expr>),
     Expr(Box<Expr>),
 }
 
@@ -16,7 +16,7 @@ pub enum Expr {
     Unit(Box<Expr>, TokenKind),
     Var(String),
     Group(Box<Expr>),
-    FnCall(String, Box<Expr>),
+    FnCall(String, Vec<Expr>),
     Literal(String),
 }
 
@@ -85,15 +85,23 @@ impl Parser {
             self.advance();
             let expr = self.parse_expr();
 
-            match primary {
-                Expr::FnCall(identifier, argument) => match *argument {
-                    Expr::Var(argument_identifier) => {
-                        Stmt::FnDecl(identifier, argument_identifier, Box::new(expr))
+            // Use the "function call" expression that was parsed, and put its values into a function declaration statement instead.
+            if let Expr::FnCall(identifier, parameters) = primary {
+                let mut parameter_identifiers = Vec::new();
+
+                // All the "arguments" are expected to be parsed as variables,
+                // since parameter definitions look the same as variable references.
+                // Extract these.
+                for parameter in parameters {
+                    if let Expr::Var(parameter_identifier) = parameter {
+                        parameter_identifiers.push(parameter_identifier);
                     }
-                    _ => panic!("Unexpected error."),
-                },
-                _ => panic!("Unexpected error."),
+                }
+
+                return Stmt::FnDecl(identifier, parameter_identifiers, Box::new(expr));
             }
+
+            panic!("Unexpected error.");
         } else {
             // It is a function call, not a function declaration.
             // Redo the parsing for this specific part.
@@ -199,7 +207,7 @@ impl Parser {
         let group_expr = Expr::Group(Box::new(self.parse_expr()));
         self.consume(TokenKind::Pipe);
 
-        Expr::FnCall(String::from("abs"), Box::new(group_expr))
+        Expr::FnCall(String::from("abs"), vec![group_expr])
     }
 
     fn parse_identifier(&mut self) -> Expr {
@@ -210,7 +218,7 @@ impl Parser {
             let parameter = self.parse_expr();
             self.consume(TokenKind::ClosedParenthesis);
 
-            Expr::FnCall(identifier.value, Box::new(parameter))
+            Expr::FnCall(identifier.value, vec![parameter])
         } else {
             Expr::Var(identifier.value)
         }

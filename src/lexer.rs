@@ -5,17 +5,22 @@ pub enum TokenKind {
     Unknown,
     Literal,
     Identifier,
+
     Plus,
     Minus,
     Star,
     Slash,
     Power,
     Equals,
+
     Deg,
     Rad,
+
     Pipe,
     OpenParenthesis,
     ClosedParenthesis,
+    Comma,
+
     EOF,
 }
 
@@ -100,6 +105,10 @@ impl<'a> Lexer<'a> {
             '=' => {
                 self.advance();
                 self.build(TokenKind::Equals, "")
+            }
+            ',' => {
+                self.advance();
+                self.build(TokenKind::Comma, "")
             }
             _ => {
                 if c.is_digit(10) {
