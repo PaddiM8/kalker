@@ -1,0 +1,255 @@
+use std::mem;
+
+use crate::lexer::{Token, TokenKind};
+
+#[derive(Debug, Clone)]
+pub enum Stmt {
+    VarDecl(String, Box<Expr>),
+    FnDecl(String, String, Box<Expr>),
+    Expr(Box<Expr>),
+}
+
+#[derive(Debug, Clone)]
+pub enum Expr {
+    Binary(Box<Expr>, TokenKind, Box<Expr>),
+    Unary(TokenKind, Box<Expr>),
+    Unit(Box<Expr>, TokenKind),
+    Var(String),
+    Group(Box<Expr>),
+    FnCall(String, Box<Expr>),
+    Literal(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum Unit {
+    Radians,
+    Degrees,
+}
+
+pub struct Parser {
+    tokens: Vec<Token>,
+    pos: usize,
+}
+
+impl TokenKind {
+    pub fn is_unit(&self) -> bool {
+        match self {
+            TokenKind::Deg | TokenKind::Rad => true,
+            _ => false,
+        }
+    }
+
+    pub fn compare(&self, second_token: &TokenKind) -> bool {
+        mem::discriminant(self) == mem::discriminant(second_token)
+    }
+}
+
+impl Parser {
+    pub fn new() -> Parser {
+        Parser {
+            tokens: Vec::new(),
+            pos: 0,
+        }
+    }
+
+    pub fn parse(&mut self, tokens: Vec<Token>) -> Vec<Stmt> {
+        self.tokens = tokens;
+        self.pos = 0;
+
+        let mut statements: Vec<Stmt> = Vec::new();
+        while !self.is_at_end() {
+            statements.push(self.parse_stmt());
+        }
+
+        statements
+    }
+
+    fn parse_stmt(&mut self) -> Stmt {
+        if self.match_token(TokenKind::Identifier) {
+            return match self.peek_next().kind {
+                TokenKind::Equals => self.parse_var_decl_stmt(),
+                TokenKind::Identifier => self.parse_identifier_stmt(),
+                _ => Stmt::Expr(Box::new(self.parse_expr())),
+            };
+        }
+
+        Stmt::Expr(Box::new(self.parse_expr()))
+    }
+
+    fn parse_identifier_stmt(&mut self) -> Stmt {
+        let began_at = self.pos;
+        let primary = self.parse_primary(); // Since function declarations and function calls look the same at first, simply parse a "function call", and re-use the data.
+
+        // If `primary` is followed by an equal sign, it is a function declaration.
+        if self.peek().kind.compare(&TokenKind::Equals) {
+            self.advance();
+            let expr = self.parse_expr();
+
+            match primary {
+                Expr::FnCall(identifier, argument) => match *argument {
+                    Expr::Var(argument_identifier) => {
+                        Stmt::FnDecl(identifier, argument_identifier, Box::new(expr))
+                    }
+                    _ => panic!("Unexpected error."),
+                },
+                _ => panic!("Unexpected error."),
+            }
+        } else {
+            // It is a function call, not a function declaration.
+            // Redo the parsing for this specific part.
+            self.pos = began_at;
+            Stmt::Expr(Box::new(self.parse_expr()))
+        }
+    }
+
+    fn parse_var_decl_stmt(&mut self) -> Stmt {
+        let identifier = self.advance().clone();
+        self.advance(); // Equal sign
+        let expr = self.parse_expr();
+
+        Stmt::VarDecl(identifier.value, Box::new(expr))
+    }
+
+    fn parse_expr(&mut self) -> Expr {
+        self.parse_sum()
+    }
+
+    fn parse_sum(&mut self) -> Expr {
+        let mut left = self.parse_factor();
+
+        while self.match_token(TokenKind::Plus) || self.match_token(TokenKind::Minus) {
+            let op = self.peek().kind.clone();
+            self.advance();
+            let right = self.parse_factor();
+
+            left = Expr::Binary(Box::new(left), op, Box::new(right));
+        }
+
+        left
+    }
+
+    fn parse_factor(&mut self) -> Expr {
+        let mut left = self.parse_unary();
+
+        while self.match_token(TokenKind::Star)
+            || self.match_token(TokenKind::Slash)
+            || self.match_token(TokenKind::Identifier)
+        {
+            let mut op = self.peek().kind.clone();
+
+            // If the next token is an identifier, assume it's multiplication. Eg. 3y
+            if let TokenKind::Identifier = op {
+                op = TokenKind::Star;
+            } else {
+                self.advance();
+            }
+
+            let right = self.parse_unary();
+            left = Expr::Binary(Box::new(left), op, Box::new(right));
+        }
+
+        left
+    }
+
+    fn parse_unary(&mut self) -> Expr {
+        if self.match_token(TokenKind::Minus) {
+            let op = self.advance().kind.clone();
+            return Expr::Unary(op, Box::new(self.parse_unary()));
+        }
+
+        self.parse_exponent()
+    }
+
+    fn parse_exponent(&mut self) -> Expr {
+        let left = self.parse_primary();
+
+        if self.match_token(TokenKind::Power) {
+            let op = self.advance().kind.clone();
+            return Expr::Binary(Box::new(left), op, Box::new(self.parse_exponent()));
+        }
+
+        left
+    }
+
+    fn parse_primary(&mut self) -> Expr {
+        let expr = match self.peek().kind {
+            TokenKind::OpenParenthesis => self.parse_group(),
+            TokenKind::Pipe => self.parse_abs(),
+            TokenKind::Identifier => self.parse_identifier(),
+            _ => Expr::Literal(self.consume(TokenKind::Literal).value.clone()),
+        };
+
+        if !self.is_at_end() && self.peek().kind.is_unit() {
+            Expr::Unit(Box::new(expr), self.advance().kind.clone())
+        } else {
+            expr
+        }
+    }
+
+    fn parse_group(&mut self) -> Expr {
+        self.advance();
+        let group_expr = Expr::Group(Box::new(self.parse_expr()));
+        self.consume(TokenKind::ClosedParenthesis);
+
+        group_expr
+    }
+
+    fn parse_abs(&mut self) -> Expr {
+        self.advance();
+        let group_expr = Expr::Group(Box::new(self.parse_expr()));
+        self.consume(TokenKind::Pipe);
+
+        Expr::FnCall(String::from("abs"), Box::new(group_expr))
+    }
+
+    fn parse_identifier(&mut self) -> Expr {
+        let identifier = self.advance().clone();
+
+        if self.match_token(TokenKind::OpenParenthesis) {
+            self.advance();
+            let parameter = self.parse_expr();
+            self.consume(TokenKind::ClosedParenthesis);
+
+            Expr::FnCall(identifier.value, Box::new(parameter))
+        } else {
+            Expr::Var(identifier.value)
+        }
+    }
+
+    fn peek(&self) -> &Token {
+        &self.tokens[self.pos]
+    }
+
+    fn peek_next(&self) -> &Token {
+        &self.tokens[self.pos + 1]
+    }
+
+    fn previous(&self) -> &Token {
+        &self.tokens[self.pos - 1]
+    }
+
+    fn match_token(&self, kind: TokenKind) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+
+        self.peek().kind.compare(&kind)
+    }
+
+    fn advance(&mut self) -> &Token {
+        self.pos += 1;
+        self.previous()
+    }
+
+    fn consume(&mut self, kind: TokenKind) -> &Token {
+        if self.match_token(kind) {
+            return self.advance();
+        }
+
+        panic!("Unexpected token.");
+    }
+
+    fn is_at_end(&self) -> bool {
+        self.pos >= self.tokens.len() || self.peek().kind.compare(&TokenKind::EOF)
+    }
+}

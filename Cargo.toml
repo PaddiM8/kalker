@@ -1,0 +1,13 @@
+[package]
+name = "lek"
+version = "0.1.0"
+authors = ["paddi"]
+edition = "2018"
+
+[profile.release]
+panic = "abort"
+#lto = true
+#codegen-units = 1
+#incremental = false
+
+[dependencies]
