@@ -26,37 +26,57 @@ impl UnaryFuncInfo {
     fn call(&self, x: f64, angle_unit: &Unit) -> f64 {
         let func = *self.func;
         match self.func_type {
-            FuncType::Trig => func(self.from_angle_unit(x, angle_unit)),
-            FuncType::InverseTrig => self.to_angle_unit(func(x), angle_unit),
+            FuncType::Trig => func(from_angle_unit(x, angle_unit)),
+            FuncType::InverseTrig => to_angle_unit(func(x), angle_unit),
             FuncType::Other => func(x),
         }
     }
+}
+struct BinaryFuncInfo {
+    func: Box<fn(f64, f64) -> f64>,
+    func_type: FuncType,
+}
 
-    fn to_angle_unit(&self, x: f64, angle_unit: &Unit) -> f64 {
-        match angle_unit {
-            Unit::Radians => x,
-            Unit::Degrees => x.to_degrees(),
+impl BinaryFuncInfo {
+    fn call(&self, x: f64, y: f64, angle_unit: &Unit) -> f64 {
+        let func = *self.func;
+        match self.func_type {
+            FuncType::Trig => func(
+                from_angle_unit(x, angle_unit),
+                from_angle_unit(y, angle_unit),
+            ),
+            FuncType::InverseTrig => to_angle_unit(func(x, y), angle_unit),
+            FuncType::Other => func(x, y),
         }
     }
+}
 
-    fn from_angle_unit(&self, x: f64, angle_unit: &Unit) -> f64 {
-        match angle_unit {
-            Unit::Radians => x,
-            Unit::Degrees => x.to_radians(),
-        }
+fn to_angle_unit(x: f64, angle_unit: &Unit) -> f64 {
+    match angle_unit {
+        Unit::Radians => x,
+        Unit::Degrees => x.to_degrees(),
+    }
+}
+
+fn from_angle_unit(x: f64, angle_unit: &Unit) -> f64 {
+    match angle_unit {
+        Unit::Radians => x,
+        Unit::Degrees => x.to_radians(),
     }
 }
 
 pub struct Prelude {
     pub angle_unit: Unit,
     unary: HashMap<String, UnaryFuncInfo>,
+    binary: HashMap<String, BinaryFuncInfo>,
 }
 
 impl Prelude {
     pub fn new() -> Self {
         Prelude {
-            unary: HashMap::new(),
             angle_unit: math_parser::DEFAULT_ANGLE_UNIT,
+            unary: HashMap::new(),
+            binary: HashMap::new(),
         }
     }
 
@@ -144,6 +164,27 @@ impl Prelude {
             } else {
                 None
             }
+        }
+    }
+
+    pub fn call_binary_func(&mut self, name: &str, x: f64, y: f64) -> Option<f64> {
+        let misc_func: Option<fn(f64, f64) -> f64> = match name {
+            "max" => Some(funcs::max),
+            "min" => Some(funcs::min),
+            _ => None,
+        };
+
+        if let Some(func) = misc_func {
+            let func_info = BinaryFuncInfo {
+                func: Box::new(func),
+                func_type: FuncType::Other,
+            };
+            let value = func_info.call(x, y, &self.angle_unit);
+            self.binary.insert(name.to_string(), func_info);
+
+            return Some(value);
+        } else {
+            None
         }
     }
 }
@@ -246,6 +287,14 @@ mod funcs {
 
     pub fn ln(x: f64) -> f64 {
         x.ln()
+    }
+
+    pub fn max(x: f64, y: f64) -> f64 {
+        x.max(y)
+    }
+
+    pub fn min(x: f64, y: f64) -> f64 {
+        x.min(y)
     }
 
     pub fn round(x: f64) -> f64 {

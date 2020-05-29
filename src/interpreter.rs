@@ -145,6 +145,11 @@ impl Visitor<f64, f64> for Interpreter {
                         let x = self.visit_expr(&expressions[0]);
                         self.prelude.call_unary_func(identifier, x)
                     }
+                    2 => {
+                        let x = self.visit_expr(&expressions[0]);
+                        let y = self.visit_expr(&expressions[1]);
+                        self.prelude.call_binary_func(identifier, x, y)
+                    }
                     _ => None,
                 };
 
