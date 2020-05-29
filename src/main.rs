@@ -1,5 +1,4 @@
-use std::env;
-use std::io;
+use std::{env, process};
 
 mod interpreter;
 mod lexer;
@@ -10,42 +9,63 @@ mod visitor;
 use math_parser::MathParser;
 use parser::Unit;
 
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
+
 #[allow(unused_assignments)] // The compiler gives a warning that is not valid.
 fn main() {
-    let angle_unit = if let Ok(angle_unit_var) = env::var("ANGLE_UNIT") {
+    let angle_unit = get_angle_unit();
+    let mut math_parser = MathParser::new();
+    math_parser.set_angle_unit(angle_unit);
+
+    // Command line argument input, execute it and exit.
+    if let Some(expr) = env::args().skip(1).next() {
+        eval(&mut math_parser, &expr);
+        return;
+    }
+
+    // REPL
+    let mut rl = Editor::<()>::new();
+
+    loop {
+        let readline = rl.readline(">> ");
+
+        match readline {
+            Ok(input) => {
+                rl.add_history_entry(input.as_str());
+                eval_repl(&mut math_parser, &input);
+            }
+            Err(ReadlineError::Interrupted) => break,
+            _ => break,
+        }
+    }
+}
+
+fn eval_repl(math_parser: &mut MathParser, input: &str) {
+    match input {
+        "" => eprint!(""),
+        "clear" => print!("\x1B[2J"),
+        "exit" => process::exit(0),
+        _ => eval(math_parser, input),
+    }
+}
+
+fn eval(math_parser: &mut MathParser, input: &str) {
+    if let Some(result) = math_parser.parse(input) {
+        println!("{}", result);
+    }
+}
+
+fn get_angle_unit() -> Unit {
+    if let Ok(angle_unit_var) = env::var("ANGLE_UNIT") {
         match angle_unit_var.as_ref() {
             "radians" => Unit::Radians,
             "degrees" => Unit::Degrees,
             _ => {
-                println!("Unexpected angle unit: {}.", angle_unit_var);
-                return;
+                panic!("Unexpected angle unit: {}.", angle_unit_var);
             }
         }
     } else {
         Unit::Radians
-    };
-
-    let mut math_parser = MathParser::new();
-    math_parser.set_angle_unit(angle_unit);
-
-    if let Some(expr) = env::args().skip(1).next() {
-        if let Some(result) = math_parser.parse(&expr) {
-            println!("{}", result);
-        }
-    } else {
-        let mut history: Vec<String> = Vec::new();
-        let mut input = String::new();
-
-        loop {
-            eprint!(">>> ");
-
-            input = String::new();
-            io::stdin().read_line(&mut input).unwrap();
-            history.push(input.clone());
-
-            if let Some(result) = math_parser.parse(&input) {
-                println!("{}", result);
-            }
-        }
     }
 }

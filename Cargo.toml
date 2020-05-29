@@ -11,3 +11,4 @@ panic = "abort"
 #incremental = false
 
 [dependencies]
+rustyline = "6.1.2"
