@@ -50,17 +50,6 @@ impl TokenKind {
     }
 }
 
-/*impl Parser {
-    pub fn new() -> Parser {
-        Parser {
-            tokens: Vec::new(),
-            pos: 0,
-            symbol_table: SymbolTable::new(),
-            angle_unit: prelude::DEFAULT_ANGLE_UNIT,
-        }
-    }
-}*/
-
 impl ParserContext {
     pub fn new() -> Self {
         ParserContext {

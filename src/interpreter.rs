@@ -63,103 +63,139 @@ impl Unit {
 impl<'a> Visitor<f64, f64> for Interpreter<'a> {
     fn visit_stmt(&mut self, stmt: &Stmt) -> f64 {
         match stmt {
-            Stmt::VarDecl(identifier, _) => {
-                self.symbol_table.insert(&identifier, stmt.clone());
-                0f64
-            }
-            Stmt::FnDecl(_, _, _) => 0f64, // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
-            Stmt::Expr(expr) => self.visit_expr(&expr),
+            Stmt::VarDecl(identifier, _) => self.eval_var_decl_stmt(stmt, identifier),
+            Stmt::FnDecl(_, _, _) => self.eval_fn_decl_stmt(),
+            Stmt::Expr(expr) => self.eval_expr_stmt(&expr),
         }
     }
 
     fn visit_expr(&mut self, expr: &Expr) -> f64 {
         match expr {
-            Expr::Binary(left, op, right) => {
-                let left = self.visit_expr(&left);
-                let right = self.visit_expr(&right);
-
-                match op {
-                    TokenKind::Plus => left + right,
-                    TokenKind::Minus => left - right,
-                    TokenKind::Star => left * right,
-                    TokenKind::Slash => left / right,
-                    TokenKind::Power => left.powf(right),
-                    _ => 0f64,
-                }
-            }
-            Expr::Unary(_, expr) => self.visit_expr(&expr).clone(),
-            Expr::Unit(expr, kind) => {
-                let x = self.visit_expr(&expr);
-
-                // Don't do any angle conversions if the defauly angle unit is the same as the unit kind
-                if (kind.compare(&TokenKind::Deg) || kind.compare(&TokenKind::Rad))
-                    && self.angle_unit.compare(&kind.to_unit())
-                {
-                    return x;
-                }
-
-                match kind {
-                    TokenKind::Deg => x.to_radians(),
-                    TokenKind::Rad => x.to_degrees(),
-                    _ => panic!("Invalid unit."),
-                }
-            }
-            Expr::Var(identifier) => {
-                let value = self
-                    .symbol_table
-                    .get(identifier)
-                    .expect("Undefined variable.")
-                    .clone();
-                if let Stmt::VarDecl(_, expr) = value {
-                    return self.visit_expr(&expr);
-                }
-
-                panic!("Unknown error.");
-            }
-            Expr::Literal(value) => value.parse().unwrap(),
-            Expr::Group(expr) => self.visit_expr(&expr),
+            Expr::Binary(left, op, right) => self.eval_binary_expr(&left, op, &right),
+            Expr::Unary(_, expr) => self.eval_unary_expr(expr),
+            Expr::Unit(expr, kind) => self.eval_unit_expr(expr, kind),
+            Expr::Var(identifier) => self.eval_var_expr(identifier),
+            Expr::Literal(value) => self.eval_literal_expr(value),
+            Expr::Group(expr) => self.eval_group_expr(&expr),
             Expr::FnCall(identifier, expressions) => {
-                let prelude_func = match expressions.len() {
-                    1 => {
-                        let x = self.visit_expr(&expressions[0]);
-                        prelude::call_unary_func(identifier, x, &self.angle_unit)
-                    }
-                    2 => {
-                        let x = self.visit_expr(&expressions[0]);
-                        let y = self.visit_expr(&expressions[1]);
-                        prelude::call_binary_func(identifier, x, y, &self.angle_unit)
-                    }
-                    _ => None,
-                };
-
-                if let Some(result) = prelude_func {
-                    result
-                } else {
-                    let stmt = self
-                        .symbol_table
-                        .get(&format!("{}()", identifier))
-                        .expect("Undefined function")
-                        .clone();
-
-                    if let Stmt::FnDecl(_, arguments, fn_body) = stmt {
-                        if arguments.len() != expressions.len() {
-                            panic!("Incorrect amount of arguments.");
-                        }
-
-                        // Initialise the arguments as their own variables.
-                        for (i, argument) in arguments.iter().enumerate() {
-                            self.visit_stmt(&Stmt::VarDecl(
-                                argument.clone(),
-                                Box::new(expressions[i].clone()),
-                            ));
-                        }
-
-                        return self.visit_expr(&*fn_body);
-                    }
-
-                    panic!("Unexpected error.");
-                }
+                self.eval_fn_call_expr(identifier, expressions)
             }
         }
+    }
+}
+
+impl<'a> Interpreter<'a> {
+    fn eval_var_decl_stmt(&mut self, stmt: &Stmt, identifier: &str) -> f64 {
+        self.symbol_table.insert(&identifier, stmt.clone());
+        0f64
+    }
+
+    fn eval_fn_decl_stmt(&mut self) -> f64 {
+        0f64 // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
+    }
+
+    fn eval_expr_stmt(&mut self, expr: &Expr) -> f64 {
+        self.visit_expr(&expr)
+    }
+}
+
+impl<'a> Interpreter<'a> {
+    fn eval_binary_expr(&mut self, left: &Expr, op: &TokenKind, right: &Expr) -> f64 {
+        let left = self.visit_expr(&left);
+        let right = self.visit_expr(&right);
+
+        match op {
+            TokenKind::Plus => left + right,
+            TokenKind::Minus => left - right,
+            TokenKind::Star => left * right,
+            TokenKind::Slash => left / right,
+            TokenKind::Power => left.powf(right),
+            _ => 0f64,
+        }
+    }
+
+    fn eval_unary_expr(&mut self, expr: &Expr) -> f64 {
+        self.visit_expr(&expr).clone()
+    }
+
+    fn eval_unit_expr(&mut self, expr: &Expr, kind: &TokenKind) -> f64 {
+        let x = self.visit_expr(&expr);
+
+        // Don't do any angle conversions if the defauly angle unit is the same as the unit kind
+        if (kind.compare(&TokenKind::Deg) || kind.compare(&TokenKind::Rad))
+            && self.angle_unit.compare(&kind.to_unit())
+        {
+            return x;
+        }
+
+        match kind {
+            TokenKind::Deg => x.to_radians(),
+            TokenKind::Rad => x.to_degrees(),
+            _ => panic!("Invalid unit."),
+        }
+    }
+
+    fn eval_var_expr(&mut self, identifier: &str) -> f64 {
+        let value = self
+            .symbol_table
+            .get(identifier)
+            .expect("Undefined variable.")
+            .clone();
+        if let Stmt::VarDecl(_, expr) = value {
+            return self.visit_expr(&expr);
+        }
+
+        panic!("Unknown error.");
+    }
+
+    fn eval_literal_expr(&mut self, value: &str) -> f64 {
+        value.parse().unwrap()
+    }
+
+    fn eval_group_expr(&mut self, expr: &Expr) -> f64 {
+        self.visit_expr(expr)
+    }
+
+    fn eval_fn_call_expr(&mut self, identifier: &str, expressions: &Vec<Expr>) -> f64 {
+        let prelude_func = match expressions.len() {
+            1 => {
+                let x = self.visit_expr(&expressions[0]);
+                prelude::call_unary_func(identifier, x, &self.angle_unit)
+            }
+            2 => {
+                let x = self.visit_expr(&expressions[0]);
+                let y = self.visit_expr(&expressions[1]);
+                prelude::call_binary_func(identifier, x, y, &self.angle_unit)
+            }
+            _ => None,
+        };
+
+        if let Some(result) = prelude_func {
+            return result;
+        }
+
+        let stmt = self
+            .symbol_table
+            .get(&format!("{}()", identifier))
+            .expect("Undefined function")
+            .clone();
+
+        if let Stmt::FnDecl(_, arguments, fn_body) = stmt {
+            if arguments.len() != expressions.len() {
+                panic!("Incorrect amount of arguments.");
+            }
+
+            // Initialise the arguments as their own variables.
+            for (i, argument) in arguments.iter().enumerate() {
+                self.visit_stmt(&Stmt::VarDecl(
+                    argument.clone(),
+                    Box::new(expressions[i].clone()),
+                ));
+            }
+
+            return self.visit_expr(&*fn_body);
+        }
+
+        panic!("Unexpected error.");
     }
 }
