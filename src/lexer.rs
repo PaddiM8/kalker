@@ -184,5 +184,5 @@ impl<'a> Lexer<'a> {
 }
 
 fn is_valid_identifier(c: char) -> bool {
-    c.is_alphabetic() || c == '°' || c == '√' || c == '\''
+    c.is_alphabetic() || c == '°' || c == '√' || c == '\'' || c == '¨'
 }

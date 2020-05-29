@@ -1,9 +1,10 @@
-use std::{collections::HashMap, mem};
+use std::mem;
 
 use crate::{
     interpreter::Interpreter,
     lexer::{Lexer, Token, TokenKind},
     prelude,
+    symbol_table::SymbolTable,
 };
 
 #[derive(Debug, Clone)]
@@ -34,7 +35,7 @@ pub struct Parser {
     pub angle_unit: Unit,
     tokens: Vec<Token>,
     pos: usize,
-    symbol_table: HashMap<String, Stmt>,
+    symbol_table: SymbolTable,
 }
 
 impl TokenKind {
@@ -55,7 +56,7 @@ impl Parser {
         Parser {
             tokens: Vec::new(),
             pos: 0,
-            symbol_table: HashMap::new(),
+            symbol_table: SymbolTable::new(),
             angle_unit: prelude::DEFAULT_ANGLE_UNIT,
         }
     }
@@ -106,7 +107,15 @@ impl Parser {
                     }
                 }
 
-                return Stmt::FnDecl(identifier, parameter_identifiers, Box::new(expr));
+                let fn_decl =
+                    Stmt::FnDecl(identifier.clone(), parameter_identifiers, Box::new(expr));
+
+                // Insert the function declaration into the symbol table during parsing
+                // so that the parser can find out if particular functions exist.
+                self.symbol_table
+                    .insert(&format!("{}()", identifier), fn_decl.clone());
+
+                return fn_decl;
             }
 
             panic!("Unexpected error.");
@@ -221,6 +230,16 @@ impl Parser {
     fn parse_identifier(&mut self) -> Expr {
         let identifier = self.advance().clone();
 
+        // Eg. sqrt64
+        if self.match_token(TokenKind::Literal) {
+            // If there is a function with this name, parse it as a function, with the next token as the argument.
+            if self.symbol_table.contains_func(&identifier.value) {
+                let parameter = Expr::Literal(self.advance().value.clone());
+                return Expr::FnCall(identifier.value, vec![parameter]);
+            }
+        }
+
+        // Eg. sqrt(64)
         if self.match_token(TokenKind::OpenParenthesis) {
             self.advance();
 
@@ -234,10 +253,11 @@ impl Parser {
 
             self.consume(TokenKind::ClosedParenthesis);
 
-            Expr::FnCall(identifier.value, parameters)
-        } else {
-            Expr::Var(identifier.value)
+            return Expr::FnCall(identifier.value, parameters);
         }
+
+        // Eg. x
+        Expr::Var(identifier.value)
     }
 
     fn peek(&self) -> &Token {

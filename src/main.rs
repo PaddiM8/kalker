@@ -4,6 +4,7 @@ mod interpreter;
 mod lexer;
 mod parser;
 mod prelude;
+mod symbol_table;
 mod visitor;
 use parser::{Parser, Unit};
 

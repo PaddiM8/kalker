@@ -1,22 +1,21 @@
-use std::{collections::HashMap, mem};
+use std::mem;
 
 use crate::lexer::TokenKind;
 use crate::parser::{Expr, Stmt, Unit};
-use crate::prelude::{self, Prelude};
-use crate::visitor::Visitor;
+use crate::prelude::{self};
+use crate::{symbol_table::SymbolTable, visitor::Visitor};
 
 pub struct Interpreter<'a> {
-    symbol_table: &'a mut HashMap<String, Stmt>,
+    symbol_table: &'a mut SymbolTable,
     angle_unit: Unit,
-    prelude: Prelude,
 }
 
 impl<'a> Interpreter<'a> {
-    pub fn new(angle_unit: Unit, symbol_table: &'a mut HashMap<String, Stmt>) -> Self {
+    pub fn new(angle_unit: Unit, symbol_table: &'a mut SymbolTable) -> Self {
         //let mut hashmap: HashMap<String, Stmt> = HashMap::new();
         for constant in prelude::CONSTANTS {
             symbol_table.insert(
-                constant.0.to_string(),
+                constant.0,
                 Stmt::VarDecl(
                     constant.0.to_string(),
                     Box::new(Expr::Literal(constant.1.to_string())),
@@ -27,7 +26,6 @@ impl<'a> Interpreter<'a> {
         Interpreter {
             angle_unit: angle_unit.clone(),
             symbol_table,
-            prelude: Prelude::new(angle_unit),
         }
     }
 
@@ -67,23 +65,10 @@ impl<'a> Visitor<f64, f64> for Interpreter<'a> {
     fn visit_stmt(&mut self, stmt: &Stmt) -> f64 {
         match stmt {
             Stmt::VarDecl(identifier, _) => {
-                self.symbol_table.insert(identifier.clone(), stmt.clone());
+                self.symbol_table.insert(&identifier, stmt.clone());
                 0f64
             }
-            Stmt::FnDecl(identifier, arguments, _) => {
-                // Initialise each of the arguments as their own variable.
-                for argument in arguments {
-                    self.visit_stmt(&Stmt::VarDecl(
-                        argument.clone(),
-                        Box::new(Expr::Literal(String::from("0"))),
-                    ));
-                }
-
-                // Add the function to the symbol table.
-                self.symbol_table
-                    .insert(format!("{}()", identifier.clone()), stmt.clone());
-                0f64
-            }
+            Stmt::FnDecl(_, _, _) => 0f64, // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
             Stmt::Expr(expr) => self.visit_expr(&expr),
         }
     }
@@ -138,12 +123,12 @@ impl<'a> Visitor<f64, f64> for Interpreter<'a> {
                 let prelude_func = match expressions.len() {
                     1 => {
                         let x = self.visit_expr(&expressions[0]);
-                        self.prelude.call_unary_func(identifier, x)
+                        prelude::call_unary_func(identifier, x, &self.angle_unit)
                     }
                     2 => {
                         let x = self.visit_expr(&expressions[0]);
                         let y = self.visit_expr(&expressions[1]);
-                        self.prelude.call_binary_func(identifier, x, y)
+                        prelude::call_binary_func(identifier, x, y, &self.angle_unit)
                     }
                     _ => None,
                 };

@@ -1,5 +1,5 @@
 use crate::parser::Unit;
-use std::collections::HashMap;
+use FuncType::*;
 
 pub const DEFAULT_ANGLE_UNIT: Unit = Unit::Radians;
 pub const CONSTANTS: &[(&str, &str)] = &[
@@ -12,36 +12,77 @@ pub const CONSTANTS: &[(&str, &str)] = &[
     ("ϕ", "1.61803398"),
 ];
 
+use funcs::*;
+pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
+    "cos" => UnaryFuncInfo(cos, Trig),
+    "cosec" => UnaryFuncInfo(cosec, Trig),
+    "cosech" => UnaryFuncInfo(cosech, Trig),
+    "cosh" => UnaryFuncInfo(cosh, Trig),
+    "cot" => UnaryFuncInfo(cot, Trig),
+    "coth" => UnaryFuncInfo(coth, Trig),
+    "sec" => UnaryFuncInfo(sec, Trig),
+    "sech" => UnaryFuncInfo(sech, Trig),
+    "sin" => UnaryFuncInfo(sin, Trig),
+    "sinh" => UnaryFuncInfo(sinh, Trig),
+    "tan" => UnaryFuncInfo(tan, Trig),
+    "tanh" => UnaryFuncInfo(tanh, Trig),
+
+    "acos" => UnaryFuncInfo(acos, InverseTrig),
+    "acosec" => UnaryFuncInfo(acosec, InverseTrig),
+    "acosech" => UnaryFuncInfo(acosech, InverseTrig),
+    "acosh" => UnaryFuncInfo(acosh, InverseTrig),
+    "acot" => UnaryFuncInfo(acot, InverseTrig),
+    "acoth" => UnaryFuncInfo(acoth, InverseTrig),
+    "asec" => UnaryFuncInfo(asec, InverseTrig),
+    "asech" => UnaryFuncInfo(asech, InverseTrig),
+    "asin" => UnaryFuncInfo(asin, InverseTrig),
+    "asinh" => UnaryFuncInfo(asinh, InverseTrig),
+    "atan" => UnaryFuncInfo(atan, InverseTrig),
+    "atanh" => UnaryFuncInfo(atanh, InverseTrig),
+
+    "abs" => UnaryFuncInfo(abs, Other),
+    "cbrt" => UnaryFuncInfo(cbrt, Other),
+    "ceil" => UnaryFuncInfo(ceil, Other),
+    "exp" => UnaryFuncInfo(exp, Other),
+    "floor" => UnaryFuncInfo(floor, Other),
+    "frac" => UnaryFuncInfo(frac, Other),
+    "log" => UnaryFuncInfo(log, Other),
+    "ln" => UnaryFuncInfo(ln, Other),
+    "round" => UnaryFuncInfo(round, Other),
+    "sqrt" => UnaryFuncInfo(sqrt, Other),
+    "trunc" => UnaryFuncInfo(trunc, Other),
+};
+pub const BINARY_FUNCS: phf::Map<&'static str, BinaryFuncInfo> = phf::phf_map! {
+    "max" => BinaryFuncInfo(max, Other),
+    "min" => BinaryFuncInfo(min, Other),
+};
+
 enum FuncType {
     Trig,
     InverseTrig,
     Other,
 }
 
-struct UnaryFuncInfo {
-    func: Box<fn(f64) -> f64>,
-    func_type: FuncType,
-}
+// Unary functions
+pub struct UnaryFuncInfo(fn(f64) -> f64, FuncType);
+
+pub struct BinaryFuncInfo(fn(f64, f64) -> f64, FuncType);
 
 impl UnaryFuncInfo {
     fn call(&self, x: f64, angle_unit: &Unit) -> f64 {
-        let func = *self.func;
-        match self.func_type {
+        let func = self.0;
+        match self.1 {
             FuncType::Trig => func(from_angle_unit(x, angle_unit)),
             FuncType::InverseTrig => to_angle_unit(func(x), angle_unit),
             FuncType::Other => func(x),
         }
     }
 }
-struct BinaryFuncInfo {
-    func: Box<fn(f64, f64) -> f64>,
-    func_type: FuncType,
-}
 
 impl BinaryFuncInfo {
     fn call(&self, x: f64, y: f64, angle_unit: &Unit) -> f64 {
-        let func = *self.func;
-        match self.func_type {
+        let func = self.0;
+        match self.1 {
             FuncType::Trig => func(
                 from_angle_unit(x, angle_unit),
                 from_angle_unit(y, angle_unit),
@@ -49,6 +90,22 @@ impl BinaryFuncInfo {
             FuncType::InverseTrig => to_angle_unit(func(x, y), angle_unit),
             FuncType::Other => func(x, y),
         }
+    }
+}
+
+pub fn call_unary_func(name: &str, x: f64, angle_unit: &Unit) -> Option<f64> {
+    if let Some(func_info) = UNARY_FUNCS.get(name) {
+        Some(func_info.call(x, &angle_unit))
+    } else {
+        None
+    }
+}
+
+pub fn call_binary_func(name: &str, x: f64, y: f64, angle_unit: &Unit) -> Option<f64> {
+    if let Some(func_info) = BINARY_FUNCS.get(name) {
+        Some(func_info.call(x, y, angle_unit))
+    } else {
+        None
     }
 }
 
@@ -63,130 +120,6 @@ fn from_angle_unit(x: f64, angle_unit: &Unit) -> f64 {
     match angle_unit {
         Unit::Radians => x,
         Unit::Degrees => x.to_radians(),
-    }
-}
-
-pub struct Prelude {
-    angle_unit: Unit,
-    unary: HashMap<String, UnaryFuncInfo>,
-    binary: HashMap<String, BinaryFuncInfo>,
-}
-
-impl Prelude {
-    pub fn new(angle_unit: Unit) -> Self {
-        Prelude {
-            angle_unit,
-            unary: HashMap::new(),
-            binary: HashMap::new(),
-        }
-    }
-
-    pub fn call_unary_func(&mut self, name: &str, x: f64) -> Option<f64> {
-        if let Some(func_info) = self.unary.get(name) {
-            Some(func_info.call(x, &self.angle_unit))
-        } else {
-            let trig_func: Option<fn(f64) -> f64> = match name {
-                "cos" => Some(funcs::cos),
-                "cosec" => Some(funcs::cosec),
-                "cosech" => Some(funcs::cosech),
-                "cosh" => Some(funcs::cosh),
-                "cot" => Some(funcs::cot),
-                "coth" => Some(funcs::coth),
-                "sec" => Some(funcs::sec),
-                "sech" => Some(funcs::sech),
-                "sin" => Some(funcs::sin),
-                "sinh" => Some(funcs::sinh),
-                "tan" => Some(funcs::tan),
-                "tanh" => Some(funcs::tanh),
-                _ => None,
-            };
-
-            if let Some(func) = trig_func {
-                let func_info = UnaryFuncInfo {
-                    func: Box::new(func),
-                    func_type: FuncType::Trig,
-                };
-                let value = func_info.call(x, &self.angle_unit);
-                self.unary.insert(name.to_string(), func_info);
-
-                return Some(value);
-            }
-
-            let inv_trig_func: Option<fn(f64) -> f64> = match name {
-                "acos" => Some(funcs::acos),
-                "acosh" => Some(funcs::acosh),
-                "acot" => Some(funcs::acot),
-                "acoth" => Some(funcs::acoth),
-                "acosec" => Some(funcs::acosec),
-                "asec" => Some(funcs::asec),
-                "asech" => Some(funcs::asech),
-                "asin" => Some(funcs::asin),
-                "asinh" => Some(funcs::asinh),
-                "atan" => Some(funcs::atan),
-                "atanh" => Some(funcs::atanh),
-                _ => None,
-            };
-
-            if let Some(func) = inv_trig_func {
-                let func_info = UnaryFuncInfo {
-                    func: Box::new(func),
-                    func_type: FuncType::InverseTrig,
-                };
-                let value = func_info.call(x, &self.angle_unit);
-                self.unary.insert(name.to_string(), func_info);
-
-                return Some(value);
-            }
-
-            let misc_func: Option<fn(f64) -> f64> = match name {
-                "abs" => Some(funcs::abs),
-                "cbrt" => Some(funcs::cbrt),
-                "ceil" => Some(funcs::ceil),
-                "exp" => Some(funcs::exp),
-                "floor" => Some(funcs::floor),
-                "frac" => Some(funcs::frac),
-                "log" => Some(funcs::log),
-                "ln" => Some(funcs::ln),
-                "round" => Some(funcs::round),
-                "sqrt" => Some(funcs::sqrt),
-                "trunc" => Some(funcs::trunc),
-                _ => None,
-            };
-
-            if let Some(func) = misc_func {
-                let func_info = UnaryFuncInfo {
-                    func: Box::new(func),
-                    func_type: FuncType::Other,
-                };
-                let value = func_info.call(x, &self.angle_unit);
-                self.unary.insert(name.to_string(), func_info);
-
-                return Some(value);
-            } else {
-                None
-            }
-        }
-    }
-
-    pub fn call_binary_func(&mut self, name: &str, x: f64, y: f64) -> Option<f64> {
-        let misc_func: Option<fn(f64, f64) -> f64> = match name {
-            "max" => Some(funcs::max),
-            "min" => Some(funcs::min),
-            _ => None,
-        };
-
-        if let Some(func) = misc_func {
-            let func_info = BinaryFuncInfo {
-                func: Box::new(func),
-                func_type: FuncType::Other,
-            };
-            let value = func_info.call(x, y, &self.angle_unit);
-            self.binary.insert(name.to_string(), func_info);
-
-            return Some(value);
-        } else {
-            None
-        }
     }
 }
 
@@ -211,7 +144,11 @@ mod funcs {
     }
 
     pub fn acosec(x: f64) -> f64 {
-        (1f64 / x).sinh()
+        (1f64 / x).asin()
+    }
+
+    pub fn acosech(x: f64) -> f64 {
+        (1f64 / x).asinh()
     }
 
     pub fn asec(x: f64) -> f64 {
