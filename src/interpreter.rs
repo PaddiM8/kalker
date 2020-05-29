@@ -12,7 +12,6 @@ pub struct Interpreter<'a> {
 
 impl<'a> Interpreter<'a> {
     pub fn new(angle_unit: Unit, symbol_table: &'a mut SymbolTable) -> Self {
-        //let mut hashmap: HashMap<String, Stmt> = HashMap::new();
         for constant in prelude::CONSTANTS {
             symbol_table.insert(
                 constant.0,

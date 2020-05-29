@@ -6,16 +6,14 @@ mod parser;
 mod prelude;
 mod symbol_table;
 mod visitor;
-use parser::{Parser, Unit};
+use parser::{ParserContext, Unit};
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
 #[allow(unused_assignments)] // The compiler gives a warning that is not valid.
 fn main() {
-    let angle_unit = get_angle_unit();
-    let mut parser = Parser::new();
-    parser.angle_unit = angle_unit;
+    let mut parser = ParserContext::new();
 
     // Command line argument input, execute it and exit.
     if let Some(expr) = env::args().skip(1).next() {
@@ -40,7 +38,7 @@ fn main() {
     }
 }
 
-fn eval_repl(parser: &mut Parser, input: &str) {
+fn eval_repl(parser: &mut ParserContext, input: &str) {
     match input {
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
@@ -49,9 +47,10 @@ fn eval_repl(parser: &mut Parser, input: &str) {
     }
 }
 
-fn eval(parser: &mut Parser, input: &str) {
-    if let Some(result) = parser.parse(input) {
-        println!("{}", result);
+fn eval(parser: &mut ParserContext, input: &str) {
+    match parser::parse(parser, input, get_angle_unit()) {
+        Ok(result) => println!("{}", result),
+        Err(_) => println!("Invalid expression"),
     }
 }
 

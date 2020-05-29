@@ -3,7 +3,6 @@ use std::mem;
 use crate::{
     interpreter::Interpreter,
     lexer::{Lexer, Token, TokenKind},
-    prelude,
     symbol_table::SymbolTable,
 };
 
@@ -31,8 +30,8 @@ pub enum Unit {
     Degrees,
 }
 
-pub struct Parser {
-    pub angle_unit: Unit,
+pub struct ParserContext {
+    //angle_unit: Unit,
     tokens: Vec<Token>,
     pos: usize,
     symbol_table: SymbolTable,
@@ -51,7 +50,7 @@ impl TokenKind {
     }
 }
 
-impl Parser {
+/*impl Parser {
     pub fn new() -> Parser {
         Parser {
             tokens: Vec::new(),
@@ -60,240 +59,252 @@ impl Parser {
             angle_unit: prelude::DEFAULT_ANGLE_UNIT,
         }
     }
+}*/
 
-    pub fn parse(&mut self, input: &str) -> Option<f64> {
-        self.tokens = Lexer::lex(input);
-        self.pos = 0;
-
-        let mut statements: Vec<Stmt> = Vec::new();
-        while !self.is_at_end() {
-            statements.push(self.parse_stmt());
+impl ParserContext {
+    pub fn new() -> Self {
+        ParserContext {
+            tokens: Vec::new(),
+            pos: 0,
+            symbol_table: SymbolTable::new(),
         }
+    }
+}
 
-        Interpreter::new(self.angle_unit.clone(), &mut self.symbol_table).interpret(statements)
+pub fn parse(context: &mut ParserContext, input: &str, angle_unit: Unit) -> Result<f64, String> {
+    context.tokens = Lexer::lex(input);
+
+    let mut statements: Vec<Stmt> = Vec::new();
+    while !is_at_end(context) {
+        statements.push(parse_stmt(context)?);
     }
 
-    fn parse_stmt(&mut self) -> Stmt {
-        if self.match_token(TokenKind::Identifier) {
-            return match self.peek_next().kind {
-                TokenKind::Equals => self.parse_var_decl_stmt(),
-                TokenKind::OpenParenthesis => self.parse_identifier_stmt(),
-                _ => Stmt::Expr(Box::new(self.parse_expr())),
-            };
-        }
+    let mut interpreter = Interpreter::new(angle_unit, &mut context.symbol_table);
+    Ok(interpreter.interpret(statements).unwrap())
+}
 
-        Stmt::Expr(Box::new(self.parse_expr()))
+fn parse_stmt(context: &mut ParserContext) -> Result<Stmt, String> {
+    if match_token(context, TokenKind::Identifier) {
+        return Ok(match peek_next(context).kind {
+            TokenKind::Equals => parse_var_decl_stmt(context)?,
+            TokenKind::OpenParenthesis => parse_identifier_stmt(context)?,
+            _ => Stmt::Expr(Box::new(parse_expr(context)?)),
+        });
     }
 
-    fn parse_identifier_stmt(&mut self) -> Stmt {
-        let began_at = self.pos;
-        let primary = self.parse_primary(); // Since function declarations and function calls look the same at first, simply parse a "function call", and re-use the data.
+    Ok(Stmt::Expr(Box::new(parse_expr(context)?)))
+}
 
-        // If `primary` is followed by an equal sign, it is a function declaration.
-        if let TokenKind::Equals = self.peek().kind {
-            self.advance();
-            let expr = self.parse_expr();
+fn parse_identifier_stmt(context: &mut ParserContext) -> Result<Stmt, String> {
+    let began_at = context.pos;
+    let primary = parse_primary(context)?; // Since function declarations and function calls look the same at first, simply parse a "function call", and re-use the data.
 
-            // Use the "function call" expression that was parsed, and put its values into a function declaration statement instead.
-            if let Expr::FnCall(identifier, parameters) = primary {
-                let mut parameter_identifiers = Vec::new();
+    // If `primary` is followed by an equal sign, it is a function declaration.
+    if let TokenKind::Equals = peek(context).kind {
+        advance(context);
+        let expr = parse_expr(context)?;
 
-                // All the "arguments" are expected to be parsed as variables,
-                // since parameter definitions look the same as variable references.
-                // Extract these.
-                for parameter in parameters {
-                    if let Expr::Var(parameter_identifier) = parameter {
-                        parameter_identifiers.push(parameter_identifier);
-                    }
+        // Use the "function call" expression that was parsed, and put its values into a function declaration statement instead.
+        if let Expr::FnCall(identifier, parameters) = primary {
+            let mut parameter_identifiers = Vec::new();
+
+            // All the "arguments" are expected to be parsed as variables,
+            // since parameter definitions look the same as variable references.
+            // Extract these.
+            for parameter in parameters {
+                if let Expr::Var(parameter_identifier) = parameter {
+                    parameter_identifiers.push(parameter_identifier);
                 }
-
-                let fn_decl =
-                    Stmt::FnDecl(identifier.clone(), parameter_identifiers, Box::new(expr));
-
-                // Insert the function declaration into the symbol table during parsing
-                // so that the parser can find out if particular functions exist.
-                self.symbol_table
-                    .insert(&format!("{}()", identifier), fn_decl.clone());
-
-                return fn_decl;
             }
 
-            panic!("Unexpected error.");
+            let fn_decl = Stmt::FnDecl(identifier.clone(), parameter_identifiers, Box::new(expr));
+
+            // Insert the function declaration into the symbol table during parsing
+            // so that the parser can find out if particular functions exist.
+            context
+                .symbol_table
+                .insert(&format!("{}()", identifier), fn_decl.clone());
+
+            return Ok(fn_decl);
+        }
+
+        Err("Parsing error.".into())
+    } else {
+        // It is a function call, not a function declaration.
+        // Redo the parsing for this specific part.
+        context.pos = began_at;
+        Ok(Stmt::Expr(Box::new(parse_expr(context)?)))
+    }
+}
+
+fn parse_var_decl_stmt(context: &mut ParserContext) -> Result<Stmt, String> {
+    let identifier = advance(context).clone();
+    advance(context); // Equal sign
+    let expr = parse_expr(context)?;
+
+    Ok(Stmt::VarDecl(identifier.value, Box::new(expr)))
+}
+
+fn parse_expr(context: &mut ParserContext) -> Result<Expr, String> {
+    Ok(parse_sum(context)?)
+}
+
+fn parse_sum(context: &mut ParserContext) -> Result<Expr, String> {
+    let mut left = parse_factor(context)?;
+
+    while match_token(context, TokenKind::Plus) || match_token(context, TokenKind::Minus) {
+        let op = peek(context).kind.clone();
+        advance(context);
+        let right = parse_factor(context)?;
+
+        left = Expr::Binary(Box::new(left), op, Box::new(right));
+    }
+
+    Ok(left)
+}
+
+fn parse_factor(context: &mut ParserContext) -> Result<Expr, String> {
+    let mut left = parse_unary(context)?;
+
+    while match_token(context, TokenKind::Star)
+        || match_token(context, TokenKind::Slash)
+        || match_token(context, TokenKind::Identifier)
+    {
+        let mut op = peek(context).kind.clone();
+
+        // If the next token is an identifier, assume it's multiplication. Eg. 3y
+        if let TokenKind::Identifier = op {
+            op = TokenKind::Star;
         } else {
-            // It is a function call, not a function declaration.
-            // Redo the parsing for this specific part.
-            self.pos = began_at;
-            Stmt::Expr(Box::new(self.parse_expr()))
+            advance(context);
+        }
+
+        let right = parse_unary(context)?;
+        left = Expr::Binary(Box::new(left), op, Box::new(right));
+    }
+
+    Ok(left)
+}
+
+fn parse_unary(context: &mut ParserContext) -> Result<Expr, String> {
+    if match_token(context, TokenKind::Minus) {
+        let op = advance(context).kind.clone();
+        let expr = Box::new(parse_unary(context)?);
+        return Ok(Expr::Unary(op, expr));
+    }
+
+    Ok(parse_exponent(context)?)
+}
+
+fn parse_exponent(context: &mut ParserContext) -> Result<Expr, String> {
+    let left = parse_primary(context)?;
+
+    if match_token(context, TokenKind::Power) {
+        let op = advance(context).kind.clone();
+        let right = Box::new(parse_exponent(context)?);
+        return Ok(Expr::Binary(Box::new(left), op, right));
+    }
+
+    Ok(left)
+}
+
+fn parse_primary(context: &mut ParserContext) -> Result<Expr, String> {
+    let expr = match peek(context).kind {
+        TokenKind::OpenParenthesis => parse_group(context)?,
+        TokenKind::Pipe => parse_abs(context)?,
+        TokenKind::Identifier => parse_identifier(context)?,
+        _ => Expr::Literal(advance(context).value.clone()),
+    };
+
+    if !is_at_end(context) && peek(context).kind.is_unit() {
+        Ok(Expr::Unit(Box::new(expr), advance(context).kind.clone()))
+    } else {
+        Ok(expr)
+    }
+}
+
+fn parse_group(context: &mut ParserContext) -> Result<Expr, String> {
+    advance(context);
+    let group_expr = Expr::Group(Box::new(parse_expr(context)?));
+    consume(context, TokenKind::ClosedParenthesis)?;
+
+    Ok(group_expr)
+}
+
+fn parse_abs(context: &mut ParserContext) -> Result<Expr, String> {
+    advance(context);
+    let group_expr = Expr::Group(Box::new(parse_expr(context)?));
+    consume(context, TokenKind::Pipe)?;
+
+    Ok(Expr::FnCall(String::from("abs"), vec![group_expr]))
+}
+
+fn parse_identifier(context: &mut ParserContext) -> Result<Expr, String> {
+    let identifier = advance(context).clone();
+
+    // Eg. sqrt64
+    if match_token(context, TokenKind::Literal) {
+        // If there is a function with this name, parse it as a function, with the next token as the argument.
+        if context.symbol_table.contains_func(&identifier.value) {
+            let parameter = Expr::Literal(advance(context).value.clone());
+            return Ok(Expr::FnCall(identifier.value, vec![parameter]));
         }
     }
 
-    fn parse_var_decl_stmt(&mut self) -> Stmt {
-        let identifier = self.advance().clone();
-        self.advance(); // Equal sign
-        let expr = self.parse_expr();
+    // Eg. sqrt(64)
+    if match_token(context, TokenKind::OpenParenthesis) {
+        advance(context);
 
-        Stmt::VarDecl(identifier.value, Box::new(expr))
-    }
+        let mut parameters = Vec::new();
+        parameters.push(parse_expr(context)?);
 
-    fn parse_expr(&mut self) -> Expr {
-        self.parse_sum()
-    }
-
-    fn parse_sum(&mut self) -> Expr {
-        let mut left = self.parse_factor();
-
-        while self.match_token(TokenKind::Plus) || self.match_token(TokenKind::Minus) {
-            let op = self.peek().kind.clone();
-            self.advance();
-            let right = self.parse_factor();
-
-            left = Expr::Binary(Box::new(left), op, Box::new(right));
+        while match_token(context, TokenKind::Comma) {
+            advance(context);
+            parameters.push(parse_expr(context)?);
         }
 
-        left
+        consume(context, TokenKind::ClosedParenthesis)?;
+
+        return Ok(Expr::FnCall(identifier.value, parameters));
     }
 
-    fn parse_factor(&mut self) -> Expr {
-        let mut left = self.parse_unary();
+    // Eg. x
+    Ok(Expr::Var(identifier.value))
+}
 
-        while self.match_token(TokenKind::Star)
-            || self.match_token(TokenKind::Slash)
-            || self.match_token(TokenKind::Identifier)
-        {
-            let mut op = self.peek().kind.clone();
+fn peek<'a>(context: &'a mut ParserContext) -> &'a Token {
+    &context.tokens[context.pos]
+}
 
-            // If the next token is an identifier, assume it's multiplication. Eg. 3y
-            if let TokenKind::Identifier = op {
-                op = TokenKind::Star;
-            } else {
-                self.advance();
-            }
+fn peek_next<'a>(context: &'a mut ParserContext) -> &'a Token {
+    &context.tokens[context.pos + 1]
+}
 
-            let right = self.parse_unary();
-            left = Expr::Binary(Box::new(left), op, Box::new(right));
-        }
+fn previous<'a>(context: &'a mut ParserContext) -> &'a Token {
+    &context.tokens[context.pos - 1]
+}
 
-        left
+fn match_token(context: &mut ParserContext, kind: TokenKind) -> bool {
+    if is_at_end(context) {
+        return false;
     }
 
-    fn parse_unary(&mut self) -> Expr {
-        if self.match_token(TokenKind::Minus) {
-            let op = self.advance().kind.clone();
-            return Expr::Unary(op, Box::new(self.parse_unary()));
-        }
+    peek(context).kind.compare(&kind)
+}
 
-        self.parse_exponent()
+fn advance<'a>(context: &'a mut ParserContext) -> &'a Token {
+    context.pos += 1;
+    previous(context)
+}
+
+fn consume<'a>(context: &'a mut ParserContext, kind: TokenKind) -> Result<&'a Token, String> {
+    if match_token(context, kind) {
+        return Ok(advance(context));
     }
 
-    fn parse_exponent(&mut self) -> Expr {
-        let left = self.parse_primary();
+    Err("Unexpected token".into())
+}
 
-        if self.match_token(TokenKind::Power) {
-            let op = self.advance().kind.clone();
-            return Expr::Binary(Box::new(left), op, Box::new(self.parse_exponent()));
-        }
-
-        left
-    }
-
-    fn parse_primary(&mut self) -> Expr {
-        let expr = match self.peek().kind {
-            TokenKind::OpenParenthesis => self.parse_group(),
-            TokenKind::Pipe => self.parse_abs(),
-            TokenKind::Identifier => self.parse_identifier(),
-            _ => Expr::Literal(self.advance().value.clone()),
-        };
-
-        if !self.is_at_end() && self.peek().kind.is_unit() {
-            Expr::Unit(Box::new(expr), self.advance().kind.clone())
-        } else {
-            expr
-        }
-    }
-
-    fn parse_group(&mut self) -> Expr {
-        self.advance();
-        let group_expr = Expr::Group(Box::new(self.parse_expr()));
-        self.consume(TokenKind::ClosedParenthesis);
-
-        group_expr
-    }
-
-    fn parse_abs(&mut self) -> Expr {
-        self.advance();
-        let group_expr = Expr::Group(Box::new(self.parse_expr()));
-        self.consume(TokenKind::Pipe);
-
-        Expr::FnCall(String::from("abs"), vec![group_expr])
-    }
-
-    fn parse_identifier(&mut self) -> Expr {
-        let identifier = self.advance().clone();
-
-        // Eg. sqrt64
-        if self.match_token(TokenKind::Literal) {
-            // If there is a function with this name, parse it as a function, with the next token as the argument.
-            if self.symbol_table.contains_func(&identifier.value) {
-                let parameter = Expr::Literal(self.advance().value.clone());
-                return Expr::FnCall(identifier.value, vec![parameter]);
-            }
-        }
-
-        // Eg. sqrt(64)
-        if self.match_token(TokenKind::OpenParenthesis) {
-            self.advance();
-
-            let mut parameters = Vec::new();
-            parameters.push(self.parse_expr());
-
-            while self.match_token(TokenKind::Comma) {
-                self.advance();
-                parameters.push(self.parse_expr());
-            }
-
-            self.consume(TokenKind::ClosedParenthesis);
-
-            return Expr::FnCall(identifier.value, parameters);
-        }
-
-        // Eg. x
-        Expr::Var(identifier.value)
-    }
-
-    fn peek(&self) -> &Token {
-        &self.tokens[self.pos]
-    }
-
-    fn peek_next(&self) -> &Token {
-        &self.tokens[self.pos + 1]
-    }
-
-    fn previous(&self) -> &Token {
-        &self.tokens[self.pos - 1]
-    }
-
-    fn match_token(&self, kind: TokenKind) -> bool {
-        if self.is_at_end() {
-            return false;
-        }
-
-        self.peek().kind.compare(&kind)
-    }
-
-    fn advance(&mut self) -> &Token {
-        self.pos += 1;
-        self.previous()
-    }
-
-    fn consume(&mut self, kind: TokenKind) -> &Token {
-        if self.match_token(kind) {
-            return self.advance();
-        }
-
-        panic!("Unexpected token.");
-    }
-
-    fn is_at_end(&self) -> bool {
-        self.pos >= self.tokens.len() || self.peek().kind.compare(&TokenKind::EOF)
-    }
+fn is_at_end(context: &mut ParserContext) -> bool {
+    context.pos >= context.tokens.len() || peek(context).kind.compare(&TokenKind::EOF)
 }

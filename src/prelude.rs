@@ -1,7 +1,6 @@
 use crate::parser::Unit;
 use FuncType::*;
 
-pub const DEFAULT_ANGLE_UNIT: Unit = Unit::Radians;
 pub const CONSTANTS: &[(&str, &str)] = &[
     ("pi", "3.14159265"),
     ("π", "3.14159265"),
