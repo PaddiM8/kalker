@@ -5,17 +5,17 @@ use crate::parser::{Expr, Stmt, Unit};
 use crate::prelude::{self, Prelude};
 use crate::visitor::Visitor;
 
-pub struct Interpreter {
-    pub symbol_table: HashMap<String, Stmt>,
+pub struct Interpreter<'a> {
+    symbol_table: &'a mut HashMap<String, Stmt>,
     angle_unit: Unit,
     prelude: Prelude,
 }
 
-impl Interpreter {
-    pub fn new(angle_unit: Unit) -> Self {
-        let mut hashmap: HashMap<String, Stmt> = HashMap::new();
+impl<'a> Interpreter<'a> {
+    pub fn new(angle_unit: Unit, symbol_table: &'a mut HashMap<String, Stmt>) -> Self {
+        //let mut hashmap: HashMap<String, Stmt> = HashMap::new();
         for constant in prelude::CONSTANTS {
-            hashmap.insert(
+            symbol_table.insert(
                 constant.0.to_string(),
                 Stmt::VarDecl(
                     constant.0.to_string(),
@@ -25,9 +25,9 @@ impl Interpreter {
         }
 
         Interpreter {
-            angle_unit,
-            symbol_table: hashmap,
-            prelude: Prelude::new(),
+            angle_unit: angle_unit.clone(),
+            symbol_table,
+            prelude: Prelude::new(angle_unit),
         }
     }
 
@@ -43,11 +43,6 @@ impl Interpreter {
         }
 
         return None;
-    }
-
-    pub fn set_angle_unit(&mut self, angle_unit: Unit) {
-        self.prelude.angle_unit = angle_unit.clone();
-        self.angle_unit = angle_unit;
     }
 }
 
@@ -68,7 +63,7 @@ impl Unit {
     }
 }
 
-impl Visitor<f64, f64> for Interpreter {
+impl<'a> Visitor<f64, f64> for Interpreter<'a> {
     fn visit_stmt(&mut self, stmt: &Stmt) -> f64 {
         match stmt {
             Stmt::VarDecl(identifier, _) => {

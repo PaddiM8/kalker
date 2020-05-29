@@ -1,6 +1,7 @@
-use crate::{math_parser, parser::Unit};
+use crate::parser::Unit;
 use std::collections::HashMap;
 
+pub const DEFAULT_ANGLE_UNIT: Unit = Unit::Radians;
 pub const CONSTANTS: &[(&str, &str)] = &[
     ("pi", "3.14159265"),
     ("π", "3.14159265"),
@@ -66,15 +67,15 @@ fn from_angle_unit(x: f64, angle_unit: &Unit) -> f64 {
 }
 
 pub struct Prelude {
-    pub angle_unit: Unit,
+    angle_unit: Unit,
     unary: HashMap<String, UnaryFuncInfo>,
     binary: HashMap<String, BinaryFuncInfo>,
 }
 
 impl Prelude {
-    pub fn new() -> Self {
+    pub fn new(angle_unit: Unit) -> Self {
         Prelude {
-            angle_unit: math_parser::DEFAULT_ANGLE_UNIT,
+            angle_unit,
             unary: HashMap::new(),
             binary: HashMap::new(),
         }

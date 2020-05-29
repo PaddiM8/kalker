@@ -1,6 +1,10 @@
-use std::mem;
+use std::{collections::HashMap, mem};
 
-use crate::lexer::{Token, TokenKind};
+use crate::{
+    interpreter::Interpreter,
+    lexer::{Lexer, Token, TokenKind},
+    prelude,
+};
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
@@ -27,8 +31,10 @@ pub enum Unit {
 }
 
 pub struct Parser {
+    pub angle_unit: Unit,
     tokens: Vec<Token>,
     pos: usize,
+    symbol_table: HashMap<String, Stmt>,
 }
 
 impl TokenKind {
@@ -49,11 +55,13 @@ impl Parser {
         Parser {
             tokens: Vec::new(),
             pos: 0,
+            symbol_table: HashMap::new(),
+            angle_unit: prelude::DEFAULT_ANGLE_UNIT,
         }
     }
 
-    pub fn parse(&mut self, tokens: Vec<Token>) -> Vec<Stmt> {
-        self.tokens = tokens;
+    pub fn parse(&mut self, input: &str) -> Option<f64> {
+        self.tokens = Lexer::lex(input);
         self.pos = 0;
 
         let mut statements: Vec<Stmt> = Vec::new();
@@ -61,7 +69,7 @@ impl Parser {
             statements.push(self.parse_stmt());
         }
 
-        statements
+        Interpreter::new(self.angle_unit.clone(), &mut self.symbol_table).interpret(statements)
     }
 
     fn parse_stmt(&mut self) -> Stmt {

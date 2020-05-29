@@ -2,12 +2,10 @@ use std::{env, process};
 
 mod interpreter;
 mod lexer;
-mod math_parser;
 mod parser;
 mod prelude;
 mod visitor;
-use math_parser::MathParser;
-use parser::Unit;
+use parser::{Parser, Unit};
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -15,12 +13,12 @@ use rustyline::Editor;
 #[allow(unused_assignments)] // The compiler gives a warning that is not valid.
 fn main() {
     let angle_unit = get_angle_unit();
-    let mut math_parser = MathParser::new();
-    math_parser.set_angle_unit(angle_unit);
+    let mut parser = Parser::new();
+    parser.angle_unit = angle_unit;
 
     // Command line argument input, execute it and exit.
     if let Some(expr) = env::args().skip(1).next() {
-        eval(&mut math_parser, &expr);
+        eval(&mut parser, &expr);
         return;
     }
 
@@ -33,7 +31,7 @@ fn main() {
         match readline {
             Ok(input) => {
                 rl.add_history_entry(input.as_str());
-                eval_repl(&mut math_parser, &input);
+                eval_repl(&mut parser, &input);
             }
             Err(ReadlineError::Interrupted) => break,
             _ => break,
@@ -41,17 +39,17 @@ fn main() {
     }
 }
 
-fn eval_repl(math_parser: &mut MathParser, input: &str) {
+fn eval_repl(parser: &mut Parser, input: &str) {
     match input {
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
         "exit" => process::exit(0),
-        _ => eval(math_parser, input),
+        _ => eval(parser, input),
     }
 }
 
-fn eval(math_parser: &mut MathParser, input: &str) {
-    if let Some(result) = math_parser.parse(input) {
+fn eval(parser: &mut Parser, input: &str) {
+    if let Some(result) = parser.parse(input) {
         println!("{}", result);
     }
 }
