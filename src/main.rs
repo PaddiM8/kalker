@@ -11,7 +11,6 @@ use parser::{ParserContext, Unit};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-#[allow(unused_assignments)] // The compiler gives a warning that is not valid.
 fn main() {
     let mut parser = ParserContext::new();
 
