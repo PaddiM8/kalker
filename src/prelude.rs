@@ -55,6 +55,7 @@ pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
 pub const BINARY_FUNCS: phf::Map<&'static str, BinaryFuncInfo> = phf::phf_map! {
     "max" => BinaryFuncInfo(max, Other),
     "min" => BinaryFuncInfo(min, Other),
+    "log" => BinaryFuncInfo(logx, Other),
 };
 
 enum FuncType {
@@ -221,6 +222,10 @@ mod funcs {
 
     pub fn log(x: f64) -> f64 {
         x.log(10f64)
+    }
+
+    pub fn logx(x: f64, y: f64) -> f64 {
+        x.log(y)
     }
 
     pub fn ln(x: f64) -> f64 {
