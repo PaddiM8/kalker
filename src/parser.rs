@@ -184,7 +184,7 @@ impl Parser {
             TokenKind::OpenParenthesis => self.parse_group(),
             TokenKind::Pipe => self.parse_abs(),
             TokenKind::Identifier => self.parse_identifier(),
-            _ => Expr::Literal(self.consume(TokenKind::Literal).value.clone()),
+            _ => Expr::Literal(self.advance().value.clone()),
         };
 
         if !self.is_at_end() && self.peek().kind.is_unit() {
@@ -215,10 +215,18 @@ impl Parser {
 
         if self.match_token(TokenKind::OpenParenthesis) {
             self.advance();
-            let parameter = self.parse_expr();
+
+            let mut parameters = Vec::new();
+            parameters.push(self.parse_expr());
+
+            while self.match_token(TokenKind::Comma) {
+                self.advance();
+                parameters.push(self.parse_expr());
+            }
+
             self.consume(TokenKind::ClosedParenthesis);
 
-            Expr::FnCall(identifier.value, vec![parameter])
+            Expr::FnCall(identifier.value, parameters)
         } else {
             Expr::Var(identifier.value)
         }
