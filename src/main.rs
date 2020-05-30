@@ -7,9 +7,10 @@ mod parser;
 mod prelude;
 mod symbol_table;
 
+use ansi_term::Colour::{Cyan, Red};
+use ast::Unit;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use ast::Unit;
 
 fn main() {
     let mut parser = parser::Context::new();
@@ -24,7 +25,7 @@ fn main() {
     let mut rl = Editor::<()>::new();
 
     loop {
-        let readline = rl.readline(">> ");
+        let readline = rl.readline(&Cyan.paint(">> ").to_string());
 
         match readline {
             Ok(input) => {
@@ -50,7 +51,7 @@ fn eval(parser: &mut parser::Context, input: &str) {
     match parser::parse(parser, input, get_angle_unit()) {
         Ok(Some(result)) => println!("{}", result),
         Ok(None) => print!(""),
-        Err(err) => println!("{}", err),
+        Err(err) => println!("{}", Red.paint(err)),
     }
 }
 

@@ -13,3 +13,4 @@ panic = "abort"
 [dependencies]
 rustyline = "6.1.2"
 phf = { version = "0.8", features = ["macros"] }
+ansi_term = "0.12"
