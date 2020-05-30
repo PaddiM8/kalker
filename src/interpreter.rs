@@ -1,7 +1,5 @@
-use std::mem;
-
+use crate::ast::{compare_enums, Expr, Stmt, Unit};
 use crate::lexer::TokenKind;
-use crate::parser::{Expr, Stmt, Unit};
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
 
@@ -40,23 +38,6 @@ impl<'a> Context<'a> {
         }
 
         Ok(None)
-    }
-}
-
-impl TokenKind {
-    fn to_unit(&self) -> Result<Unit, String> {
-        match self {
-            TokenKind::Deg => Ok(Unit::Degrees),
-            TokenKind::Rad => Ok(Unit::Radians),
-            _ => Err(String::from("Invalid unit.")),
-        }
-    }
-}
-
-impl Unit {
-    // TODO: Something more generic
-    fn compare(&self, second_token: &Unit) -> bool {
-        mem::discriminant(self) == mem::discriminant(second_token)
     }
 }
 
@@ -125,7 +106,7 @@ fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Resul
     // Don't do any angle conversions if the defauly angle unit is the same as the unit kind
     match unit {
         Unit::Degrees | Unit::Radians => {
-            if context.angle_unit.compare(&unit) {
+            if compare_enums(&context.angle_unit, &unit) {
                 return x;
             }
         }

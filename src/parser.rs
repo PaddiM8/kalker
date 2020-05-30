@@ -1,53 +1,15 @@
-use std::mem;
-
 use crate::{
+    ast::{compare_enums, Expr, Stmt, Unit},
     interpreter,
     lexer::{Lexer, Token, TokenKind},
     symbol_table::SymbolTable,
 };
-
-#[derive(Debug, Clone)]
-pub enum Stmt {
-    VarDecl(String, Box<Expr>),
-    FnDecl(String, Vec<String>, Box<Expr>),
-    Expr(Box<Expr>),
-}
-
-#[derive(Debug, Clone)]
-pub enum Expr {
-    Binary(Box<Expr>, TokenKind, Box<Expr>),
-    Unary(TokenKind, Box<Expr>),
-    Unit(Box<Expr>, TokenKind),
-    Var(String),
-    Group(Box<Expr>),
-    FnCall(String, Vec<Expr>),
-    Literal(String),
-}
-
-#[derive(Debug, Clone)]
-pub enum Unit {
-    Radians,
-    Degrees,
-}
 
 pub struct Context {
     //angle_unit: Unit,
     tokens: Vec<Token>,
     pos: usize,
     symbol_table: SymbolTable,
-}
-
-impl TokenKind {
-    pub fn is_unit(&self) -> bool {
-        match self {
-            TokenKind::Deg | TokenKind::Rad => true,
-            _ => false,
-        }
-    }
-
-    pub fn compare(&self, second_token: &TokenKind) -> bool {
-        mem::discriminant(self) == mem::discriminant(second_token)
-    }
 }
 
 impl Context {
@@ -279,7 +241,7 @@ fn match_token(context: &mut Context, kind: TokenKind) -> bool {
         return false;
     }
 
-    peek(context).kind.compare(&kind)
+    compare_enums(&peek(context).kind, &kind)
 }
 
 fn advance<'a>(context: &'a mut Context) -> &'a Token {
@@ -296,5 +258,5 @@ fn consume<'a>(context: &'a mut Context, kind: TokenKind) -> Result<&'a Token, S
 }
 
 fn is_at_end(context: &mut Context) -> bool {
-    context.pos >= context.tokens.len() || peek(context).kind.compare(&TokenKind::EOF)
+    context.pos >= context.tokens.len() || compare_enums(&peek(context).kind, &TokenKind::EOF)
 }

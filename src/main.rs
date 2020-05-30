@@ -1,14 +1,15 @@
 use std::{env, process};
 
+mod ast;
 mod interpreter;
 mod lexer;
 mod parser;
 mod prelude;
 mod symbol_table;
-use parser::Unit;
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use ast::Unit;
 
 fn main() {
     let mut parser = parser::Context::new();

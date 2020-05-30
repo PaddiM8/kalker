@@ -1,4 +1,4 @@
-use crate::{parser::Stmt, prelude};
+use crate::{ast::Stmt, prelude};
 use std::collections::HashMap;
 
 pub struct SymbolTable {

@@ -1,4 +1,3 @@
-use crate::parser::Unit;
 use FuncType::*;
 
 pub const CONSTANTS: &[(&str, &str)] = &[
@@ -11,6 +10,7 @@ pub const CONSTANTS: &[(&str, &str)] = &[
     ("ϕ", "1.61803398"),
 ];
 
+use crate::ast::Unit;
 use funcs::*;
 pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
     "cos" => UnaryFuncInfo(cos, Trig),
