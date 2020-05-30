@@ -20,6 +20,14 @@ impl SymbolTable {
         self.hashmap.get(key)
     }
 
+    pub fn set(&mut self, key: &str, value: Stmt) {
+        if let Some(stmt) = self.hashmap.get_mut(key) {
+            *stmt = value;
+        } else {
+            self.insert(key, value);
+        }
+    }
+
     pub fn contains_var(&self, identifier: &str) -> bool {
         prelude::CONSTANTS.contains_key(identifier) || self.hashmap.contains_key(identifier)
     }

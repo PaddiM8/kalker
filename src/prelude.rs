@@ -125,7 +125,18 @@ fn from_angle_unit(x: f64, angle_unit: &Unit) -> f64 {
     }
 }
 
-pub mod funcs {
+pub mod special_funcs {
+    pub fn factorial(x: i32) -> i32 {
+        let mut value = 1;
+        for i in 1..=x {
+            value *= i;
+        }
+
+        value
+    }
+}
+
+mod funcs {
     pub fn abs(x: f64) -> f64 {
         x.abs()
     }
@@ -211,15 +222,6 @@ pub mod funcs {
 
     pub fn exp(x: f64) -> f64 {
         x.exp()
-    }
-
-    pub fn factorial(x: f64) -> f64 {
-        let mut value = 1;
-        for i in 1..=x as i32 {
-            value *= i;
-        }
-
-        value as f64
     }
 
     pub fn floor(x: f64) -> f64 {

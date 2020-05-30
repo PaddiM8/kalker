@@ -90,7 +90,7 @@ fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result
 
     match op {
         TokenKind::Minus => Ok(-expr_value),
-        TokenKind::Exclamation => Ok(prelude::funcs::factorial(expr_value)),
+        TokenKind::Exclamation => Ok(prelude::special_funcs::factorial(expr_value as i32) as f64),
         _ => Err(String::from("Invalid operator for unary expression.")),
     }
 }
@@ -144,6 +144,7 @@ fn eval_fn_call_expr(
     identifier: &str,
     expressions: &Vec<Expr>,
 ) -> Result<f64, String> {
+    // Prelude
     let prelude_func = match expressions.len() {
         1 => {
             let x = eval_expr(context, &expressions[0])?;
@@ -161,6 +162,38 @@ fn eval_fn_call_expr(
         return Ok(result);
     }
 
+    // Special functions
+    match identifier {
+        "sum" => {
+            // Make sure exactly 3 arguments were supplied.
+            if expressions.len() != 3 {
+                return Err(format!(
+                    "Expected 3 arguments but got {}.",
+                    expressions.len()
+                ));
+            }
+
+            let start = eval_expr(context, &expressions[0])? as i32;
+            let end = eval_expr(context, &expressions[1])? as i32;
+            let mut sum = 0f64;
+
+            for n in start..=end {
+                let n_expr = Expr::Literal(String::from(n.to_string()));
+
+                // Update the variable "n" in the symbol table on every iteration,
+                // then calculate the expression and add it to the total sum.
+                context
+                    .symbol_table
+                    .set("n", Stmt::VarDecl(String::from("n"), Box::new(n_expr)));
+                sum += eval_expr(context, &expressions[2])?;
+            }
+
+            return Ok(sum);
+        }
+        _ => (),
+    }
+
+    // Symbol Table
     let stmt_definition = context
         .symbol_table
         .get(&format!("{}()", identifier))
