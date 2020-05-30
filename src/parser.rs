@@ -121,15 +121,13 @@ fn parse_factor(context: &mut Context) -> Result<Expr, String> {
     while match_token(context, TokenKind::Star)
         || match_token(context, TokenKind::Slash)
         || match_token(context, TokenKind::Identifier)
+        || match_token(context, TokenKind::Literal)
     {
-        let mut op = peek(context).kind.clone();
-
         // If the next token is an identifier, assume it's multiplication. Eg. 3y
-        if let TokenKind::Identifier = op {
-            op = TokenKind::Star;
-        } else {
-            advance(context);
-        }
+        let op = match peek(context).kind {
+            TokenKind::Identifier | TokenKind::Literal => TokenKind::Star,
+            _ => advance(context).kind.clone(),
+        };
 
         let right = parse_unary(context)?;
         left = Expr::Binary(Box::new(left), op, Box::new(right));
@@ -221,7 +219,24 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, String> {
     }
 
     // Eg. x
-    Ok(Expr::Var(identifier.value))
+    if context.symbol_table.contains_var(&identifier.value) {
+        return Ok(Expr::Var(identifier.value));
+    } else {
+        let mut chars = identifier.value.chars();
+        let mut left = Expr::Var(chars.next().unwrap().to_string());
+
+        // Turn each individual character into its own variable reference.
+        // This parses eg `xy` as `x*y` instead of *one* variable.
+        for c in chars {
+            left = Expr::Binary(
+                Box::new(left),
+                TokenKind::Star,
+                Box::new(Expr::Var(c.to_string())),
+            );
+        }
+
+        return Ok(left);
+    }
 }
 
 fn peek<'a>(context: &'a mut Context) -> &'a Token {

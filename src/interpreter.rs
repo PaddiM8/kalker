@@ -10,16 +10,6 @@ pub struct Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn new(angle_unit: Unit, symbol_table: &'a mut SymbolTable) -> Self {
-        for constant in prelude::CONSTANTS {
-            symbol_table.insert(
-                constant.0,
-                Stmt::VarDecl(
-                    constant.0.to_string(),
-                    Box::new(Expr::Literal(constant.1.to_string())),
-                ),
-            );
-        }
-
         Context {
             angle_unit: angle_unit.clone(),
             symbol_table,
@@ -119,6 +109,12 @@ fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Resul
 }
 
 fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<f64, String> {
+    // If there is a constant with this name, return a literal expression with its value
+    if let Some(value) = prelude::CONSTANTS.get(identifier) {
+        return eval_expr(context, &Expr::Literal(value.to_string()));
+    }
+
+    // Look for the variable in the symbol table
     let var_decl = context.symbol_table.get(identifier).cloned();
     match var_decl {
         Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr),
