@@ -5,14 +5,13 @@ mod lexer;
 mod parser;
 mod prelude;
 mod symbol_table;
-mod visitor;
-use parser::{ParserContext, Unit};
+use parser::Unit;
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
 fn main() {
-    let mut parser = ParserContext::new();
+    let mut parser = parser::Context::new();
 
     // Command line argument input, execute it and exit.
     if let Some(expr) = env::args().skip(1).next() {
@@ -37,7 +36,7 @@ fn main() {
     }
 }
 
-fn eval_repl(parser: &mut ParserContext, input: &str) {
+fn eval_repl(parser: &mut parser::Context, input: &str) {
     match input {
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
@@ -46,10 +45,11 @@ fn eval_repl(parser: &mut ParserContext, input: &str) {
     }
 }
 
-fn eval(parser: &mut ParserContext, input: &str) {
+fn eval(parser: &mut parser::Context, input: &str) {
     match parser::parse(parser, input, get_angle_unit()) {
-        Ok(result) => println!("{}", result),
-        Err(_) => println!("Invalid expression"),
+        Ok(Some(result)) => println!("{}", result),
+        Ok(None) => print!(""),
+        Err(err) => println!("{}", err),
     }
 }
 
