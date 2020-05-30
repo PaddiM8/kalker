@@ -122,14 +122,14 @@ fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<f64, String>
     let var_decl = context.symbol_table.get(identifier).cloned();
     match var_decl {
         Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr),
-        _ => Err(String::from("Undefined variable.")),
+        _ => Err(format!("Undefined variable: '{}'.", identifier)),
     }
 }
 
 fn eval_literal_expr(_: &mut Context, value: &str) -> Result<f64, String> {
     match value.parse() {
         Ok(parsed_value) => Ok(parsed_value),
-        Err(_) => Err(String::from("Invalid number literal.")),
+        Err(_) => Err(format!("Invalid number literal: '{}'.", value)),
     }
 }
 
@@ -167,7 +167,12 @@ fn eval_fn_call_expr(
     match stmt_definition {
         Some(Stmt::FnDecl(_, arguments, fn_body)) => {
             if arguments.len() != expressions.len() {
-                return Err(String::from("Incorrect amount of arguments."));
+                return Err(format!(
+                    "Expected {} arguments in function '{}' but found {}.",
+                    arguments.len(),
+                    identifier,
+                    expressions.len()
+                ));
             }
 
             // Initialise the arguments as their own variables.
@@ -180,6 +185,6 @@ fn eval_fn_call_expr(
 
             return eval_expr(context, &*fn_body);
         }
-        _ => Err(String::from("Undefined function.")),
+        _ => Err(format!("Undefined function: '{}'.", identifier)),
     }
 }
