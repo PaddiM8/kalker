@@ -54,6 +54,7 @@ pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
 pub const BINARY_FUNCS: phf::Map<&'static str, BinaryFuncInfo> = phf::phf_map! {
     "max" => BinaryFuncInfo(max, Other),
     "min" => BinaryFuncInfo(min, Other),
+    "hyp" => BinaryFuncInfo(hyp, Other),
     "log" => BinaryFuncInfo(logx, Other),
 };
 
@@ -217,6 +218,10 @@ mod funcs {
 
     pub fn frac(x: f64) -> f64 {
         x.fract()
+    }
+
+    pub fn hyp(x: f64, y: f64) -> f64 {
+        x.hypot(y)
     }
 
     pub fn log(x: f64) -> f64 {
