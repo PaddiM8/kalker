@@ -30,7 +30,6 @@ pub fn parse(context: &mut Context, input: &str, angle_unit: Unit) -> Result<Opt
     while !is_at_end(context) {
         statements.push(parse_stmt(context)?);
     }
-
     let mut interpreter = interpreter::Context::new(angle_unit, &mut context.symbol_table);
     interpreter.interpret(statements)
 }
@@ -147,7 +146,7 @@ fn parse_unary(context: &mut Context) -> Result<Expr, String> {
 }
 
 fn parse_exponent(context: &mut Context) -> Result<Expr, String> {
-    let left = parse_primary(context)?;
+    let left = parse_factorial(context)?;
 
     if match_token(context, TokenKind::Power) {
         let op = advance(context).kind.clone();
@@ -156,6 +155,17 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, String> {
     }
 
     Ok(left)
+}
+
+fn parse_factorial(context: &mut Context) -> Result<Expr, String> {
+    let expr = parse_primary(context)?;
+
+    Ok(if match_token(context, TokenKind::Exclamation) {
+        advance(context);
+        Expr::Unary(TokenKind::Exclamation, Box::new(expr))
+    } else {
+        expr
+    })
 }
 
 fn parse_primary(context: &mut Context) -> Result<Expr, String> {

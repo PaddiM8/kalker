@@ -56,6 +56,7 @@ pub const BINARY_FUNCS: phf::Map<&'static str, BinaryFuncInfo> = phf::phf_map! {
     "min" => BinaryFuncInfo(min, Other),
     "hyp" => BinaryFuncInfo(hyp, Other),
     "log" => BinaryFuncInfo(logx, Other),
+    "sqrt" => BinaryFuncInfo(nth_sqrt, Other),
 };
 
 enum FuncType {
@@ -124,7 +125,7 @@ fn from_angle_unit(x: f64, angle_unit: &Unit) -> f64 {
     }
 }
 
-mod funcs {
+pub mod funcs {
     pub fn abs(x: f64) -> f64 {
         x.abs()
     }
@@ -212,6 +213,15 @@ mod funcs {
         x.exp()
     }
 
+    pub fn factorial(x: f64) -> f64 {
+        let mut value = 1;
+        for i in 1..=x as i32 {
+            value *= i;
+        }
+
+        value as f64
+    }
+
     pub fn floor(x: f64) -> f64 {
         x.floor()
     }
@@ -266,6 +276,10 @@ mod funcs {
 
     pub fn sqrt(x: f64) -> f64 {
         x.sqrt()
+    }
+
+    pub fn nth_sqrt(x: f64, n: f64) -> f64 {
+        x.powf(1f64 / n)
     }
 
     pub fn tan(x: f64) -> f64 {

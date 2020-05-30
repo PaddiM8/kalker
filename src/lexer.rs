@@ -12,6 +12,7 @@ pub enum TokenKind {
     Slash,
     Power,
     Equals,
+    Exclamation,
 
     Deg,
     Rad,
@@ -105,6 +106,10 @@ impl<'a> Lexer<'a> {
             '=' => {
                 self.advance();
                 self.build(TokenKind::Equals, "")
+            }
+            '!' => {
+                self.advance();
+                self.build(TokenKind::Exclamation, "")
             }
             ',' => {
                 self.advance();

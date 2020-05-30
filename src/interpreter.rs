@@ -55,7 +55,7 @@ fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<f64, String> {
 fn eval_expr(context: &mut Context, expr: &Expr) -> Result<f64, String> {
     match expr {
         Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right),
-        Expr::Unary(_, expr) => eval_unary_expr(context, expr),
+        Expr::Unary(op, expr) => eval_unary_expr(context, op, expr),
         Expr::Unit(expr, kind) => eval_unit_expr(context, expr, kind),
         Expr::Var(identifier) => eval_var_expr(context, identifier),
         Expr::Literal(value) => eval_literal_expr(context, value),
@@ -85,8 +85,14 @@ fn eval_binary_expr(
     })
 }
 
-fn eval_unary_expr(context: &mut Context, expr: &Expr) -> Result<f64, String> {
-    eval_expr(context, &expr).clone()
+fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result<f64, String> {
+    let expr_value = eval_expr(context, &expr)?.clone();
+
+    match op {
+        TokenKind::Minus => Ok(-expr_value),
+        TokenKind::Exclamation => Ok(prelude::funcs::factorial(expr_value)),
+        _ => Err(String::from("Invalid operator for unary expression.")),
+    }
 }
 
 fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Result<f64, String> {
