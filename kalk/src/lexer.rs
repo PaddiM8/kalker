@@ -159,3 +159,74 @@ fn build(kind: TokenKind, value: &str) -> Token {
 fn is_valid_identifier(c: char) -> bool {
     c.is_alphabetic() || c == '°' || c == '√' || c == '\'' || c == '¨' || c == 'Σ'
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::compare_enums;
+    use test_case::test_case;
+
+    fn match_tokens(tokens: Vec<Token>, expected: Vec<TokenKind>) {
+        let mut expected_iter = expected.iter();
+
+        for token in tokens {
+            assert!(compare_enums(&token.kind, &expected_iter.next().unwrap()));
+        }
+    }
+
+    #[test]
+    fn test_token_kinds() {
+        let tokens = Lexer::lex("+-*/^()|=!,");
+        let expected = vec![
+            TokenKind::Plus,
+            TokenKind::Minus,
+            TokenKind::Star,
+            TokenKind::Slash,
+            TokenKind::Power,
+            TokenKind::OpenParenthesis,
+            TokenKind::ClosedParenthesis,
+            TokenKind::Pipe,
+            TokenKind::Equals,
+            TokenKind::Exclamation,
+            TokenKind::Comma,
+            TokenKind::EOF,
+        ];
+
+        match_tokens(tokens, expected);
+    }
+
+    #[test_case("1")]
+    #[test_case("24")]
+    #[test_case("56.4")]
+    fn test_number_literal(input: &str) {
+        let tokens = Lexer::lex(input);
+        let expected = vec![TokenKind::Literal, TokenKind::EOF];
+
+        assert_eq!(&tokens[0].value, input);
+        match_tokens(tokens, expected);
+    }
+
+    #[test_case("x")]
+    #[test_case("xy")]
+    fn test_identifier(input: &str) {
+        let tokens = Lexer::lex(input);
+        let expected = vec![TokenKind::Identifier, TokenKind::EOF];
+
+        assert_eq!(&tokens[0].value, input);
+        match_tokens(tokens, expected);
+    }
+
+    #[test]
+    fn test_function_call() {
+        let tokens = Lexer::lex("f(x)");
+        let expected = vec![
+            TokenKind::Identifier,
+            TokenKind::OpenParenthesis,
+            TokenKind::Identifier,
+            TokenKind::ClosedParenthesis,
+            TokenKind::EOF,
+        ];
+
+        match_tokens(tokens, expected);
+    }
+}
