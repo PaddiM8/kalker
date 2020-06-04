@@ -1,5 +1,5 @@
 use ansi_term::Colour::Red;
-use lek::parser::{self};
+use kalk::parser::{self};
 
 pub fn eval(parser: &mut parser::Context, input: &str) {
     match parser::parse(parser, input, 53) {

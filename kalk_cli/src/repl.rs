@@ -1,19 +1,19 @@
 use crate::output;
 use ansi_term::Colour::Cyan;
-use lek::parser;
+use kalk::parser;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::process;
 
 pub fn start(mut parser: &mut parser::Context) {
-    let mut rl = Editor::<()>::new();
+    let mut editor = Editor::<()>::new();
 
     loop {
-        let readline = rl.readline(&Cyan.paint(">> ").to_string());
+        let readline = editor.readline(&Cyan.paint(">> ").to_string());
 
         match readline {
             Ok(input) => {
-                rl.add_history_entry(input.as_str());
+                editor.add_history_entry(input.as_str());
                 eval_repl(&mut parser, &input);
             }
             Err(ReadlineError::Interrupted) => break,

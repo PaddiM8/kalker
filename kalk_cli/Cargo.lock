@@ -135,7 +135,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
-name = "lek"
+name = "kalk"
 version = "0.1.0"
 dependencies = [
  "phf",
@@ -143,11 +143,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "lek_cli"
+name = "kalk_cli"
 version = "0.1.0"
 dependencies = [
  "ansi_term",
- "lek",
+ "kalk",
  "rustyline",
 ]
 

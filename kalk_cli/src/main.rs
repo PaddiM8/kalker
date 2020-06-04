@@ -1,8 +1,8 @@
 mod output;
 mod repl;
 
-use lek::parser::Unit;
-use lek::parser::{self};
+use kalk::parser::Unit;
+use kalk::parser::{self};
 use std::env;
 
 fn main() {
