@@ -1,0 +1,13 @@
+[package]
+name = "lek_cli"
+version = "0.1.0"
+authors = ["PaddiM8 <paddim8@pm.me>"]
+edition = "2018"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+lek = { path = "../lek" }
+rustyline = "6.1.2"
+ansi_term = "0.12"

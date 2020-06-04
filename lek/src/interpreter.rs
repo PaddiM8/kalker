@@ -1,5 +1,6 @@
-use crate::ast::{compare_enums, Expr, Stmt, Unit};
+use crate::ast::{compare_enums, Expr, Stmt};
 use crate::lexer::TokenKind;
+use crate::parser::Unit;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
 use rug::ops::Pow;

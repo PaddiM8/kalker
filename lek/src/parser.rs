@@ -1,5 +1,5 @@
 use crate::{
-    ast::{compare_enums, Expr, Stmt, Unit},
+    ast::{compare_enums, Expr, Stmt},
     interpreter,
     lexer::{Lexer, Token, TokenKind},
     symbol_table::SymbolTable,
@@ -11,6 +11,11 @@ pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
     symbol_table: SymbolTable,
+}
+#[derive(Debug, Clone)]
+pub enum Unit {
+    Radians,
+    Degrees,
 }
 
 impl Context {

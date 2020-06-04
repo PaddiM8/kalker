@@ -1,4 +1,5 @@
 use crate::lexer::TokenKind;
+use crate::parser::Unit;
 use std::mem;
 
 #[derive(Debug, Clone)]
@@ -17,12 +18,6 @@ pub enum Expr {
     Group(Box<Expr>),
     FnCall(String, Vec<Expr>),
     Literal(String),
-}
-
-#[derive(Debug, Clone)]
-pub enum Unit {
-    Radians,
-    Degrees,
 }
 
 impl TokenKind {

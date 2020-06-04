@@ -1,16 +1,8 @@
-use std::{env, process};
-
-mod ast;
-mod interpreter;
-mod lexer;
-mod parser;
-mod prelude;
-mod symbol_table;
-
 use ansi_term::Colour::{Cyan, Red};
-use ast::Unit;
+use lek::parser::{self, Unit};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use std::{env, process};
 
 fn main() {
     let mut parser = parser::Context::new();

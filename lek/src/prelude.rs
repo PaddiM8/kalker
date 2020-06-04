@@ -11,7 +11,7 @@ pub const CONSTANTS: phf::Map<&'static str, &'static str> = phf::phf_map! {
     "ϕ" => "1.61803398",
 };
 
-use crate::ast::Unit;
+use crate::parser::Unit;
 use funcs::*;
 pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
     "cos" => UnaryFuncInfo(cos, Trig),
@@ -161,6 +161,7 @@ mod funcs {
     pub fn acot(x: Float) -> Float {
         (1f64 / x).atan()
     }
+
     pub fn acoth(x: Float) -> Float {
         (1f64 / x).atanh()
     }
