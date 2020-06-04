@@ -70,62 +70,30 @@ impl<'a> Lexer<'a> {
             }
         }
 
+        if c.is_digit(10) {
+            return self.next_number_literal();
+        }
+
+        if c.is_alphabetic() {
+            return self.next_identifier();
+        }
+
         let token = match c {
-            '+' => {
-                self.advance();
-                build(TokenKind::Plus, "")
-            }
-            '-' => {
-                self.advance();
-                build(TokenKind::Minus, "")
-            }
-            '*' => {
-                self.advance();
-                build(TokenKind::Star, "")
-            }
-            '/' => {
-                self.advance();
-                build(TokenKind::Slash, "")
-            }
-            '^' => {
-                self.advance();
-                build(TokenKind::Power, "")
-            }
-            '(' => {
-                self.advance();
-                build(TokenKind::OpenParenthesis, "")
-            }
-            ')' => {
-                self.advance();
-                build(TokenKind::ClosedParenthesis, "")
-            }
-            '|' => {
-                self.advance();
-                build(TokenKind::Pipe, "")
-            }
-            '=' => {
-                self.advance();
-                build(TokenKind::Equals, "")
-            }
-            '!' => {
-                self.advance();
-                build(TokenKind::Exclamation, "")
-            }
-            ',' => {
-                self.advance();
-                build(TokenKind::Comma, "")
-            }
-            _ => {
-                if c.is_digit(10) {
-                    self.next_number_literal()
-                } else if c.is_alphabetic() {
-                    self.next_identifier()
-                } else {
-                    self.advance();
-                    build(TokenKind::Unknown, "")
-                }
-            }
+            '+' => build(TokenKind::Plus, ""),
+            '-' => build(TokenKind::Minus, ""),
+            '*' => build(TokenKind::Star, ""),
+            '/' => build(TokenKind::Slash, ""),
+            '^' => build(TokenKind::Power, ""),
+            '(' => build(TokenKind::OpenParenthesis, ""),
+            ')' => build(TokenKind::ClosedParenthesis, ""),
+            '|' => build(TokenKind::Pipe, ""),
+            '=' => build(TokenKind::Equals, ""),
+            '!' => build(TokenKind::Exclamation, ""),
+            ',' => build(TokenKind::Comma, ""),
+            _ => build(TokenKind::Unknown, ""),
         };
+
+        self.advance();
 
         token
     }
