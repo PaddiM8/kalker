@@ -1,56 +1,21 @@
-use ansi_term::Colour::{Cyan, Red};
-use lek::parser::{self, Unit};
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
-use std::{env, process};
+mod output;
+mod repl;
+
+use lek::parser::Unit;
+use lek::parser::{self};
+use std::env;
 
 fn main() {
-    let mut parser = parser::Context::new();
+    let mut parser = parser::Context::new().set_angle_unit(get_angle_unit());
 
     // Command line argument input, execute it and exit.
     if let Some(expr) = env::args().skip(1).next() {
-        eval(&mut parser, &expr);
+        output::eval(&mut parser, &expr);
         return;
     }
 
     // REPL
-    let mut rl = Editor::<()>::new();
-
-    loop {
-        let readline = rl.readline(&Cyan.paint(">> ").to_string());
-
-        match readline {
-            Ok(input) => {
-                rl.add_history_entry(input.as_str());
-                eval_repl(&mut parser, &input);
-            }
-            Err(ReadlineError::Interrupted) => break,
-            _ => break,
-        }
-    }
-}
-
-fn eval_repl(parser: &mut parser::Context, input: &str) {
-    match input {
-        "" => eprint!(""),
-        "clear" => print!("\x1B[2J"),
-        "exit" => process::exit(0),
-        _ => eval(parser, input),
-    }
-}
-
-fn eval(parser: &mut parser::Context, input: &str) {
-    match parser::parse(parser, input, get_angle_unit(), 53) {
-        Ok(Some(result)) => {
-            if result.clone().fract() == 0 {
-                println!("{}", result.to_integer().unwrap());
-            } else {
-                println!("{}", result);
-            }
-        }
-        Ok(None) => print!(""),
-        Err(err) => println!("{}", Red.paint(err)),
-    }
+    repl::start(&mut parser);
 }
 
 fn get_angle_unit() -> Unit {
