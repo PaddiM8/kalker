@@ -11,6 +11,7 @@ pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
     symbol_table: SymbolTable,
+    angle_unit: Unit,
 }
 #[derive(Debug, Clone)]
 pub enum Unit {
@@ -24,16 +25,18 @@ impl Context {
             tokens: Vec::new(),
             pos: 0,
             symbol_table: SymbolTable::new(),
+            angle_unit: Unit::Radians,
         }
+    }
+
+    pub fn set_angle_unit(mut self, unit: Unit) -> Self {
+        self.angle_unit = unit;
+
+        self
     }
 }
 
-pub fn parse(
-    context: &mut Context,
-    input: &str,
-    angle_unit: Unit,
-    precision: u32,
-) -> Result<Option<Float>, String> {
+pub fn parse(context: &mut Context, input: &str, precision: u32) -> Result<Option<Float>, String> {
     context.tokens = Lexer::lex(input);
     context.pos = 0;
 
@@ -42,7 +45,7 @@ pub fn parse(
         statements.push(parse_stmt(context)?);
     }
     let mut interpreter =
-        interpreter::Context::new(&mut context.symbol_table, angle_unit, precision);
+        interpreter::Context::new(&mut context.symbol_table, &context.angle_unit, precision);
     interpreter.interpret(statements)
 }
 

@@ -13,7 +13,7 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    pub fn new(symbol_table: &'a mut SymbolTable, angle_unit: Unit, precision: u32) -> Self {
+    pub fn new(symbol_table: &'a mut SymbolTable, angle_unit: &Unit, precision: u32) -> Self {
         Context {
             angle_unit: angle_unit.clone(),
             symbol_table,
