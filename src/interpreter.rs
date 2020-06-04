@@ -119,12 +119,10 @@ fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Resul
         }
     }
 
-    /*match unit {
-        Unit::Degrees => Ok(x?.to_radians()),
-        Unit::Radians => Ok(x?.to_degrees()),
-    }*/
-
-    x
+    match unit {
+        Unit::Degrees => Ok(prelude::special_funcs::to_radians(x?)),
+        Unit::Radians => Ok(prelude::special_funcs::to_degrees(x?)),
+    }
 }
 
 fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<Float, String> {
