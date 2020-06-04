@@ -48,8 +48,14 @@ fn eval_repl(parser: &mut parser::Context, input: &str) {
 }
 
 fn eval(parser: &mut parser::Context, input: &str) {
-    match parser::parse(parser, input, get_angle_unit()) {
-        Ok(Some(result)) => println!("{}", result),
+    match parser::parse(parser, input, get_angle_unit(), 53) {
+        Ok(Some(result)) => {
+            if result.clone().fract() == 0 {
+                println!("{}", result.to_integer().unwrap());
+            } else {
+                println!("{}", result);
+            }
+        }
         Ok(None) => print!(""),
         Err(err) => println!("{}", Red.paint(err)),
     }

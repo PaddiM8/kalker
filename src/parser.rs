@@ -4,6 +4,7 @@ use crate::{
     lexer::{Lexer, Token, TokenKind},
     symbol_table::SymbolTable,
 };
+use rug::Float;
 
 pub struct Context {
     //angle_unit: Unit,
@@ -22,7 +23,12 @@ impl Context {
     }
 }
 
-pub fn parse(context: &mut Context, input: &str, angle_unit: Unit) -> Result<Option<f64>, String> {
+pub fn parse(
+    context: &mut Context,
+    input: &str,
+    angle_unit: Unit,
+    precision: u32,
+) -> Result<Option<Float>, String> {
     context.tokens = Lexer::lex(input);
     context.pos = 0;
 
@@ -30,7 +36,8 @@ pub fn parse(context: &mut Context, input: &str, angle_unit: Unit) -> Result<Opt
     while !is_at_end(context) {
         statements.push(parse_stmt(context)?);
     }
-    let mut interpreter = interpreter::Context::new(angle_unit, &mut context.symbol_table);
+    let mut interpreter =
+        interpreter::Context::new(&mut context.symbol_table, angle_unit, precision);
     interpreter.interpret(statements)
 }
 

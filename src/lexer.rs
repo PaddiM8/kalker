@@ -51,7 +51,7 @@ impl<'a> Lexer<'a> {
         // If there isn't already an EOF token, add it.
         if let TokenKind::EOF = tokens.last().unwrap().kind {
         } else {
-            tokens.push(lexer.build(TokenKind::EOF, ""));
+            tokens.push(build(TokenKind::EOF, ""));
         }
 
         tokens
@@ -64,7 +64,7 @@ impl<'a> Lexer<'a> {
             self.advance();
 
             if self.is_at_end() {
-                return self.build(TokenKind::EOF, "");
+                return build(TokenKind::EOF, "");
             } else {
                 c = self.peek();
             }
@@ -73,47 +73,47 @@ impl<'a> Lexer<'a> {
         let token = match c {
             '+' => {
                 self.advance();
-                self.build(TokenKind::Plus, "")
+                build(TokenKind::Plus, "")
             }
             '-' => {
                 self.advance();
-                self.build(TokenKind::Minus, "")
+                build(TokenKind::Minus, "")
             }
             '*' => {
                 self.advance();
-                self.build(TokenKind::Star, "")
+                build(TokenKind::Star, "")
             }
             '/' => {
                 self.advance();
-                self.build(TokenKind::Slash, "")
+                build(TokenKind::Slash, "")
             }
             '^' => {
                 self.advance();
-                self.build(TokenKind::Power, "")
+                build(TokenKind::Power, "")
             }
             '(' => {
                 self.advance();
-                self.build(TokenKind::OpenParenthesis, "")
+                build(TokenKind::OpenParenthesis, "")
             }
             ')' => {
                 self.advance();
-                self.build(TokenKind::ClosedParenthesis, "")
+                build(TokenKind::ClosedParenthesis, "")
             }
             '|' => {
                 self.advance();
-                self.build(TokenKind::Pipe, "")
+                build(TokenKind::Pipe, "")
             }
             '=' => {
                 self.advance();
-                self.build(TokenKind::Equals, "")
+                build(TokenKind::Equals, "")
             }
             '!' => {
                 self.advance();
-                self.build(TokenKind::Exclamation, "")
+                build(TokenKind::Exclamation, "")
             }
             ',' => {
                 self.advance();
-                self.build(TokenKind::Comma, "")
+                build(TokenKind::Comma, "")
             }
             _ => {
                 if c.is_digit(10) {
@@ -122,7 +122,7 @@ impl<'a> Lexer<'a> {
                     self.next_identifier()
                 } else {
                     self.advance();
-                    self.build(TokenKind::Unknown, "")
+                    build(TokenKind::Unknown, "")
                 }
             }
         };
@@ -140,9 +140,9 @@ impl<'a> Lexer<'a> {
         }
 
         if let Ok(value) = str::from_utf8(&self.source[start..end]) {
-            self.build(TokenKind::Literal, value)
+            build(TokenKind::Literal, value)
         } else {
-            self.build(TokenKind::Unknown, "")
+            build(TokenKind::Unknown, "")
         }
     }
 
@@ -162,16 +162,9 @@ impl<'a> Lexer<'a> {
                 _ => TokenKind::Identifier,
             };
 
-            self.build(kind, value)
+            build(kind, value)
         } else {
-            self.build(TokenKind::Unknown, "")
-        }
-    }
-
-    fn build(&self, kind: TokenKind, value: &str) -> Token {
-        Token {
-            kind,
-            value: value.to_string(),
+            build(TokenKind::Unknown, "")
         }
     }
 
@@ -188,6 +181,13 @@ impl<'a> Lexer<'a> {
     }
 }
 
+fn build(kind: TokenKind, value: &str) -> Token {
+    Token {
+        kind,
+        value: value.to_string(),
+    }
+}
+
 fn is_valid_identifier(c: char) -> bool {
-    c.is_alphabetic() || c == '°' || c == '√' || c == '\'' || c == '¨'
+    c.is_alphabetic() || c == '°' || c == '√' || c == '\'' || c == '¨' || c == 'Σ'
 }

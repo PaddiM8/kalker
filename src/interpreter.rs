@@ -2,21 +2,25 @@ use crate::ast::{compare_enums, Expr, Stmt, Unit};
 use crate::lexer::TokenKind;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
+use rug::ops::Pow;
+use rug::Float;
 
 pub struct Context<'a> {
     symbol_table: &'a mut SymbolTable,
     angle_unit: Unit,
+    precision: u32,
 }
 
 impl<'a> Context<'a> {
-    pub fn new(angle_unit: Unit, symbol_table: &'a mut SymbolTable) -> Self {
+    pub fn new(symbol_table: &'a mut SymbolTable, angle_unit: Unit, precision: u32) -> Self {
         Context {
             angle_unit: angle_unit.clone(),
             symbol_table,
+            precision,
         }
     }
 
-    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<Option<f64>, String> {
+    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<Option<Float>, String> {
         for (i, stmt) in statements.iter().enumerate() {
             let value = eval_stmt(self, stmt);
 
@@ -31,7 +35,7 @@ impl<'a> Context<'a> {
     }
 }
 
-fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<f64, String> {
+fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<Float, String> {
     match stmt {
         Stmt::VarDecl(identifier, _) => eval_var_decl_stmt(context, stmt, identifier),
         Stmt::FnDecl(_, _, _) => eval_fn_decl_stmt(context),
@@ -39,20 +43,24 @@ fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<f64, String> {
     }
 }
 
-fn eval_var_decl_stmt(context: &mut Context, stmt: &Stmt, identifier: &str) -> Result<f64, String> {
+fn eval_var_decl_stmt(
+    context: &mut Context,
+    stmt: &Stmt,
+    identifier: &str,
+) -> Result<Float, String> {
     context.symbol_table.insert(&identifier, stmt.clone());
-    Ok(0f64)
+    Ok(Float::with_val(context.precision, 1))
 }
 
-fn eval_fn_decl_stmt(_: &mut Context) -> Result<f64, String> {
-    Ok(0f64) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
+fn eval_fn_decl_stmt(context: &mut Context) -> Result<Float, String> {
+    Ok(Float::with_val(context.precision, 1)) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
 }
 
-fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<f64, String> {
+fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<Float, String> {
     eval_expr(context, &expr)
 }
 
-fn eval_expr(context: &mut Context, expr: &Expr) -> Result<f64, String> {
+fn eval_expr(context: &mut Context, expr: &Expr) -> Result<Float, String> {
     match expr {
         Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right),
         Expr::Unary(op, expr) => eval_unary_expr(context, op, expr),
@@ -71,7 +79,7 @@ fn eval_binary_expr(
     left: &Expr,
     op: &TokenKind,
     right: &Expr,
-) -> Result<f64, String> {
+) -> Result<Float, String> {
     let left = eval_expr(context, &left)?;
     let right = eval_expr(context, &right)?;
 
@@ -80,22 +88,25 @@ fn eval_binary_expr(
         TokenKind::Minus => left - right,
         TokenKind::Star => left * right,
         TokenKind::Slash => left / right,
-        TokenKind::Power => left.powf(right),
-        _ => 0f64,
+        TokenKind::Power => left.pow(right),
+        _ => Float::with_val(1, 1),
     })
 }
 
-fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result<f64, String> {
+fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result<Float, String> {
     let expr_value = eval_expr(context, &expr)?.clone();
 
     match op {
         TokenKind::Minus => Ok(-expr_value),
-        TokenKind::Exclamation => Ok(prelude::special_funcs::factorial(expr_value as i32) as f64),
+        TokenKind::Exclamation => Ok(Float::with_val(
+            context.precision,
+            prelude::special_funcs::factorial(expr_value),
+        )),
         _ => Err(String::from("Invalid operator for unary expression.")),
     }
 }
 
-fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Result<f64, String> {
+fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Result<Float, String> {
     let x = eval_expr(context, &expr);
     let unit = kind.to_unit()?;
 
@@ -108,13 +119,15 @@ fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Resul
         }
     }
 
-    match unit {
+    /*match unit {
         Unit::Degrees => Ok(x?.to_radians()),
         Unit::Radians => Ok(x?.to_degrees()),
-    }
+    }*/
+
+    x
 }
 
-fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<f64, String> {
+fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<Float, String> {
     // If there is a constant with this name, return a literal expression with its value
     if let Some(value) = prelude::CONSTANTS.get(identifier) {
         return eval_expr(context, &Expr::Literal(value.to_string()));
@@ -128,14 +141,14 @@ fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<f64, String>
     }
 }
 
-fn eval_literal_expr(_: &mut Context, value: &str) -> Result<f64, String> {
-    match value.parse() {
-        Ok(parsed_value) => Ok(parsed_value),
+fn eval_literal_expr(context: &mut Context, value: &str) -> Result<Float, String> {
+    match Float::parse(value) {
+        Ok(parsed_value) => Ok(Float::with_val(context.precision, parsed_value)),
         Err(_) => Err(format!("Invalid number literal: '{}'.", value)),
     }
 }
 
-fn eval_group_expr(context: &mut Context, expr: &Expr) -> Result<f64, String> {
+fn eval_group_expr(context: &mut Context, expr: &Expr) -> Result<Float, String> {
     eval_expr(context, expr)
 }
 
@@ -143,7 +156,7 @@ fn eval_fn_call_expr(
     context: &mut Context,
     identifier: &str,
     expressions: &Vec<Expr>,
-) -> Result<f64, String> {
+) -> Result<Float, String> {
     // Prelude
     let prelude_func = match expressions.len() {
         1 => {
@@ -164,7 +177,7 @@ fn eval_fn_call_expr(
 
     // Special functions
     match identifier {
-        "sum" => {
+        "sum" | "Σ" => {
             // Make sure exactly 3 arguments were supplied.
             if expressions.len() != 3 {
                 return Err(format!(
@@ -173,9 +186,9 @@ fn eval_fn_call_expr(
                 ));
             }
 
-            let start = eval_expr(context, &expressions[0])? as i32;
-            let end = eval_expr(context, &expressions[1])? as i32;
-            let mut sum = 0f64;
+            let start = eval_expr(context, &expressions[0])?.to_f64() as i128;
+            let end = eval_expr(context, &expressions[1])?.to_f64() as i128;
+            let mut sum = Float::with_val(context.precision, 0);
 
             for n in start..=end {
                 let n_expr = Expr::Literal(String::from(n.to_string()));
