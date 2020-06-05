@@ -1,6 +1,5 @@
 use crate::lexer::TokenKind;
 use crate::parser::Unit;
-use std::mem;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
@@ -35,8 +34,4 @@ impl TokenKind {
             _ => Err(String::from("Invalid unit.")),
         }
     }
-}
-
-pub fn compare_enums<T>(first: &T, second: &T) -> bool {
-    mem::discriminant(first) == mem::discriminant(second)
 }

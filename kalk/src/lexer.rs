@@ -141,7 +141,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn advance(&mut self) {
-        self.index = self.index + 1;
+        self.index += 1;
     }
 
     fn is_at_end(&self) -> bool {
@@ -163,14 +163,13 @@ fn is_valid_identifier(c: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::compare_enums;
     use test_case::test_case;
 
     fn match_tokens(tokens: Vec<Token>, expected: Vec<TokenKind>) {
         let mut expected_iter = expected.iter();
 
         for token in tokens {
-            assert!(compare_enums(&token.kind, &expected_iter.next().unwrap()));
+            assert_eq!(token.kind, *expected_iter.next().unwrap());
         }
     }
 

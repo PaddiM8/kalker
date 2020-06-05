@@ -1,5 +1,5 @@
 use crate::{
-    ast::{compare_enums, Expr, Stmt},
+    ast::{Expr, Stmt},
     interpreter,
     lexer::{Lexer, Token, TokenKind},
     symbol_table::SymbolTable,
@@ -12,7 +12,7 @@ pub struct Context {
     symbol_table: SymbolTable,
     angle_unit: Unit,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Unit {
     Radians,
     Degrees,
@@ -32,6 +32,12 @@ impl Context {
         self.angle_unit = unit;
 
         self
+    }
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -244,7 +250,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, String> {
 
     // Eg. x
     if context.symbol_table.contains_var(&identifier.value) {
-        return Ok(Expr::Var(identifier.value));
+        Ok(Expr::Var(identifier.value))
     } else {
         let mut chars = identifier.value.chars();
         let mut left = Expr::Var(chars.next().unwrap().to_string());
@@ -259,19 +265,19 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, String> {
             );
         }
 
-        return Ok(left);
+        Ok(left)
     }
 }
 
-fn peek<'a>(context: &'a mut Context) -> &'a Token {
+fn peek(context: &mut Context) -> &Token {
     &context.tokens[context.pos]
 }
 
-fn peek_next<'a>(context: &'a mut Context) -> &'a Token {
+fn peek_next(context: &mut Context) -> &Token {
     &context.tokens[context.pos + 1]
 }
 
-fn previous<'a>(context: &'a mut Context) -> &'a Token {
+fn previous(context: &mut Context) -> &Token {
     &context.tokens[context.pos - 1]
 }
 
@@ -280,15 +286,15 @@ fn match_token(context: &mut Context, kind: TokenKind) -> bool {
         return false;
     }
 
-    compare_enums(&peek(context).kind, &kind)
+    peek(context).kind == kind
 }
 
-fn advance<'a>(context: &'a mut Context) -> &'a Token {
+fn advance(context: &mut Context) -> &Token {
     context.pos += 1;
     previous(context)
 }
 
-fn consume<'a>(context: &'a mut Context, kind: TokenKind) -> Result<&'a Token, String> {
+fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, String> {
     if match_token(context, kind) {
         return Ok(advance(context));
     }
@@ -297,7 +303,7 @@ fn consume<'a>(context: &'a mut Context, kind: TokenKind) -> Result<&'a Token, S
 }
 
 fn is_at_end(context: &mut Context) -> bool {
-    context.pos >= context.tokens.len() || compare_enums(&peek(context).kind, &TokenKind::EOF)
+    context.pos >= context.tokens.len() || peek(context).kind == TokenKind::EOF
 }
 
 #[cfg(test)]

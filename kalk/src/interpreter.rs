@@ -1,4 +1,4 @@
-use crate::ast::{compare_enums, Expr, Stmt};
+use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
 use crate::parser::Unit;
 use crate::prelude;
@@ -95,7 +95,7 @@ fn eval_binary_expr(
 }
 
 fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result<Float, String> {
-    let expr_value = eval_expr(context, &expr)?.clone();
+    let expr_value = eval_expr(context, &expr)?;
 
     match op {
         TokenKind::Minus => Ok(-expr_value),
@@ -114,7 +114,7 @@ fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Resul
     // Don't do any angle conversions if the defauly angle unit is the same as the unit kind
     match unit {
         Unit::Degrees | Unit::Radians => {
-            if compare_enums(&context.angle_unit, &unit) {
+            if context.angle_unit == unit {
                 return x;
             }
         }
@@ -129,7 +129,7 @@ fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Resul
 fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<Float, String> {
     // If there is a constant with this name, return a literal expression with its value
     if let Some(value) = prelude::CONSTANTS.get(identifier) {
-        return eval_expr(context, &Expr::Literal(value.to_string()));
+        return eval_expr(context, &Expr::Literal((*value).to_string()));
     }
 
     // Look for the variable in the symbol table
@@ -154,7 +154,7 @@ fn eval_group_expr(context: &mut Context, expr: &Expr) -> Result<Float, String> 
 fn eval_fn_call_expr(
     context: &mut Context,
     identifier: &str,
-    expressions: &Vec<Expr>,
+    expressions: &[Expr],
 ) -> Result<Float, String> {
     // Prelude
     let prelude_func = match expressions.len() {
@@ -190,7 +190,7 @@ fn eval_fn_call_expr(
             let mut sum = Float::with_val(context.precision, 0);
 
             for n in start..=end {
-                let n_expr = Expr::Literal(String::from(n.to_string()));
+                let n_expr = Expr::Literal(n.to_string());
 
                 // Update the variable "n" in the symbol table on every iteration,
                 // then calculate the expression and add it to the total sum.
@@ -230,7 +230,7 @@ fn eval_fn_call_expr(
                 )?;
             }
 
-            return eval_expr(context, &*fn_body);
+            eval_expr(context, &*fn_body)
         }
         _ => Err(format!("Undefined function: '{}'.", identifier)),
     }
