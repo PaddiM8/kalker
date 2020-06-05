@@ -1,6 +1,6 @@
 use std::str;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
     Unknown,
     Literal,
@@ -25,7 +25,7 @@ pub enum TokenKind {
     EOF,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub value: String,

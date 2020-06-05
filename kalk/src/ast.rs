@@ -2,14 +2,14 @@ use crate::lexer::TokenKind;
 use crate::parser::Unit;
 use std::mem;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     VarDecl(String, Box<Expr>),
     FnDecl(String, Vec<String>, Box<Expr>),
     Expr(Box<Expr>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Binary(Box<Expr>, TokenKind, Box<Expr>),
     Unary(TokenKind, Box<Expr>),
