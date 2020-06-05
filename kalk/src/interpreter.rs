@@ -235,3 +235,56 @@ fn eval_fn_call_expr(
         _ => Err(format!("Undefined function: '{}'.", identifier)),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lexer::TokenKind::*;
+    use crate::test_helpers::*;
+
+    const PRECISION: u32 = 53;
+
+    fn interpret(stmt: Stmt) -> Result<Option<Float>, String> {
+        let mut symbol_table = SymbolTable::new();
+        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
+        context.interpret(vec![stmt])
+    }
+
+    #[test]
+    fn test_literal() {
+        let stmt = Stmt::Expr(literal("1"));
+
+        assert_eq!(
+            interpret(stmt).unwrap().unwrap(),
+            Float::with_val(PRECISION, 1)
+        );
+    }
+
+    #[test]
+    fn test_binary() {
+        let add = Stmt::Expr(binary(literal("2"), Plus, literal("3")));
+        let sub = Stmt::Expr(binary(literal("2"), Minus, literal("3")));
+        let mul = Stmt::Expr(binary(literal("2"), Star, literal("3")));
+        let div = Stmt::Expr(binary(literal("2"), Slash, literal("4")));
+        let pow = Stmt::Expr(binary(literal("2"), Power, literal("3")));
+
+        assert_eq!(interpret(add).unwrap().unwrap(), 5);
+        assert_eq!(interpret(sub).unwrap().unwrap(), -1);
+        assert_eq!(interpret(mul).unwrap().unwrap(), 6);
+        assert_eq!(interpret(div).unwrap().unwrap(), 0.5);
+        assert_eq!(interpret(pow).unwrap().unwrap(), 8);
+    }
+
+    #[test]
+    fn test_unary() {
+        let neg = Stmt::Expr(unary(Minus, literal("1")));
+        let fact = Stmt::Expr(unary(Exclamation, literal("5")));
+        let fact_dec = Stmt::Expr(unary(Exclamation, literal("5.2")));
+
+        assert_eq!(interpret(neg).unwrap().unwrap(), -1);
+        assert_eq!(interpret(fact).unwrap().unwrap(), 120);
+
+        let fact_dec_result = interpret(fact_dec).unwrap().unwrap();
+        assert!(fact_dec_result > 169.406 && fact_dec_result < 169.407);
+    }
+}

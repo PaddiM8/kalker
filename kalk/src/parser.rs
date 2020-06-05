@@ -310,6 +310,7 @@ fn is_at_end(context: &mut Context) -> bool {
 mod tests {
     use super::*;
     use crate::lexer::{Token, TokenKind::*};
+    use crate::test_helpers::*;
     use test_case::test_case;
 
     fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, String> {
@@ -323,33 +324,6 @@ mod tests {
         context.tokens = tokens;
 
         parse_stmt(&mut context)
-    }
-
-    fn token(kind: TokenKind, value: &str) -> Token {
-        Token {
-            kind,
-            value: value.into(),
-        }
-    }
-
-    fn literal(value: &str) -> Box<Expr> {
-        Box::new(Expr::Literal(value.into()))
-    }
-
-    fn var(identifier: &str) -> Box<Expr> {
-        Box::new(Expr::Var(identifier.into()))
-    }
-
-    fn binary(left: Box<Expr>, op: TokenKind, right: Box<Expr>) -> Box<Expr> {
-        Box::new(Expr::Binary(left, op, right))
-    }
-
-    fn unary(op: TokenKind, expr: Box<Expr>) -> Box<Expr> {
-        Box::new(Expr::Unary(op, expr))
-    }
-
-    fn group(expr: Box<Expr>) -> Box<Expr> {
-        Box::new(Expr::Group(expr))
     }
 
     #[test]
