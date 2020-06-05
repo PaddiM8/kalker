@@ -7,7 +7,6 @@ use crate::{
 use rug::Float;
 
 pub struct Context {
-    //angle_unit: Unit,
     tokens: Vec<Token>,
     pos: usize,
     symbol_table: SymbolTable,
@@ -299,4 +298,82 @@ fn consume<'a>(context: &'a mut Context, kind: TokenKind) -> Result<&'a Token, S
 
 fn is_at_end(context: &mut Context) -> bool {
     context.pos >= context.tokens.len() || compare_enums(&peek(context).kind, &TokenKind::EOF)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lexer::{Token, TokenKind::*};
+
+    fn parse(tokens: Vec<Token>) -> Stmt {
+        let mut context = Context::new();
+        context.tokens = tokens;
+
+        parse_stmt(&mut context).unwrap()
+    }
+
+    fn token(kind: TokenKind, value: &str) -> Token {
+        Token {
+            kind,
+            value: value.into(),
+        }
+    }
+
+    fn literal(value: &str) -> Box<Expr> {
+        Box::new(Expr::Literal(value.into()))
+    }
+
+    fn var(identifier: &str) -> Box<Expr> {
+        Box::new(Expr::Var(identifier.into()))
+    }
+
+    fn binary(left: Box<Expr>, op: TokenKind, right: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Binary(left, op, right))
+    }
+    fn group(expr: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Group(expr))
+    }
+
+    #[test]
+    fn test_var() {
+        // x
+        let tokens = vec![token(Identifier, "x"), token(EOF, "")];
+
+        assert_eq!(parse(tokens), Stmt::Expr(var("x")));
+    }
+
+    #[test]
+    fn test_precedence() {
+        // 1+2*(3-4/5)
+        let tokens = vec![
+            token(Literal, "1"),
+            token(Plus, ""),
+            token(Literal, "2"),
+            token(Star, ""),
+            token(OpenParenthesis, ""),
+            token(Literal, "3"),
+            token(Minus, ""),
+            token(Literal, "4"),
+            token(Slash, ""),
+            token(Literal, "5"),
+            token(ClosedParenthesis, ""),
+        ];
+
+        assert_eq!(
+            parse(tokens),
+            Stmt::Expr(binary(
+                literal("1"),
+                Plus,
+                binary(
+                    literal("2"),
+                    Star,
+                    group(binary(
+                        literal("3"),
+                        Minus,
+                        binary(literal("4"), Slash, literal("5"))
+                    ))
+                )
+            ))
+        );
+    }
 }
