@@ -310,7 +310,6 @@ fn is_at_end(context: &mut Context) -> bool {
 mod tests {
     use super::*;
     use crate::lexer::{Token, TokenKind::*};
-    use test_case::test_case;
 
     fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, String> {
         context.tokens = tokens;
@@ -390,17 +389,17 @@ mod tests {
         );
     }
 
-    #[test_case(Star, Plus)]
-    fn test_pow(op1: TokenKind, op2: TokenKind) {
+    #[test]
+    fn test_pow() {
         let tokens = vec![
             token(Literal, "1"),
-            token(op1.clone(), ""),
+            token(Star, ""),
             token(Literal, "2"),
             token(Power, ""),
             token(Literal, "3"),
             token(Power, ""),
             token(Literal, "4"),
-            token(op2, ""),
+            token(Plus, ""),
             token(Literal, "5"),
         ];
 
@@ -409,7 +408,7 @@ mod tests {
             Stmt::Expr(binary(
                 binary(
                     literal("1"),
-                    op1,
+                    Star,
                     binary(
                         literal("2"),
                         Power,
