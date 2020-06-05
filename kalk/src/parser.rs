@@ -310,12 +310,19 @@ fn is_at_end(context: &mut Context) -> bool {
 mod tests {
     use super::*;
     use crate::lexer::{Token, TokenKind::*};
+    use test_case::test_case;
 
-    fn parse(tokens: Vec<Token>) -> Stmt {
+    fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, String> {
+        context.tokens = tokens;
+
+        parse_stmt(context)
+    }
+
+    fn parse(tokens: Vec<Token>) -> Result<Stmt, String> {
         let mut context = Context::new();
         context.tokens = tokens;
 
-        parse_stmt(&mut context).unwrap()
+        parse_stmt(&mut context)
     }
 
     fn token(kind: TokenKind, value: &str) -> Token {
@@ -345,11 +352,11 @@ mod tests {
         // x
         let tokens = vec![token(Identifier, "x"), token(EOF, "")];
 
-        assert_eq!(parse(tokens), Stmt::Expr(var("x")));
+        assert_eq!(parse(tokens).unwrap(), Stmt::Expr(var("x")));
     }
 
     #[test]
-    fn test_precedence() {
+    fn test_binary() {
         // 1+2*(3-4/5)
         let tokens = vec![
             token(Literal, "1"),
@@ -366,7 +373,7 @@ mod tests {
         ];
 
         assert_eq!(
-            parse(tokens),
+            parse(tokens).unwrap(),
             Stmt::Expr(binary(
                 literal("1"),
                 Plus,
@@ -379,6 +386,111 @@ mod tests {
                         binary(literal("4"), Slash, literal("5"))
                     ))
                 )
+            ))
+        );
+    }
+
+    #[test_case(Star, Plus)]
+    fn test_pow(op1: TokenKind, op2: TokenKind) {
+        let tokens = vec![
+            token(Literal, "1"),
+            token(op1.clone(), ""),
+            token(Literal, "2"),
+            token(Power, ""),
+            token(Literal, "3"),
+            token(Power, ""),
+            token(Literal, "4"),
+            token(op2, ""),
+            token(Literal, "5"),
+        ];
+
+        assert_eq!(
+            parse(tokens).unwrap(),
+            Stmt::Expr(binary(
+                binary(
+                    literal("1"),
+                    op1,
+                    binary(
+                        literal("2"),
+                        Power,
+                        binary(literal("3"), Power, literal("4")),
+                    ),
+                ),
+                Plus,
+                literal("5")
+            )),
+        );
+    }
+
+    #[test]
+    fn test_var_decl() {
+        let tokens = vec![
+            token(Identifier, "x"),
+            token(Equals, ""),
+            token(Literal, "1"),
+            token(Plus, ""),
+            token(Literal, "2"),
+        ];
+
+        assert_eq!(
+            parse(tokens).unwrap(),
+            Stmt::VarDecl(String::from("x"), binary(literal("1"), Plus, literal("2")))
+        );
+    }
+
+    #[test]
+    fn test_fn_decl() {
+        let tokens = vec![
+            token(Identifier, "f"),
+            token(OpenParenthesis, ""),
+            token(Identifier, "x"),
+            token(ClosedParenthesis, ""),
+            token(Equals, ""),
+            token(Literal, "1"),
+            token(Plus, ""),
+            token(Literal, "2"),
+        ];
+
+        assert_eq!(
+            parse(tokens).unwrap(),
+            Stmt::FnDecl(
+                String::from("f"),
+                vec![String::from("x")],
+                binary(literal("1"), Plus, literal("2"))
+            )
+        );
+    }
+
+    #[test]
+    fn test_fn_call() {
+        let tokens = vec![
+            token(Identifier, "f"),
+            token(OpenParenthesis, ""),
+            token(Literal, "1"),
+            token(Plus, ""),
+            token(Literal, "2"),
+            token(ClosedParenthesis, ""),
+            token(Plus, ""),
+            token(Literal, "3"),
+        ];
+
+        let mut context = Context::new();
+
+        // Add the function to the symbol table first, in order to prevent errors.
+        context.symbol_table.set(
+            "f()",
+            Stmt::FnDecl(String::from("f"), vec![String::from("x")], literal("1")),
+        );
+
+        assert_eq!(
+            parse_with_context(&mut context, tokens).unwrap(),
+            Stmt::Expr(binary(
+                Box::new(Expr::FnCall(
+                    String::from("f"),
+                    vec![*binary(literal("1"), Plus, literal("2"))]
+                )),
+                Plus,
+                literal("3")
             ))
         );
     }
