@@ -310,6 +310,7 @@ fn is_at_end(context: &mut Context) -> bool {
 mod tests {
     use super::*;
     use crate::lexer::{Token, TokenKind::*};
+    use test_case::test_case;
 
     fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, String> {
         context.tokens = tokens;
@@ -342,6 +343,11 @@ mod tests {
     fn binary(left: Box<Expr>, op: TokenKind, right: Box<Expr>) -> Box<Expr> {
         Box::new(Expr::Binary(left, op, right))
     }
+
+    fn unary(op: TokenKind, expr: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Unary(op, expr))
+    }
+
     fn group(expr: Box<Expr>) -> Box<Expr> {
         Box::new(Expr::Group(expr))
     }
@@ -418,6 +424,21 @@ mod tests {
                 Plus,
                 literal("5")
             )),
+        );
+    }
+
+    #[test_case(Deg)]
+    #[test_case(Rad)]
+    fn test_unary(angle_unit: TokenKind) {
+        let tokens = vec![
+            token(Minus, ""),
+            token(Literal, "1"),
+            token(angle_unit.clone(), ""),
+        ];
+
+        assert_eq!(
+            parse(tokens).unwrap(),
+            Stmt::Expr(unary(Minus, Box::new(Expr::Unit(literal("1"), angle_unit))))
         );
     }
 
