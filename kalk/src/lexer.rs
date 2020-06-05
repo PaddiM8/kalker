@@ -102,7 +102,9 @@ impl<'a> Lexer<'a> {
         let start = self.index;
         let mut end = start;
 
-        while !self.is_at_end() && (self.peek().is_digit(10) || self.peek() == '.') {
+        while !self.is_at_end()
+            && (self.peek().is_digit(10) || self.peek() == '.' || self.peek().is_whitespace())
+        {
             end += 1;
             self.advance();
         }
