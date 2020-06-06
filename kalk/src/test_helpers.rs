@@ -7,6 +7,7 @@ pub fn token(kind: TokenKind, value: &str) -> Token {
     Token {
         kind,
         value: value.into(),
+        span: (0, 0),
     }
 }
 
