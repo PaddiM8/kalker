@@ -9,21 +9,19 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
 
             if result.is_infinite() {
                 print_err("Too big to process.");
-            /*} else if result.clone().fract() == 0 {
-            println!("{}", result.to_integer().unwrap());*/
             } else {
                 let use_sci_notation = exp > 8 || exp < -6;
                 let comma_pos = if use_sci_notation { 1 } else { exp as usize };
                 let sign = if result >= 0 { "" } else { "-" };
 
-                let num = if use_sci_notation {
+                let num = if exp <= 0 {
+                    // 0 < x < 1
+                    format!("0.{}{}", "0".repeat(exp.abs() as usize), digits)
+                } else if use_sci_notation || result.fract() != 0 {
                     // Insert the comma if there are supposed to be decimals.
                     let mut chars: Vec<char> = digits.trim_end_matches('0').chars().collect();
                     chars.insert(comma_pos, '.');
                     chars.into_iter().collect::<String>()
-                } else if exp < 0 {
-                    // 0 < x < 1
-                    format!("0.{}{}", "0".repeat(exp.abs() as usize), digits)
                 } else {
                     // Regular number
                     digits[..(exp as usize)].to_string()
