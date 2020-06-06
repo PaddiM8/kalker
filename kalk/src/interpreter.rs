@@ -1,5 +1,6 @@
 use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
+use crate::parser::CalcError;
 use crate::parser::Unit;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
@@ -21,7 +22,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<Option<Float>, String> {
+    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<Option<Float>, CalcError> {
         for (i, stmt) in statements.iter().enumerate() {
             let value = eval_stmt(self, stmt);
 
@@ -36,7 +37,7 @@ impl<'a> Context<'a> {
     }
 }
 
-fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<Float, String> {
+fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<Float, CalcError> {
     match stmt {
         Stmt::VarDecl(identifier, _) => eval_var_decl_stmt(context, stmt, identifier),
         Stmt::FnDecl(_, _, _) => eval_fn_decl_stmt(context),
@@ -48,20 +49,20 @@ fn eval_var_decl_stmt(
     context: &mut Context,
     stmt: &Stmt,
     identifier: &str,
-) -> Result<Float, String> {
+) -> Result<Float, CalcError> {
     context.symbol_table.insert(&identifier, stmt.clone());
     Ok(Float::with_val(context.precision, 1))
 }
 
-fn eval_fn_decl_stmt(context: &mut Context) -> Result<Float, String> {
+fn eval_fn_decl_stmt(context: &mut Context) -> Result<Float, CalcError> {
     Ok(Float::with_val(context.precision, 1)) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
 }
 
-fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<Float, String> {
+fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
     eval_expr(context, &expr)
 }
 
-fn eval_expr(context: &mut Context, expr: &Expr) -> Result<Float, String> {
+fn eval_expr(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
     match expr {
         Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right),
         Expr::Unary(op, expr) => eval_unary_expr(context, op, expr),
@@ -80,7 +81,7 @@ fn eval_binary_expr(
     left: &Expr,
     op: &TokenKind,
     right: &Expr,
-) -> Result<Float, String> {
+) -> Result<Float, CalcError> {
     let left = eval_expr(context, &left)?;
     let right = eval_expr(context, &right)?;
 
@@ -94,7 +95,7 @@ fn eval_binary_expr(
     })
 }
 
-fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result<Float, String> {
+fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result<Float, CalcError> {
     let expr_value = eval_expr(context, &expr)?;
 
     match op {
@@ -103,11 +104,15 @@ fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result
             context.precision,
             prelude::special_funcs::factorial(expr_value),
         )),
-        _ => Err(String::from("Invalid operator for unary expression.")),
+        _ => Err(CalcError::InvalidOperator),
     }
 }
 
-fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Result<Float, String> {
+fn eval_unit_expr(
+    context: &mut Context,
+    expr: &Expr,
+    kind: &TokenKind,
+) -> Result<Float, CalcError> {
     let x = eval_expr(context, &expr);
     let unit = kind.to_unit()?;
 
@@ -126,7 +131,7 @@ fn eval_unit_expr(context: &mut Context, expr: &Expr, kind: &TokenKind) -> Resul
     }
 }
 
-fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<Float, String> {
+fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<Float, CalcError> {
     // If there is a constant with this name, return a literal expression with its value
     if let Some(value) = prelude::CONSTANTS.get(identifier) {
         return eval_expr(context, &Expr::Literal((*value).to_string()));
@@ -136,18 +141,18 @@ fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<Float, Strin
     let var_decl = context.symbol_table.get(identifier).cloned();
     match var_decl {
         Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr),
-        _ => Err(format!("Undefined variable: '{}'.", identifier)),
+        _ => Err(CalcError::UndefinedVar(identifier.into())),
     }
 }
 
-fn eval_literal_expr(context: &mut Context, value: &str) -> Result<Float, String> {
+fn eval_literal_expr(context: &mut Context, value: &str) -> Result<Float, CalcError> {
     match Float::parse(value) {
         Ok(parsed_value) => Ok(Float::with_val(context.precision, parsed_value)),
-        Err(_) => Err(format!("Invalid number literal: '{}'.", value)),
+        Err(_) => Err(CalcError::InvalidNumberLiteral(value.into())),
     }
 }
 
-fn eval_group_expr(context: &mut Context, expr: &Expr) -> Result<Float, String> {
+fn eval_group_expr(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
     eval_expr(context, expr)
 }
 
@@ -155,7 +160,7 @@ fn eval_fn_call_expr(
     context: &mut Context,
     identifier: &str,
     expressions: &[Expr],
-) -> Result<Float, String> {
+) -> Result<Float, CalcError> {
     // Prelude
     let prelude_func = match expressions.len() {
         1 => {
@@ -179,9 +184,10 @@ fn eval_fn_call_expr(
         "sum" | "Σ" => {
             // Make sure exactly 3 arguments were supplied.
             if expressions.len() != 3 {
-                return Err(format!(
-                    "Expected 3 arguments but got {}.",
-                    expressions.len()
+                return Err(CalcError::IncorrectAmountOfArguments(
+                    3,
+                    "sum".into(),
+                    expressions.len(),
                 ));
             }
 
@@ -214,11 +220,10 @@ fn eval_fn_call_expr(
     match stmt_definition {
         Some(Stmt::FnDecl(_, arguments, fn_body)) => {
             if arguments.len() != expressions.len() {
-                return Err(format!(
-                    "Expected {} arguments in function '{}' but found {}.",
+                return Err(CalcError::IncorrectAmountOfArguments(
                     arguments.len(),
-                    identifier,
-                    expressions.len()
+                    identifier.into(),
+                    expressions.len(),
                 ));
             }
 
@@ -232,7 +237,7 @@ fn eval_fn_call_expr(
 
             eval_expr(context, &*fn_body)
         }
-        _ => Err(format!("Undefined function: '{}'.", identifier)),
+        _ => Err(CalcError::UndefinedFn(identifier.into())),
     }
 }
 
@@ -244,7 +249,7 @@ mod tests {
 
     const PRECISION: u32 = 53;
 
-    fn interpret(stmt: Stmt) -> Result<Option<Float>, String> {
+    fn interpret(stmt: Stmt) -> Result<Option<Float>, CalcError> {
         let mut symbol_table = SymbolTable::new();
         let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
         context.interpret(vec![stmt])
@@ -318,7 +323,7 @@ mod tests {
 
         assert_eq!(
             interpret(stmt),
-            Err(String::from("Undefined variable: 'x'."))
+            Err(CalcError::UndefinedVar(String::from("x")))
         );
     }
 
