@@ -29,6 +29,7 @@ pub enum TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub value: String,
+    pub span: (usize, usize),
 }
 
 pub struct Lexer<'a> {
@@ -51,7 +52,7 @@ impl<'a> Lexer<'a> {
         // If there isn't already an EOF token, add it.
         if let TokenKind::EOF = tokens.last().unwrap().kind {
         } else {
-            tokens.push(build(TokenKind::EOF, ""));
+            tokens.push(build(TokenKind::EOF, "", (source.len(), source.len())));
         }
 
         tokens
@@ -64,7 +65,7 @@ impl<'a> Lexer<'a> {
             self.advance();
 
             if self.is_at_end() {
-                return build(TokenKind::EOF, "");
+                return build(TokenKind::EOF, "", (self.index, self.index));
             } else {
                 c = self.peek();
             }
@@ -78,19 +79,20 @@ impl<'a> Lexer<'a> {
             return self.next_identifier();
         }
 
+        let span = (self.index, self.index + 1);
         let token = match c {
-            '+' => build(TokenKind::Plus, ""),
-            '-' => build(TokenKind::Minus, ""),
-            '*' => build(TokenKind::Star, ""),
-            '/' => build(TokenKind::Slash, ""),
-            '^' => build(TokenKind::Power, ""),
-            '(' => build(TokenKind::OpenParenthesis, ""),
-            ')' => build(TokenKind::ClosedParenthesis, ""),
-            '|' => build(TokenKind::Pipe, ""),
-            '=' => build(TokenKind::Equals, ""),
-            '!' => build(TokenKind::Exclamation, ""),
-            ',' => build(TokenKind::Comma, ""),
-            _ => build(TokenKind::Unknown, ""),
+            '+' => build(TokenKind::Plus, "", span),
+            '-' => build(TokenKind::Minus, "", span),
+            '*' => build(TokenKind::Star, "", span),
+            '/' => build(TokenKind::Slash, "", span),
+            '^' => build(TokenKind::Power, "", span),
+            '(' => build(TokenKind::OpenParenthesis, "", span),
+            ')' => build(TokenKind::ClosedParenthesis, "", span),
+            '|' => build(TokenKind::Pipe, "", span),
+            '=' => build(TokenKind::Equals, "", span),
+            '!' => build(TokenKind::Exclamation, "", span),
+            ',' => build(TokenKind::Comma, "", span),
+            _ => build(TokenKind::Unknown, "", span),
         };
 
         self.advance();
@@ -110,9 +112,9 @@ impl<'a> Lexer<'a> {
         }
 
         if let Ok(value) = str::from_utf8(&self.source[start..end]) {
-            build(TokenKind::Literal, value)
+            build(TokenKind::Literal, value, (start, end))
         } else {
-            build(TokenKind::Unknown, "")
+            build(TokenKind::Unknown, "", (self.index, self.index))
         }
     }
 
@@ -132,9 +134,9 @@ impl<'a> Lexer<'a> {
                 _ => TokenKind::Identifier,
             };
 
-            build(kind, value)
+            build(kind, value, (start, end))
         } else {
-            build(TokenKind::Unknown, "")
+            build(TokenKind::Unknown, "", (self.index, self.index))
         }
     }
 
@@ -151,10 +153,11 @@ impl<'a> Lexer<'a> {
     }
 }
 
-fn build(kind: TokenKind, value: &str) -> Token {
+fn build(kind: TokenKind, value: &str, span: (usize, usize)) -> Token {
     Token {
         kind,
         value: value.to_string(),
+        span,
     }
 }
 
