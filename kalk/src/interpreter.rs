@@ -287,4 +287,49 @@ mod tests {
         let fact_dec_result = interpret(fact_dec).unwrap().unwrap();
         assert!(fact_dec_result > 169.406 && fact_dec_result < 169.407);
     }
+
+    #[test]
+    fn test_unit() {
+        let rad = Stmt::Expr(Box::new(Expr::Unit(literal("1"), Rad)));
+        let deg = Stmt::Expr(Box::new(Expr::Unit(literal("1"), Deg)));
+
+        assert_eq!(interpret(rad).unwrap().unwrap(), 1);
+        assert_eq!(
+            interpret(deg).unwrap().unwrap(),
+            Float::with_val(10, 0.017456)
+        );
+    }
+
+    #[test]
+    fn test_var() {
+        let stmt = Stmt::Expr(Box::new(Expr::Var(String::from("x"))));
+
+        // Prepare by inserting a variable declaration in the symbol table.
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.insert("x", Stmt::VarDecl(String::from("x"), literal("1")));
+
+        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
+        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_undefined_var() {
+        let stmt = Stmt::Expr(Box::new(Expr::Var(String::from("x"))));
+
+        assert_eq!(
+            interpret(stmt),
+            Err(String::from("Undefined variable: 'x'."))
+        );
+    }
+
+    #[test]
+    fn test_var_decl() {
+        let stmt = Stmt::VarDecl(String::from("x"), literal("1"));
+        let mut symbol_table = SymbolTable::new();
+        Context::new(&mut symbol_table, &Unit::Radians, PRECISION)
+            .interpret(vec![stmt])
+            .unwrap();
+
+        assert!(symbol_table.contains_var("x"));
+    }
 }
