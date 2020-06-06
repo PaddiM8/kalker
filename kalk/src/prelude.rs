@@ -134,11 +134,11 @@ pub mod special_funcs {
     }
 
     pub fn to_degrees(x: Float) -> Float {
-        Float::with_val(10, x.to_f64().to_degrees())
+        Float::with_val(53, x.to_f64().to_degrees())
     }
 
     pub fn to_radians(x: Float) -> Float {
-        Float::with_val(10, x.to_f64().to_radians())
+        Float::with_val(53, x.to_f64().to_radians())
     }
 }
 
