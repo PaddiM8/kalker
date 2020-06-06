@@ -12,11 +12,6 @@ pub struct Context {
     symbol_table: SymbolTable,
     angle_unit: Unit,
 }
-#[derive(Debug, Clone, PartialEq)]
-pub enum Unit {
-    Radians,
-    Degrees,
-}
 
 impl Context {
     pub fn new() -> Self {
@@ -41,7 +36,29 @@ impl Default for Context {
     }
 }
 
-pub fn parse(context: &mut Context, input: &str, precision: u32) -> Result<Option<Float>, String> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum Unit {
+    Radians,
+    Degrees,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CalcError {
+    IncorrectAmountOfArguments(usize, String, usize),
+    InvalidNumberLiteral(String),
+    InvalidOperator,
+    InvalidUnit,
+    UnexpectedToken(TokenKind),
+    UndefinedFn(String),
+    UndefinedVar(String),
+    Unknown,
+}
+
+pub fn parse(
+    context: &mut Context,
+    input: &str,
+    precision: u32,
+) -> Result<Option<Float>, CalcError> {
     context.tokens = Lexer::lex(input);
     context.pos = 0;
 
@@ -54,7 +71,7 @@ pub fn parse(context: &mut Context, input: &str, precision: u32) -> Result<Optio
     interpreter.interpret(statements)
 }
 
-fn parse_stmt(context: &mut Context) -> Result<Stmt, String> {
+fn parse_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     if match_token(context, TokenKind::Identifier) {
         return Ok(match peek_next(context).kind {
             TokenKind::Equals => parse_var_decl_stmt(context)?,
@@ -66,7 +83,7 @@ fn parse_stmt(context: &mut Context) -> Result<Stmt, String> {
     Ok(Stmt::Expr(Box::new(parse_expr(context)?)))
 }
 
-fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, String> {
+fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let began_at = context.pos;
     let primary = parse_primary(context)?; // Since function declarations and function calls look the same at first, simply parse a "function call", and re-use the data.
 
@@ -99,7 +116,7 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, String> {
             return Ok(fn_decl);
         }
 
-        Err("Parsing error.".into())
+        Err(CalcError::Unknown)
     } else {
         // It is a function call, not a function declaration.
         // Redo the parsing for this specific part.
@@ -108,7 +125,7 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, String> {
     }
 }
 
-fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, String> {
+fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let identifier = advance(context).clone();
     advance(context); // Equal sign
     let expr = parse_expr(context)?;
@@ -116,11 +133,11 @@ fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, String> {
     Ok(Stmt::VarDecl(identifier.value, Box::new(expr)))
 }
 
-fn parse_expr(context: &mut Context) -> Result<Expr, String> {
+fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(parse_sum(context)?)
 }
 
-fn parse_sum(context: &mut Context) -> Result<Expr, String> {
+fn parse_sum(context: &mut Context) -> Result<Expr, CalcError> {
     let mut left = parse_factor(context)?;
 
     while match_token(context, TokenKind::Plus) || match_token(context, TokenKind::Minus) {
@@ -134,7 +151,7 @@ fn parse_sum(context: &mut Context) -> Result<Expr, String> {
     Ok(left)
 }
 
-fn parse_factor(context: &mut Context) -> Result<Expr, String> {
+fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
     let mut left = parse_unary(context)?;
 
     while match_token(context, TokenKind::Star)
@@ -155,7 +172,7 @@ fn parse_factor(context: &mut Context) -> Result<Expr, String> {
     Ok(left)
 }
 
-fn parse_unary(context: &mut Context) -> Result<Expr, String> {
+fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
     if match_token(context, TokenKind::Minus) {
         let op = advance(context).kind.clone();
         let expr = Box::new(parse_unary(context)?);
@@ -165,7 +182,7 @@ fn parse_unary(context: &mut Context) -> Result<Expr, String> {
     Ok(parse_exponent(context)?)
 }
 
-fn parse_exponent(context: &mut Context) -> Result<Expr, String> {
+fn parse_exponent(context: &mut Context) -> Result<Expr, CalcError> {
     let left = parse_factorial(context)?;
 
     if match_token(context, TokenKind::Power) {
@@ -177,7 +194,7 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, String> {
     Ok(left)
 }
 
-fn parse_factorial(context: &mut Context) -> Result<Expr, String> {
+fn parse_factorial(context: &mut Context) -> Result<Expr, CalcError> {
     let expr = parse_primary(context)?;
 
     Ok(if match_token(context, TokenKind::Exclamation) {
@@ -188,7 +205,7 @@ fn parse_factorial(context: &mut Context) -> Result<Expr, String> {
     })
 }
 
-fn parse_primary(context: &mut Context) -> Result<Expr, String> {
+fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
     let expr = match peek(context).kind {
         TokenKind::OpenParenthesis => parse_group(context)?,
         TokenKind::Pipe => parse_abs(context)?,
@@ -203,7 +220,7 @@ fn parse_primary(context: &mut Context) -> Result<Expr, String> {
     }
 }
 
-fn parse_group(context: &mut Context) -> Result<Expr, String> {
+fn parse_group(context: &mut Context) -> Result<Expr, CalcError> {
     advance(context);
     let group_expr = Expr::Group(Box::new(parse_expr(context)?));
     consume(context, TokenKind::ClosedParenthesis)?;
@@ -211,7 +228,7 @@ fn parse_group(context: &mut Context) -> Result<Expr, String> {
     Ok(group_expr)
 }
 
-fn parse_abs(context: &mut Context) -> Result<Expr, String> {
+fn parse_abs(context: &mut Context) -> Result<Expr, CalcError> {
     advance(context);
     let group_expr = Expr::Group(Box::new(parse_expr(context)?));
     consume(context, TokenKind::Pipe)?;
@@ -219,7 +236,7 @@ fn parse_abs(context: &mut Context) -> Result<Expr, String> {
     Ok(Expr::FnCall(String::from("abs"), vec![group_expr]))
 }
 
-fn parse_identifier(context: &mut Context) -> Result<Expr, String> {
+fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     let identifier = advance(context).clone();
 
     // Eg. sqrt64
@@ -294,12 +311,12 @@ fn advance(context: &mut Context) -> &Token {
     previous(context)
 }
 
-fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, String> {
-    if match_token(context, kind) {
+fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, CalcError> {
+    if match_token(context, kind.clone()) {
         return Ok(advance(context));
     }
 
-    Err("Unexpected token".into())
+    Err(CalcError::UnexpectedToken(kind))
 }
 
 fn is_at_end(context: &mut Context) -> bool {
@@ -313,13 +330,13 @@ mod tests {
     use crate::test_helpers::*;
     use test_case::test_case;
 
-    fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, String> {
+    fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, CalcError> {
         context.tokens = tokens;
 
         parse_stmt(context)
     }
 
-    fn parse(tokens: Vec<Token>) -> Result<Stmt, String> {
+    fn parse(tokens: Vec<Token>) -> Result<Stmt, CalcError> {
         let mut context = Context::new();
         context.tokens = tokens;
 

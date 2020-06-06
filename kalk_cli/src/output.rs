@@ -1,5 +1,5 @@
 use ansi_term::Colour::Red;
-use kalk::parser::{self};
+use kalk::parser::{self, CalcError, CalcError::*};
 
 pub fn eval(parser: &mut parser::Context, input: &str) {
     match parser::parse(parser, input, 53) {
@@ -8,7 +8,7 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
             let exp = if let Some(exp) = exp_option { exp } else { 0 };
 
             if result.is_infinite() {
-                err("Too big to process.");
+                print_err("Too big to process.");
             /*} else if result.clone().fract() == 0 {
             println!("{}", result.to_integer().unwrap());*/
             } else {
@@ -37,10 +37,26 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
             }
         }
         Ok(None) => print!(""),
-        Err(msg) => err(&msg),
+        Err(err) => print_calc_err(err),
     }
 }
 
-fn err(msg: &str) {
+fn print_calc_err(err: CalcError) {
+    print_err(&match err {
+        IncorrectAmountOfArguments(expected, func, got) => format!(
+            "Expected {} arguments for function {}, but got {}.",
+            expected, func, got
+        ),
+        InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
+        InvalidOperator => format!("Invalid operator."),
+        InvalidUnit => format!("Invalid unit."),
+        UnexpectedToken(kind) => format!("Unexpected token: '{:?}'.", kind),
+        UndefinedFn(name) => format!("Undefined function: '{}'.", name),
+        UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
+        Unknown => format!("Unknown error."),
+    });
+}
+
+fn print_err(msg: &str) {
     println!("{}", Red.paint(msg));
 }

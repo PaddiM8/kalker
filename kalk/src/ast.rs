@@ -1,4 +1,5 @@
 use crate::lexer::TokenKind;
+use crate::parser::CalcError;
 use crate::parser::Unit;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,11 +28,11 @@ impl TokenKind {
         }
     }
 
-    pub fn to_unit(&self) -> Result<Unit, String> {
+    pub fn to_unit(&self) -> Result<Unit, CalcError> {
         match self {
             TokenKind::Deg => Ok(Unit::Degrees),
             TokenKind::Rad => Ok(Unit::Radians),
-            _ => Err(String::from("Invalid unit.")),
+            _ => Err(CalcError::InvalidUnit),
         }
     }
 }
