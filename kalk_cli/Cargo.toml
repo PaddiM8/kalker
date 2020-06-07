@@ -11,3 +11,5 @@ panic = "abort"
 kalk = { path = "../kalk" }
 rustyline = "6.1.2"
 ansi_term = "0.12"
+regex = "1"
+phf = { version = "0.8", features = ["macros"] }
