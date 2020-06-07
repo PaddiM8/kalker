@@ -50,6 +50,7 @@ pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
     "ln" => UnaryFuncInfo(ln, Other),
     "round" => UnaryFuncInfo(round, Other),
     "sqrt" => UnaryFuncInfo(sqrt, Other),
+    "√" => UnaryFuncInfo(sqrt, Other),
     "trunc" => UnaryFuncInfo(trunc, Other),
 };
 pub const BINARY_FUNCS: phf::Map<&'static str, BinaryFuncInfo> = phf::phf_map! {

@@ -75,7 +75,7 @@ impl<'a> Lexer<'a> {
             return self.next_number_literal();
         }
 
-        if c.is_alphabetic() {
+        if is_valid_identifier(c) {
             return self.next_identifier();
         }
 
@@ -121,8 +121,21 @@ impl<'a> Lexer<'a> {
     fn next_identifier(&mut self) -> Token {
         let start = self.index;
         let mut end = start;
+        let letter_reg = regex::Regex::new(r"[A-z']").unwrap();
 
         while !self.is_at_end() && is_valid_identifier(self.peek()) {
+            let c = self.peek();
+
+            // Separate special characters from normal characters
+            // in order to allow eg. x√64
+            if end - start > 0 // If this isn't the first run
+                && letter_reg.is_match(&(self.previous() as char).to_string()) // and the previous char was a normal one
+                && !letter_reg.is_match(&c.to_string())
+            // and this one is a special character (why did rustfmt put this on a new line??)
+            {
+                break;
+            }
+
             end += 1;
             self.advance();
         }
@@ -144,6 +157,10 @@ impl<'a> Lexer<'a> {
         self.source[self.index].into()
     }
 
+    fn previous(&self) -> char {
+        self.source[self.index - 1].into()
+    }
+
     fn advance(&mut self) {
         self.index += 1;
     }
@@ -162,7 +179,9 @@ fn build(kind: TokenKind, value: &str, span: (usize, usize)) -> Token {
 }
 
 fn is_valid_identifier(c: char) -> bool {
-    c.is_alphabetic() || c == '°' || c == '√' || c == '\'' || c == '¨' || c == 'Σ'
+    regex::Regex::new(r"[^\s\n\r0-9\+-/\*\^!\(\)=\.,|]")
+        .unwrap()
+        .is_match(&c.to_string())
 }
 
 #[cfg(test)]
