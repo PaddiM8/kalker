@@ -115,7 +115,7 @@ impl Completer for RLHelper {
 
 impl Highlighter for RLHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        self.highlighter.highlight_hint(hint)
+        Owned(Colour::Fixed(244).paint(hint).to_string())
     }
 
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
