@@ -14,3 +14,4 @@ panic = "abort"
 phf = { version = "0.8", features = ["macros"] }
 rug = "1.9.0"
 test-case = "1.0.0"
+regex = "1"
