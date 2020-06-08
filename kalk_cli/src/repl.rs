@@ -90,6 +90,8 @@ impl Helper for RLHelper {}
 const COMPLETION_FUNCS: phf::Map<&'static str, &'static str> = phf::phf_map! {
     "sqrt" => "√",
     "deg" => "°",
+    "floor" => "⌊⌋",
+    "ceil" => "⌈⌉",
 };
 
 impl Completer for RLHelper {
@@ -102,14 +104,18 @@ impl Completer for RLHelper {
     ) -> Result<(usize, Vec<Self::Candidate>), ReadlineError> {
         for key in COMPLETION_FUNCS.keys() {
             if line[..pos].ends_with(key) {
-                return Ok((
-                    pos - key.len(),
-                    vec![String::from(*COMPLETION_FUNCS.get(key).unwrap())],
-                ));
+                let value = *COMPLETION_FUNCS.get(key).unwrap();
+                return Ok((pos - key.len(), vec![value.to_string()]));
             }
         }
 
         Ok((0, vec![line.to_string()]))
+    }
+
+    fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
+        line.backspace(line.pos() - start);
+        line.insert_str(line.pos(), elected);
+        line.move_forward(1);
     }
 }
 
