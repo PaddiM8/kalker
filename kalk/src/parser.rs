@@ -208,7 +208,7 @@ fn parse_factorial(context: &mut Context) -> Result<Expr, CalcError> {
 fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
     let expr = match peek(context).kind {
         TokenKind::OpenParenthesis => parse_group(context)?,
-        TokenKind::Pipe => parse_abs(context)?,
+        TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
         _ => Expr::Literal(advance(context).value.clone()),
     };
@@ -228,12 +228,18 @@ fn parse_group(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(group_expr)
 }
 
-fn parse_abs(context: &mut Context) -> Result<Expr, CalcError> {
-    advance(context);
-    let group_expr = Expr::Group(Box::new(parse_expr(context)?));
-    consume(context, TokenKind::Pipe)?;
+fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
+    let name = match &advance(context).kind {
+        TokenKind::Pipe => "abs",
+        TokenKind::OpenCeil => "ceil",
+        TokenKind::OpenFloor => "floor",
+        _ => panic!("Unexpected parsing error."),
+    };
 
-    Ok(Expr::FnCall(String::from("abs"), vec![group_expr]))
+    let expr = parse_expr(context)?;
+    advance(context);
+
+    Ok(Expr::FnCall(name.to_string(), vec![expr]))
 }
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {

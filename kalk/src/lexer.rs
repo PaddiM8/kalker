@@ -1,4 +1,6 @@
+use std::iter::Peekable;
 use std::str;
+use std::str::Chars;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
@@ -18,6 +20,10 @@ pub enum TokenKind {
     Rad,
 
     Pipe,
+    OpenCeil,
+    ClosedCeil,
+    OpenFloor,
+    ClosedFloor,
     OpenParenthesis,
     ClosedParenthesis,
     Comma,
@@ -33,41 +39,44 @@ pub struct Token {
 }
 
 pub struct Lexer<'a> {
-    source: &'a [u8],
+    chars: Peekable<Chars<'a>>,
     index: usize,
 }
 
 impl<'a> Lexer<'a> {
     pub fn lex(source: &str) -> Vec<Token> {
         let mut lexer = Lexer {
-            source: source.as_bytes(),
+            chars: source.chars().peekable(),
             index: 0,
         };
         let mut tokens = Vec::new();
 
-        while !lexer.is_at_end() {
-            tokens.push(lexer.next());
-        }
+        loop {
+            let next = lexer.next();
 
-        // If there isn't already an EOF token, add it.
-        if let TokenKind::EOF = tokens.last().unwrap().kind {
-        } else {
-            tokens.push(build(TokenKind::EOF, "", (source.len(), source.len())));
+            if let TokenKind::EOF = next.kind {
+                tokens.push(next);
+                break;
+            } else {
+                tokens.push(next);
+            }
         }
 
         tokens
     }
 
     fn next(&mut self) -> Token {
-        let mut c = self.peek();
+        let mut c = if let Some(c) = self.peek() {
+            *c
+        } else {
+            return build(TokenKind::EOF, "", (self.index, self.index));
+        };
 
         while c == ' ' || c == '\t' || c == '\r' || c == '\n' {
-            self.advance();
-
-            if self.is_at_end() {
-                return build(TokenKind::EOF, "", (self.index, self.index));
+            if let Some(next_c) = self.advance() {
+                c = next_c;
             } else {
-                c = self.peek();
+                return build(TokenKind::EOF, "", (self.index, self.index));
             }
         }
 
@@ -75,7 +84,7 @@ impl<'a> Lexer<'a> {
             return self.next_number_literal();
         }
 
-        if is_valid_identifier(c) {
+        if is_valid_identifier(Some(&c)) {
             return self.next_identifier();
         }
 
@@ -86,9 +95,13 @@ impl<'a> Lexer<'a> {
             '*' => build(TokenKind::Star, "", span),
             '/' => build(TokenKind::Slash, "", span),
             '^' => build(TokenKind::Power, "", span),
+            '|' => build(TokenKind::Pipe, "", span),
+            '⌈' => build(TokenKind::OpenCeil, "", span),
+            '⌉' => build(TokenKind::ClosedCeil, "", span),
+            '⌊' => build(TokenKind::OpenFloor, "", span),
+            '⌋' => build(TokenKind::ClosedFloor, "", span),
             '(' => build(TokenKind::OpenParenthesis, "", span),
             ')' => build(TokenKind::ClosedParenthesis, "", span),
-            '|' => build(TokenKind::Pipe, "", span),
             '=' => build(TokenKind::Equals, "", span),
             '!' => build(TokenKind::Exclamation, "", span),
             ',' => build(TokenKind::Comma, "", span),
@@ -103,70 +116,63 @@ impl<'a> Lexer<'a> {
     fn next_number_literal(&mut self) -> Token {
         let start = self.index;
         let mut end = start;
+        let mut value = String::new();
 
-        while !self.is_at_end()
-            && (self.peek().is_digit(10) || self.peek() == '.' || self.peek().is_whitespace())
-        {
+        loop {
+            let c = if let Some(c) = self.peek() {
+                *c
+            } else {
+                break;
+            };
+
+            if !c.is_digit(10) && c != '.' && !c.is_whitespace() {
+                break;
+            }
+
             end += 1;
+            value.push(c);
             self.advance();
         }
 
-        if let Ok(value) = str::from_utf8(&self.source[start..end]) {
-            build(TokenKind::Literal, value, (start, end))
-        } else {
-            build(TokenKind::Unknown, "", (self.index, self.index))
-        }
+        build(TokenKind::Literal, &value, (start, end))
     }
 
     fn next_identifier(&mut self) -> Token {
         let start = self.index;
         let mut end = start;
         let letter_reg = regex::Regex::new(r"[A-z']").unwrap();
+        let mut value = String::new();
 
-        while !self.is_at_end() && is_valid_identifier(self.peek()) {
-            let c = self.peek();
+        while is_valid_identifier(self.peek()) {
+            let c = *self.peek().unwrap();
 
-            // Separate special characters from normal characters
-            // in order to allow eg. x√64
-            if end - start > 0 // If this isn't the first run
-                && letter_reg.is_match(&(self.previous() as char).to_string()) // and the previous char was a normal one
-                && !letter_reg.is_match(&c.to_string())
-            // and this one is a special character (why did rustfmt put this on a new line??)
-            {
+            // Only allow identifiers with a special character to have *one* character. No more.
+            // Break the loop if it isn't the first run and the current character is a special character.
+            if end - start > 0 && !letter_reg.is_match(&c.to_string()) {
                 break;
             }
 
             end += 1;
+            value.push(c);
             self.advance();
         }
 
-        if let Ok(value) = str::from_utf8(&self.source[start..end]) {
-            let kind = match value {
-                "deg" | "°" => TokenKind::Deg,
-                "rad" => TokenKind::Rad,
-                _ => TokenKind::Identifier,
-            };
+        let kind = match value.as_ref() {
+            "deg" | "°" => TokenKind::Deg,
+            "rad" => TokenKind::Rad,
+            _ => TokenKind::Identifier,
+        };
 
-            build(kind, value, (start, end))
-        } else {
-            build(TokenKind::Unknown, "", (self.index, self.index))
-        }
+        build(kind, &value, (start, end))
     }
 
-    fn peek(&self) -> char {
-        self.source[self.index].into()
+    fn peek(&mut self) -> Option<&char> {
+        self.chars.peek()
     }
 
-    fn previous(&self) -> char {
-        self.source[self.index - 1].into()
-    }
-
-    fn advance(&mut self) {
+    fn advance(&mut self) -> Option<char> {
         self.index += 1;
-    }
-
-    fn is_at_end(&self) -> bool {
-        self.index >= self.source.len()
+        self.chars.next()
     }
 }
 
@@ -178,10 +184,14 @@ fn build(kind: TokenKind, value: &str, span: (usize, usize)) -> Token {
     }
 }
 
-fn is_valid_identifier(c: char) -> bool {
-    regex::Regex::new(r"[^\s\n\r0-9\+-/\*\^!\(\)=\.,|]")
-        .unwrap()
-        .is_match(&c.to_string())
+fn is_valid_identifier(c: Option<&char>) -> bool {
+    if let Some(c) = c {
+        regex::Regex::new(r"[^\s\n\r0-9\+-/\*\^!\(\)=\.,|⌊⌋⌈⌉]")
+            .unwrap()
+            .is_match(&c.to_string())
+    } else {
+        false
+    }
 }
 
 #[cfg(test)]
