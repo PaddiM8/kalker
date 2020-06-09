@@ -7,7 +7,6 @@ use rustyline::completion::Completer;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::hint::HistoryHinter;
 use rustyline::validate::MatchingBracketValidator;
 use rustyline::validate::ValidationContext;
 use rustyline::validate::ValidationResult;
@@ -21,7 +20,6 @@ pub fn start(mut parser: &mut parser::Context) {
     let mut editor = Editor::<RLHelper>::new();
     editor.set_helper(Some(RLHelper {
         highlighter: LineHighlighter {},
-        hinter: HistoryHinter {},
         validator: MatchingBracketValidator::new(),
     }));
 
@@ -82,7 +80,6 @@ impl Highlighter for LineHighlighter {
 
 struct RLHelper {
     highlighter: LineHighlighter,
-    hinter: HistoryHinter,
     validator: MatchingBracketValidator,
 }
 
@@ -149,8 +146,8 @@ impl Highlighter for RLHelper {
 }
 
 impl Hinter for RLHelper {
-    fn hint(&self, line: &str, a: usize, b: &rustyline::Context) -> Option<String> {
-        self.hinter.hint(line, a, b)
+    fn hint(&self, _: &str, _: usize, _: &rustyline::Context) -> Option<String> {
+        None
     }
 }
 
