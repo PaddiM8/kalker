@@ -73,11 +73,11 @@ impl<'a> Lexer<'a> {
         };
 
         while c == ' ' || c == '\t' || c == '\r' || c == '\n' {
-            if let Some(next_c) = self.advance() {
-                c = next_c;
-            } else {
+            if let None = self.advance() {
                 return build(TokenKind::EOF, "", (self.index, self.index));
             }
+
+            c = *self.peek().unwrap();
         }
 
         if c.is_digit(10) {
