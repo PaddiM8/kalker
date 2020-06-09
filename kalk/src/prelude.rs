@@ -46,6 +46,8 @@ pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
     "exp" => UnaryFuncInfo(exp, Other),
     "floor" => UnaryFuncInfo(floor, Other),
     "frac" => UnaryFuncInfo(frac, Other),
+    "gamma" => UnaryFuncInfo(gamma, Other),
+    "Γ" => UnaryFuncInfo(gamma, Other),
     "log" => UnaryFuncInfo(log, Other),
     "ln" => UnaryFuncInfo(ln, Other),
     "round" => UnaryFuncInfo(round, Other),
@@ -241,6 +243,10 @@ mod funcs {
 
     pub fn frac(x: Float) -> Float {
         x.fract()
+    }
+
+    pub fn gamma(x: Float) -> Float {
+        x.gamma()
     }
 
     pub fn hyp(x: Float, y: Float) -> Float {
