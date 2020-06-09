@@ -54,23 +54,24 @@ impl Highlighter for LineHighlighter {
     fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
         let mut coloured = line.to_string();
 
-        let reg = Regex::new(r"(([^0-9\.,\(\)=\+-/\*\^!_]+(_\d+)?)|[\+-/\*\^!])").unwrap();
-        let unit = Regex::new(r"(deg|rad)").unwrap();
-        let identifier = Regex::new(r"[^0-9\.,\(\)=\+-/\*\^!_]+(_\d+)?").unwrap();
-        let op = Regex::new(r"[\+-/\*\^!]+").unwrap();
+        let reg = Regex::new(
+            r"(?x)
+            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉]+(_\d+)?) |
+            (?P<op>[+\-/*^!])",
+        )
+        .unwrap();
 
         coloured = reg
             .replace_all(&coloured, |caps: &Captures| {
-                let cap = &caps[0];
-
-                if unit.is_match(cap) {
-                    Colour::Yellow.paint(cap).to_string()
-                } else if identifier.is_match(cap) {
-                    Colour::Blue.paint(cap).to_string()
-                } else if op.is_match(cap) {
-                    Colour::Fixed(172).paint(cap).to_string()
+                if let Some(cap) = caps.name("identifier") {
+                    match cap.as_str() {
+                        "rad" | "deg" | "°" => Colour::Yellow.paint(cap.as_str()).to_string(),
+                        _ => Colour::Blue.paint(cap.as_str()).to_string(),
+                    }
+                } else if let Some(cap) = caps.name("op") {
+                    Colour::Fixed(172).paint(cap.as_str()).to_string()
                 } else {
-                    cap.to_string()
+                    caps[0].to_string()
                 }
             })
             .to_string();
