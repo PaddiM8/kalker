@@ -89,12 +89,13 @@ struct RLHelper {
 impl Helper for RLHelper {}
 
 const COMPLETION_FUNCS: phf::Map<&'static str, &'static str> = phf::phf_map! {
-    "sqrt" => "√",
+    "ceil" => "⌈⌉",
     "deg" => "°",
     "floor" => "⌊⌋",
-    "ceil" => "⌈⌉",
-    "(" => "()",
+    "gamma" => "Γ",
     "sum" => "Σ()",
+    "sqrt" => "√",
+    "(" => "()",
 };
 
 impl Completer for RLHelper {
