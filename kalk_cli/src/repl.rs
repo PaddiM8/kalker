@@ -93,7 +93,7 @@ const COMPLETION_FUNCS: phf::Map<&'static str, &'static str> = phf::phf_map! {
     "floor" => "⌊⌋",
     "ceil" => "⌈⌉",
     "(" => "()",
-    "sum" => "Σ",
+    "sum" => "Σ()",
 };
 
 impl Completer for RLHelper {
@@ -117,7 +117,10 @@ impl Completer for RLHelper {
     fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
         line.backspace(line.pos() - start);
         line.insert_str(line.pos(), elected);
-        line.move_forward(1);
+        line.move_forward(match elected {
+            "Σ()" => 2,
+            _ => 1,
+        });
     }
 }
 
