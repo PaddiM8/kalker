@@ -54,9 +54,9 @@ impl Highlighter for LineHighlighter {
     fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
         let mut coloured = line.to_string();
 
-        let reg = Regex::new(r"([A-z]+|[\+-/\*\^!])").unwrap();
+        let reg = Regex::new(r"(([^0-9\.,\(\)=\+-/\*\^!_]+(_\d+)?)|[\+-/\*\^!])").unwrap();
         let unit = Regex::new(r"(deg|rad)").unwrap();
-        let identifier = Regex::new(r"[^0-9\.,\(\)=\+-/\*\^!]+").unwrap();
+        let identifier = Regex::new(r"[^0-9\.,\(\)=\+-/\*\^!_]+(_\d+)?").unwrap();
         let op = Regex::new(r"[\+-/\*\^!]+").unwrap();
 
         coloured = reg
