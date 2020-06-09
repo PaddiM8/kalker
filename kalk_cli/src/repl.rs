@@ -92,6 +92,8 @@ const COMPLETION_FUNCS: phf::Map<&'static str, &'static str> = phf::phf_map! {
     "deg" => "°",
     "floor" => "⌊⌋",
     "ceil" => "⌈⌉",
+    "(" => "()",
+    "sum" => "Σ",
 };
 
 impl Completer for RLHelper {
