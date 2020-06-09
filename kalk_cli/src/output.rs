@@ -39,6 +39,10 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
     }
 }
 
+pub fn print_err(msg: &str) {
+    println!("{}", Red.paint(msg));
+}
+
 fn print_calc_err(err: CalcError) {
     print_err(&match err {
         IncorrectAmountOfArguments(expected, func, got) => format!(
@@ -53,8 +57,4 @@ fn print_calc_err(err: CalcError) {
         UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
         Unknown => format!("Unknown error."),
     });
-}
-
-fn print_err(msg: &str) {
-    println!("{}", Red.paint(msg));
 }
