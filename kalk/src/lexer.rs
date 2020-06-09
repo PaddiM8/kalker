@@ -140,11 +140,21 @@ impl<'a> Lexer<'a> {
     fn next_identifier(&mut self) -> Token {
         let start = self.index;
         let mut end = start;
-        let letter_reg = regex::Regex::new(r"[A-z']").unwrap();
+        let letter_reg = regex::Regex::new(r"[A-z'_]").unwrap();
         let mut value = String::new();
 
         while is_valid_identifier(self.peek()) {
             let c = *self.peek().unwrap();
+
+            // If the current character is an underscore, expect a number next.
+            // This is to allow the notation like the following: x_1
+            if c == '_' {
+                self.advance();
+                let num = self.next_number_literal().value;
+                value.push('_');
+                value.push_str(&num.trim_end()); // Trim, since the number_literal function allows whitespace, which identifiers should not contain.
+                break;
+            }
 
             // Only allow identifiers with a special character to have *one* character. No more.
             // Break the loop if it isn't the first run and the current character is a special character.
