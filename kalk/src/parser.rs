@@ -54,11 +54,19 @@ pub enum CalcError {
     Unknown,
 }
 
-pub fn parse(
+pub fn eval(
     context: &mut Context,
     input: &str,
     precision: u32,
 ) -> Result<Option<Float>, CalcError> {
+    let statements = parse(context, input)?;
+
+    let mut interpreter =
+        interpreter::Context::new(&mut context.symbol_table, &context.angle_unit, precision);
+    interpreter.interpret(statements)
+}
+
+pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError> {
     context.tokens = Lexer::lex(input);
     context.pos = 0;
 
@@ -66,9 +74,8 @@ pub fn parse(
     while !is_at_end(context) {
         statements.push(parse_stmt(context)?);
     }
-    let mut interpreter =
-        interpreter::Context::new(&mut context.symbol_table, &context.angle_unit, precision);
-    interpreter.interpret(statements)
+
+    Ok(statements)
 }
 
 fn parse_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
