@@ -31,7 +31,7 @@ fn main() {
 
             // Parse the input file content, resulting in the symbol table being filled out.
             // Output is not needed here.
-            parser::parse(&mut parser_context, &file_content, 53)
+            parser::eval(&mut parser_context, &file_content, 53)
                 .expect("Failed to parse input file.");
         } else {
             // Main argument. This is expected to be a maths expression.

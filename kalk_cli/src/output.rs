@@ -2,7 +2,7 @@ use ansi_term::Colour::Red;
 use kalk::parser::{self, CalcError, CalcError::*};
 
 pub fn eval(parser: &mut parser::Context, input: &str) {
-    match parser::parse(parser, input, 53) {
+    match parser::eval(parser, input, 53) {
         Ok(Some(result)) => {
             let (_, digits, exp_option) = result.to_sign_string_exp(10, None);
             let exp = if let Some(exp) = exp_option { exp } else { 0 };
