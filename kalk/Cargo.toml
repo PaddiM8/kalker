@@ -8,7 +8,7 @@ readme = "../README.md"
 repository = "https://github.com/PaddiM8/kalk/tree/master/kalk"
 license = "MIT"
 keywords = ["math", "calculator", "evaluator"]
-categories = ["mathematics", "parsers"]
+categories = ["mathematics", "parser-implementations"]
 
 [profile.release]
 panic = "abort"
