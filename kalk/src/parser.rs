@@ -6,6 +6,12 @@ use crate::{
 };
 use rug::Float;
 
+/// Struct containing the current state of the parser. It stores user-defined functions and variables.
+/// # Examples
+/// ```
+/// let parser_context = parser::Context::new();
+/// assert_eq!(parser_context.eval("5*3").unwrap().unwrap(), 15);
+/// ```
 pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
@@ -36,12 +42,14 @@ impl Default for Context {
     }
 }
 
+/// Mathematical unit used in calculations.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Unit {
     Radians,
     Degrees,
 }
 
+/// Error that occured during parsing or evaluation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalcError {
     IncorrectAmountOfArguments(usize, String, usize),
@@ -54,6 +62,7 @@ pub enum CalcError {
     Unknown,
 }
 
+/// Evaluate expressions/declarations and return the answer.
 pub fn eval(
     context: &mut Context,
     input: &str,
@@ -66,6 +75,7 @@ pub fn eval(
     interpreter.interpret(statements)
 }
 
+/// Parse expressions/declarations and return a syntax tree.
 pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError> {
     context.tokens = Lexer::lex(input);
     context.pos = 0;
