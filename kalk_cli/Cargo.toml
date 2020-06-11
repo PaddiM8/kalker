@@ -1,8 +1,14 @@
 [package]
 name = "kalk_cli"
 version = "0.1.0"
-authors = ["PaddiM8 <paddim8@pm.me>"]
+authors = ["PaddiM8"]
 edition = "2018"
+readme = "../README.md"
+description = "A calculator that supports user-defined functions and variables and can handle fairly ambiguous syntax."
+repository = "https://github.com/PaddiM8/kalk"
+license = "MIT"
+keywords = ["math", "calculator", "cli", "command-line"]
+categories = ["mathematics", "command-line-utilities"]
 
 [profile.release]
 panic = "abort"
