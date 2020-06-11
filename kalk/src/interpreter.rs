@@ -358,6 +358,16 @@ mod tests {
         assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 3);
     }
 
+    #[test]
+    fn test_undefined_fn() {
+        let stmt = Stmt::Expr(fn_call("f", vec![*literal("1")]));
+
+        assert_eq!(
+            interpret(stmt),
+            Err(CalcError::UndefinedFn(String::from("f")))
+        );
+    }
+
     #[test_case("1", "2", 9f64)]
     #[test_case("1.2", "2.3", 9f64)]
     fn test_sum_fn(start: &str, to: &str, result: f64) {
