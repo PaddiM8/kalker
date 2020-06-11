@@ -91,7 +91,10 @@ const COMPLETION_FUNCS: phf::Map<&'static str, &'static str> = phf::phf_map! {
     "floor" => "⌊⌋",
     "gamma" => "Γ",
     "sum" => "Σ()",
+    "phi" => "ϕ",
+    "pi" => "π",
     "sqrt" => "√",
+    "tau" => "τ",
     "(" => "()",
 };
 
