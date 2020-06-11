@@ -15,6 +15,7 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
 * Syntax highlighting
 * Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
+* Sum function: `sum(start, to, expression)` Eg. `sum(1, 3, 2n+1)` is the same as `2*1+1 + 2*2+1 + 2*3+1` = `15`
 
 ## Installing
 Make sure you have `diffutils` `gcc` `make` and `m4` installed.
