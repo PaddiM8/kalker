@@ -12,8 +12,13 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 * Syntax highlighting
 * Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
 
-## Compiling
-1. Make sure you have `diffutils` `gcc` `make` and `m4` installed.
-2. Go into the `kalk_cli` directory.
-3. Run `cargo build --release`
-4. Grab the binary from `targets/release`
+## Installing
+Make sure you have `diffutils` `gcc` `make` and `m4` installed.
+
+### Cargo install
+Run `cargo install kalk_cli`
+
+### Compiling yourself
+1. Go into the `kalk_cli` directory.
+2. Run `cargo build --release`
+3. Grab the binary from `targets/release`
