@@ -2,13 +2,16 @@ use crate::lexer::TokenKind;
 use crate::parser::CalcError;
 use crate::parser::Unit;
 
+/// A tree structure of a statement.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     VarDecl(String, Box<Expr>),
     FnDecl(String, Vec<String>, Box<Expr>),
+    /// For simplicity, expressions can be put into statements. This is the form in which expressions are passed to the interpreter.
     Expr(Box<Expr>),
 }
 
+/// A tree structure of an expression.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Binary(Box<Expr>, TokenKind, Box<Expr>),
