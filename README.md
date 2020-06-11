@@ -1,5 +1,5 @@
 # kalk
-Kalk is a CLI calculator that supports user-defined variables and functions. An example of what it can parse:
+Kalk is a calculator (both program and library) that supports user-defined variables and functions. An example of what it can parse:
 
 ```
 f(x, y) = sum(1, 3, (2sin4/x!)^y) + cos(n deg)
