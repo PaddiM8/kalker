@@ -1,8 +1,14 @@
 [package]
 name = "kalk"
 version = "0.1.0"
-authors = ["paddi"]
+authors = ["PaddiM8"]
 edition = "2018"
+description = "A math evaluator library that supports user-defined functions and variables and can handle fairly ambiguous syntax."
+readme = "../README.md"
+repository = "https://github.com/PaddiM8/kalk/tree/master/kalk"
+license = "MIT"
+keywords = ["math", "calculator", "evaluator"]
+categories = ["mathematics", "parsers"]
 
 [profile.release]
 panic = "abort"
