@@ -255,7 +255,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     // Eg. sqrt64
     if match_token(context, TokenKind::Literal) {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
-        if context.symbol_table.contains_func(&identifier.value) {
+        if context.symbol_table.contains_fn(&identifier.value) {
             let parameter = Expr::Literal(advance(context).value.clone());
             return Ok(Expr::FnCall(identifier.value, vec![parameter]));
         }
