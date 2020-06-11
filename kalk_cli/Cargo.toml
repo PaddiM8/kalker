@@ -14,7 +14,7 @@ categories = ["mathematics", "command-line-utilities"]
 panic = "abort"
 
 [dependencies]
-kalk = { path = "../kalk" }
+kalk = "0.1.3"
 rustyline = "6.1.2"
 ansi_term = "0.12"
 regex = "1"
