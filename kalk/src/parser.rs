@@ -63,6 +63,8 @@ pub enum CalcError {
 }
 
 /// Evaluate expressions/declarations and return the answer.
+///
+/// `None` will be returned if the last statement is a declaration.
 pub fn eval(
     context: &mut Context,
     input: &str,
@@ -76,6 +78,8 @@ pub fn eval(
 }
 
 /// Parse expressions/declarations and return a syntax tree.
+///
+/// `None` will be returned if the last statement is a declaration.
 pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError> {
     context.tokens = Lexer::lex(input);
     context.pos = 0;
