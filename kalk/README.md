@@ -14,6 +14,8 @@ f(a, 2)
 * [Pre-defined functions and constants](https://github.com/PaddiM8/kalk/blob/master/kalk/src/prelude.rs)
 * User-defined functions and variables. `f(x, y) = xy`, `x = 5`
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
+* Syntax highlighting
+* Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
 
 ## Usage
 ```
