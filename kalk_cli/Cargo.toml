@@ -1,6 +1,6 @@
 [package]
 name = "kalk_cli"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["PaddiM8"]
 edition = "2018"
 readme = "../README.md"
