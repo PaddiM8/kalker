@@ -246,6 +246,7 @@ mod tests {
     use super::*;
     use crate::lexer::TokenKind::*;
     use crate::test_helpers::*;
+    use test_case::test_case;
 
     const PRECISION: u32 = 53;
 
@@ -299,19 +300,19 @@ mod tests {
         let deg = Stmt::Expr(Box::new(Expr::Unit(literal("1"), Deg)));
 
         assert_eq!(interpret(rad).unwrap().unwrap(), 1);
-        assert_eq!(
-            interpret(deg).unwrap().unwrap(),
-            Float::with_val(10, 0.017456)
+        assert!(
+            (interpret(deg).unwrap().unwrap() - Float::with_val(PRECISION, 0.017456)).abs()
+                < Float::with_val(PRECISION, 0.0001)
         );
     }
 
     #[test]
     fn test_var() {
-        let stmt = Stmt::Expr(Box::new(Expr::Var(String::from("x"))));
+        let stmt = Stmt::Expr(var("x"));
 
         // Prepare by inserting a variable declaration in the symbol table.
         let mut symbol_table = SymbolTable::new();
-        symbol_table.insert("x", Stmt::VarDecl(String::from("x"), literal("1")));
+        symbol_table.insert("x", var_decl("x", literal("1")));
 
         let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
         assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 1);
@@ -319,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_undefined_var() {
-        let stmt = Stmt::Expr(Box::new(Expr::Var(String::from("x"))));
+        let stmt = Stmt::Expr(var("x"));
 
         assert_eq!(
             interpret(stmt),
@@ -329,12 +330,46 @@ mod tests {
 
     #[test]
     fn test_var_decl() {
-        let stmt = Stmt::VarDecl(String::from("x"), literal("1"));
+        let stmt = var_decl("x", literal("1"));
         let mut symbol_table = SymbolTable::new();
         Context::new(&mut symbol_table, &Unit::Radians, PRECISION)
             .interpret(vec![stmt])
             .unwrap();
 
         assert!(symbol_table.contains_var("x"));
+    }
+
+    #[test]
+    fn test_fn() {
+        let stmt = Stmt::Expr(fn_call("f", vec![*literal("1")]));
+
+        // Prepare by inserting a variable declaration in the symbol table.
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.insert(
+            "f()",
+            fn_decl(
+                "f",
+                vec![String::from("x")],
+                binary(var("x"), TokenKind::Plus, literal("2")),
+            ),
+        );
+
+        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
+        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 3);
+    }
+
+    #[test_case("1", "2", 9f64)]
+    #[test_case("1.2", "2.3", 9f64)]
+    fn test_sum_fn(start: &str, to: &str, result: f64) {
+        let stmt = Stmt::Expr(fn_call(
+            "sum",
+            vec![
+                *literal(start),
+                *literal(to),
+                *binary(var("n"), TokenKind::Plus, literal("3")),
+            ],
+        ));
+
+        assert_eq!(interpret(stmt).unwrap().unwrap(), result);
     }
 }
