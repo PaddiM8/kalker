@@ -29,6 +29,7 @@ jobs:
 
     - stage: deploy-cargo
       cache: cargo
+      script: cd kalk
       if: branch = release
       deploy:
         provider: cargo
