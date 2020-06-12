@@ -9,8 +9,10 @@ use rug::Float;
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
 /// # Examples
 /// ```
-/// let parser_context = parser::Context::new();
-/// assert_eq!(parser_context.eval("5*3").unwrap().unwrap(), 15);
+/// use kalk::parser;
+/// let mut parser_context = parser::Context::new();
+/// let precision = 53;
+/// assert_eq!(parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap(), 15);
 /// ```
 pub struct Context {
     tokens: Vec<Token>,
