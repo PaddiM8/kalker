@@ -28,7 +28,7 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
                 };
 
                 if use_sci_notation {
-                    println!("{}{}*10^{}", sign, num, exp);
+                    println!("{}{}*10^{}", sign, num, exp - 1);
                 } else {
                     println!("{}{}", sign, num);
                 }
