@@ -19,7 +19,11 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
                     format!("0.{}{}", "0".repeat(exp.abs() as usize), digits)
                 } else if use_sci_notation || result.fract() != 0 {
                     // Insert the comma if there are supposed to be decimals.
-                    let mut chars: Vec<char> = digits.trim_end_matches('0').chars().collect();
+                    let mut chars: Vec<char> = digits
+                        .trim_end_matches('0')
+                        .trim_end_matches('.')
+                        .chars()
+                        .collect();
                     chars.insert(comma_pos, '.');
                     chars.into_iter().collect::<String>()
                 } else {
