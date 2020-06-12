@@ -1,0 +1,7 @@
+language: rust
+before_install:
+  cargo install rustfmt
+script:
+  - cargo fmt
+  - cargo build --verbose --all
+  - cargo test --verbose --all
