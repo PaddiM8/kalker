@@ -1,6 +1,6 @@
 [package]
 name = "kalk"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["PaddiM8"]
 edition = "2018"
 readme = "README.md"
