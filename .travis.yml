@@ -1,22 +1,47 @@
 language: rust
-before_install:
-  - rustup component add rustfmt --toolchain stable-x86_64-unknown-linux-gnu
-script:
-  - cargo fmt
-  - cargo build --verbose --all
-  - cargo test --verbose --all
-deploy:
-  - provider: releases
-    api_key:
-      secure: "eM+8mEZkCSACjZvN0lH31CA+fCPcTZ+oLu1y+IuQC4MMb8mD8CgV0Y+MXZZA1oLiIrUc6y4zU3ll6pjnU3RGzvlFEB2GPyctxct/a7/zJ3jaVjjFJbssBuCaKN+JTH2AK8530hOfpOujYGU68ENx6WEk/EltRJtc4C4ultHrDcX5gi05XPN8p153AFnjUXEdCAQfAA0Oy9w7/9qzidHe79pWMuqdzfCfrZ/JJRdl/mEfS98JJbzoPW2GqO+OoE+R59JN/QnZrMqlieE0yiEk2HXsbW/Mkosg49NFvOXzfQoH3MYX8YPh6xMkEl+szt8WC3rA2WIDqQMwfxr2PDmxB76+4999RAY/PrZ+WLYbCbU6rUVxK7hZ6Ljxxay9341RL04f+5jzs7kLSBZYil3uo61iRITAsgeVGD3aL6HAnOr3RarAo6o0AdtvL3kzI89GFgJLtPeIpvd8Kx7TgQ/a67vdOA577qyoOc40zBZE17zAbq3ybrRn2E3YOwPjNKdg7xULVe6gvfDSFxm5WqTcDdxT9Zna6nEn22ItDylfZfJksyTO+VDTB+nsctmFLzuccEG4xVsg12BMCDoOCXCjlakX18ri3vJea50ekBE3C7XMPiSZ3XboLo2L1dn/rBeeH9bPHEQMHFDwRDaPItxfBXu+L38jE1CMVTA5j030ADg="
-    script:
-      - cargo build --verbose --manifest-path kalk_cli/Cargo.toml --release
-    file:
-      - "kalk_cli/targets/release/kalk_cli"
-  - provider: cargo
-    token:
-      secure: "YsnbCBywb3A4ACcCQc3ATHWVpsmoZtyJUIH5Q3MAb1qdaQtX7V/zPtsew0ZvIcL5jo0RPKOvTQaREvC2ShQPImn/LUoBY/DwutUvxFVLbU2Caubn0IUMYBZ/jD8AuQ6mEDn5DU/ieNH1sl0Z4+2itWwHVJsWhSQOINBQUUfSa88oMeFT6aSI1nWbg2ssYRP3+GaSH2pGWbc+LyBnbO2ChxWZ2qZZg4xRdtxJdL7ksConl5w8ALNvdF2rkgDyMgpkAE4GhOPdnxN5YOOhoGFDJWDjbXvFRPBjnnCd9TkZPbuT/GNOBcRdrA3udZf4nBbeL+RGpK3frw8UPABOy4Vuw+TY3REYkWr9bCsaxw2CcJBYN1dN6XnfhBVO6gdsU/8D6+PCz0vVvt+OVO/wNg1MWHI2xjFKWlbRuPyuvgEiv0SOp63bdFJ7kGjJG4KJkFVfVsdXWUhbG4Tm6w7RbrHp5bGPYuxGeiErf3jM6sJmYZlKhQSW5zg4Nh3gZP5jggt9t0MeQnL9Bb65IG8eGF7jT1YSZTJ44tTQPb6nrHgLgeT3KdiObAM87pU4I9QIu27f7dd5JbALHiTEe9YRl5N3VDkf4SPfbi/SsVkr2IrbDft4LJsAAjqOxTTzWk8LRX8XthM8zTwHk9Hdo8mfNw74ao9VMf8HlKZxb3jojIumsyk="
-  on:
-    repo: PaddiM8/kalk
-    branch: release
-    skip_cleanup: 'true'
+jobs:
+  include:
+    - stage: compile
+      if: branch = master
+      cache: cargo
+      before_install:
+        - rustup component add rustfmt --toolchain stable-x86_64-unknown-linux-gnu
+      script:
+        - cargo build --verbose --all
+      on:
+        branch: master
+
+    - stage: test
+      if: branch = master
+      cache: cargo
+      script: cargo test --verbose --all
+      on:
+        branch: master
+
+    - stage: deploy-releases
+      cache: cargo
+      if: branch = release
+      script: cargo build --verbose --manifest-path kalk_cli/Cargo.toml --release
+      deploy:
+        provider: releases
+        api_key:
+          secure: "eM+8mEZkCSACjZvN0lH31CA+fCPcTZ+oLu1y+IuQC4MMb8mD8CgV0Y+MXZZA1oLiIrUc6y4zU3ll6pjnU3RGzvlFEB2GPyctxct/a7/zJ3jaVjjFJbssBuCaKN+JTH2AK8530hOfpOujYGU68ENx6WEk/EltRJtc4C4ultHrDcX5gi05XPN8p153AFnjUXEdCAQfAA0Oy9w7/9qzidHe79pWMuqdzfCfrZ/JJRdl/mEfS98JJbzoPW2GqO+OoE+R59JN/QnZrMqlieE0yiEk2HXsbW/Mkosg49NFvOXzfQoH3MYX8YPh6xMkEl+szt8WC3rA2WIDqQMwfxr2PDmxB76+4999RAY/PrZ+WLYbCbU6rUVxK7hZ6Ljxxay9341RL04f+5jzs7kLSBZYil3uo61iRITAsgeVGD3aL6HAnOr3RarAo6o0AdtvL3kzI89GFgJLtPeIpvd8Kx7TgQ/a67vdOA577qyoOc40zBZE17zAbq3ybrRn2E3YOwPjNKdg7xULVe6gvfDSFxm5WqTcDdxT9Zna6nEn22ItDylfZfJksyTO+VDTB+nsctmFLzuccEG4xVsg12BMCDoOCXCjlakX18ri3vJea50ekBE3C7XMPiSZ3XboLo2L1dn/rBeeH9bPHEQMHFDwRDaPItxfBXu+L38jE1CMVTA5j030ADg="
+        file:
+          - "target/release/kalk_cli"
+        skip_cleanup: true
+        on:
+          repo: PaddiM8/kalk
+          branch: release
+
+    - stage: deploy-cargo
+      cache: cargo
+      script: cd kalk
+      if: branch = release
+      deploy:
+        provider: cargo
+        token:
+          secure: "YsnbCBywb3A4ACcCQc3ATHWVpsmoZtyJUIH5Q3MAb1qdaQtX7V/zPtsew0ZvIcL5jo0RPKOvTQaREvC2ShQPImn/LUoBY/DwutUvxFVLbU2Caubn0IUMYBZ/jD8AuQ6mEDn5DU/ieNH1sl0Z4+2itWwHVJsWhSQOINBQUUfSa88oMeFT6aSI1nWbg2ssYRP3+GaSH2pGWbc+LyBnbO2ChxWZ2qZZg4xRdtxJdL7ksConl5w8ALNvdF2rkgDyMgpkAE4GhOPdnxN5YOOhoGFDJWDjbXvFRPBjnnCd9TkZPbuT/GNOBcRdrA3udZf4nBbeL+RGpK3frw8UPABOy4Vuw+TY3REYkWr9bCsaxw2CcJBYN1dN6XnfhBVO6gdsU/8D6+PCz0vVvt+OVO/wNg1MWHI2xjFKWlbRuPyuvgEiv0SOp63bdFJ7kGjJG4KJkFVfVsdXWUhbG4Tm6w7RbrHp5bGPYuxGeiErf3jM6sJmYZlKhQSW5zg4Nh3gZP5jggt9t0MeQnL9Bb65IG8eGF7jT1YSZTJ44tTQPb6nrHgLgeT3KdiObAM87pU4I9QIu27f7dd5JbALHiTEe9YRl5N3VDkf4SPfbi/SsVkr2IrbDft4LJsAAjqOxTTzWk8LRX8XthM8zTwHk9Hdo8mfNw74ao9VMf8HlKZxb3jojIumsyk="
+        skip_cleanup: true
+        on:
+          repo: PaddiM8/kalk
+          branch: release
