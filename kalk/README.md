@@ -18,12 +18,11 @@ f(a, 2)
 * Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
 
 ## Usage
-```
+```rust
 use kalk::parser;
-
-...
-let parser_context = parser::Context::new();
-assert_eq!(parser_context.eval("5*3").unwrap().unwrap(), 15);
+let mut parser_context = parser::Context::new();
+let precision = 53;
+assert_eq!(parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap(), 15);
 ```
 
 ## Compiling
