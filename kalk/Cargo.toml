@@ -10,12 +10,6 @@ license = "MIT"
 keywords = ["math", "calculator", "evaluator"]
 categories = ["mathematics", "parser-implementations"]
 
-[profile.release]
-panic = "abort"
-#lto = true
-#codegen-units = 1
-#incremental = false
-
 [dependencies]
 phf = { version = "0.8", features = ["macros"] }
 rug = "1.9.0"
