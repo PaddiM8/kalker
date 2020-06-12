@@ -21,7 +21,7 @@ jobs:
         api_key:
           secure: "eM+8mEZkCSACjZvN0lH31CA+fCPcTZ+oLu1y+IuQC4MMb8mD8CgV0Y+MXZZA1oLiIrUc6y4zU3ll6pjnU3RGzvlFEB2GPyctxct/a7/zJ3jaVjjFJbssBuCaKN+JTH2AK8530hOfpOujYGU68ENx6WEk/EltRJtc4C4ultHrDcX5gi05XPN8p153AFnjUXEdCAQfAA0Oy9w7/9qzidHe79pWMuqdzfCfrZ/JJRdl/mEfS98JJbzoPW2GqO+OoE+R59JN/QnZrMqlieE0yiEk2HXsbW/Mkosg49NFvOXzfQoH3MYX8YPh6xMkEl+szt8WC3rA2WIDqQMwfxr2PDmxB76+4999RAY/PrZ+WLYbCbU6rUVxK7hZ6Ljxxay9341RL04f+5jzs7kLSBZYil3uo61iRITAsgeVGD3aL6HAnOr3RarAo6o0AdtvL3kzI89GFgJLtPeIpvd8Kx7TgQ/a67vdOA577qyoOc40zBZE17zAbq3ybrRn2E3YOwPjNKdg7xULVe6gvfDSFxm5WqTcDdxT9Zna6nEn22ItDylfZfJksyTO+VDTB+nsctmFLzuccEG4xVsg12BMCDoOCXCjlakX18ri3vJea50ekBE3C7XMPiSZ3XboLo2L1dn/rBeeH9bPHEQMHFDwRDaPItxfBXu+L38jE1CMVTA5j030ADg="
         file:
-          - "kalk_cli/targets/release/kalk_cli"
+          - "target/release/kalk_cli"
         skip_cleanup: true
         on:
           repo: PaddiM8/kalk
