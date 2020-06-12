@@ -2,15 +2,21 @@ language: rust
 jobs:
   include:
     - stage: compile
+      if: branch = master
       cache: cargo
       before_install:
         - rustup component add rustfmt --toolchain stable-x86_64-unknown-linux-gnu
       script:
         - cargo build --verbose --all
+      on:
+        branch: master
 
     - stage: test
+      if: branch = master
       cache: cargo
       script: cargo test --verbose --all
+      on:
+        branch: master
 
     - stage: deploy-releases
       cache: cargo
