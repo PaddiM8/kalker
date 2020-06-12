@@ -18,6 +18,7 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 * Syntax highlighting
 * Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
 * Sum function: `sum(start, to, expression)` Eg. `sum(1, 3, 2n+1)` is the same as `2*1+1 + 2*2+1 + 2*3+1` = `15`
+* Load a file including predefined functions and constants. For example, if you're going to use Kalk for physics, you load up your file with physics functions/constants when starting Kalk. `-i file`
 
 ## Installing
 Make sure you have `diffutils` `gcc` `make` and `m4` installed.
