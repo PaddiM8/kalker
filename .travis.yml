@@ -34,6 +34,7 @@ jobs:
           branch: release
 
     - stage: deploy-cargo
+      allowallow_failures: true
       cache: cargo
       script: cd kalk
       if: branch = release
@@ -47,6 +48,7 @@ jobs:
           branch: release
 
     - stage: deploy-cli-cargo
+      allowallow_failures: true
       cache: cargo
       script: cd kalk_cli
       if: branch = release
