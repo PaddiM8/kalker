@@ -11,7 +11,7 @@ keywords = ["math", "calculator", "cli", "command-line"]
 categories = ["mathematics", "command-line-utilities"]
 
 [dependencies]
-kalk = { path = "../kalk", version = "0.1.3" }
+kalk = { path = "../kalk", version = "^0.1.3" }
 rustyline = "6.1.2"
 ansi_term = "0.12"
 regex = "1"
