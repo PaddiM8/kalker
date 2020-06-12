@@ -2,15 +2,18 @@ language: rust
 jobs:
   include:
     - stage: compile
+      cache: cargo
       before_install:
         - rustup component add rustfmt --toolchain stable-x86_64-unknown-linux-gnu
       script:
         - cargo build --verbose --all
 
     - stage: test
+      cache: cargo
       script: cargo test --verbose --all
 
     - stage: deploy-releases
+      cache: cargo
       if: branch = release
       script: cargo build --verbose --manifest-path kalk_cli/Cargo.toml --release
       deploy:
@@ -25,6 +28,7 @@ jobs:
           branch: release
 
     - stage: deploy-cargo
+      cache: cargo
       if: branch = release
       deploy:
         provider: cargo
