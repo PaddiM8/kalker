@@ -1,6 +1,6 @@
 [package]
 name = "kalk_cli"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["PaddiM8"]
 edition = "2018"
 readme = "../README.md"
@@ -11,7 +11,7 @@ keywords = ["math", "calculator", "cli", "command-line"]
 categories = ["mathematics", "command-line-utilities"]
 
 [dependencies]
-kalk = { path = "../kalk", version = "^0.1.8" }
+kalk = { path = "../kalk", version = "^0.1.9" }
 rustyline = "6.1.2"
 ansi_term = "0.12"
 regex = "1"
