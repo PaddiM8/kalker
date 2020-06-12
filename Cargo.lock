@@ -147,23 +147,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "kalk"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d39a0f4aae17d6098453934cdc38b0706f810ca38cbe038fc6072c38eed6d086"
-dependencies = [
- "phf",
- "regex",
- "rug",
- "test-case",
-]
-
-[[package]]
 name = "kalk_cli"
 version = "0.1.4"
 dependencies = [
  "ansi_term",
- "kalk 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kalk",
  "phf",
  "regex",
  "rustyline",
