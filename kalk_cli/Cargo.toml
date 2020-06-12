@@ -10,9 +10,6 @@ license = "MIT"
 keywords = ["math", "calculator", "cli", "command-line"]
 categories = ["mathematics", "command-line-utilities"]
 
-[profile.release]
-panic = "abort"
-
 [dependencies]
 kalk = "0.1.3"
 rustyline = "6.1.2"

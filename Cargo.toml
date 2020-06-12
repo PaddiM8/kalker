@@ -1,0 +1,5 @@
+[workspace]
+members = ["kalk", "kalk_cli"]
+
+[profile.release]
+panic = "abort"
