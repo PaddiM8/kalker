@@ -5,7 +5,8 @@
 ![Build status](https://img.shields.io/travis/PaddiM8/kalk/master?label=build%20%26%20test)
 
 
-Kalk is a calculator (both program and library) that supports user-defined variables and functions.
+Kalk is a calculator (both program and library) that supports user-defined variables and functions.  
+[Project kanban board (Kolan)](https://kolan.smrk.me/Board/4RAdMjLDz)
 
 ![](example.png)
 
