@@ -10,6 +10,10 @@ license = "MIT"
 keywords = ["math", "calculator", "cli", "command-line"]
 categories = ["mathematics", "command-line-utilities"]
 
+[[bin]]
+path = "src/main.rs"
+name = "kalk"
+
 [dependencies]
 kalk = { path = "../kalk", version = "^0.1.9" }
 rustyline = "6.1.2"
