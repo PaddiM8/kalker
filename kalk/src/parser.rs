@@ -187,7 +187,7 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let stmt_inv = Stmt::UnitDecl(
         base_unit.clone(),
         identifier.value.clone(),
-        Box::new(def.invert(&mut context.symbol_table)),
+        Box::new(def.invert(&mut context.symbol_table)?),
     );
     let stmt = Stmt::UnitDecl(identifier.value, base_unit, Box::new(def));
 
