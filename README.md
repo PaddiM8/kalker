@@ -21,7 +21,8 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 * Load a file including predefined functions and constants. For example, if you're going to use Kalk for physics, you load up your file with physics functions/constants when starting Kalk. `-i file`
 
 ## Installing
-Make sure you have `diffutils` `gcc` `make` and `m4` installed.
+Make sure you have `diffutils` `gcc` `make` and `m4` installed. **If you use windows:** [follow the instructions here](https://docs.rs/gmp-mpfr-sys/1.2.3/gmp_mpfr_sys/index.html#building-on-windows)  
+If anyone knows how to get `gmp_mpfr_sys` on Windows on Travis, let me know.
 
 ### Cargo install
 Run `cargo install kalk_cli`
