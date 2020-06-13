@@ -1,5 +1,6 @@
 pub mod ast;
 mod interpreter;
+mod inverter;
 mod lexer;
 pub mod parser;
 mod prelude;

@@ -19,7 +19,12 @@ pub struct Context {
     pos: usize,
     symbol_table: SymbolTable,
     angle_unit: Unit,
+    /// This is true whenever the parser is currently parsing a unit declaration.
+    /// It is necessary to keep track of this since you cannot use variables in unit declarations.
+    /// Unit names are instead treated as variables.
     parsing_unit_decl: bool,
+    /// When a unit declaration is being parsed, this value will be set
+    /// whenever a unit in the expression is found. Eg. unit a = 3b, it will be set to Some("b")
     unit_decl_base_unit: Option<String>,
 }
 
@@ -176,9 +181,18 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
         return Err(CalcError::InvalidUnit);
     };
 
+    // Automatically create a second unit decl with the expression inverted.
+    // This will turn eg. unit a = 3b, into unit b = a/3
+    // This is so that you only have to define `a`, and it will figure out the formula for `b` since it is used in the formula for `a`.
+    let stmt_inv = Stmt::UnitDecl(
+        base_unit.clone(),
+        identifier.value.clone(),
+        Box::new(def.invert()),
+    );
     let stmt = Stmt::UnitDecl(identifier.value, base_unit, Box::new(def));
 
     context.symbol_table.insert(stmt.clone());
+    context.symbol_table.insert(stmt_inv);
 
     Ok(stmt)
 }

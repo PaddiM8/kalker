@@ -1,6 +1,4 @@
 use crate::lexer::TokenKind;
-use crate::parser::CalcError;
-use crate::parser::Unit;
 
 /// A tree structure of a statement.
 #[derive(Debug, Clone, PartialEq)]
@@ -22,21 +20,4 @@ pub enum Expr {
     Group(Box<Expr>),
     FnCall(String, Vec<Expr>),
     Literal(String),
-}
-
-impl TokenKind {
-    pub fn is_unit(&self) -> bool {
-        match self {
-            TokenKind::Deg | TokenKind::Rad => true,
-            _ => false,
-        }
-    }
-
-    pub fn to_unit(&self) -> Result<Unit, CalcError> {
-        match self {
-            TokenKind::Deg => Ok(Unit::Degrees),
-            TokenKind::Rad => Ok(Unit::Radians),
-            _ => Err(CalcError::InvalidUnit),
-        }
-    }
 }
