@@ -16,11 +16,11 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
 
                 let num = if exp <= 0 {
                     // 0 < x < 1
-                    format!(
-                        "0.{}{}",
-                        "0".repeat(exp.abs() as usize),
-                        digits.trim_end_matches('0')
+                    round(
+                        format!("0.{}{}", "0".repeat(exp.abs() as usize), digits)
+                            .trim_end_matches('0'),
                     )
+                    .to_string()
                 } else if use_sci_notation || result.fract() != 0 {
                     // Insert the comma if there are supposed to be decimals.
                     let mut chars: Vec<char> = digits
@@ -29,7 +29,7 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
                         .chars()
                         .collect();
                     chars.insert(comma_pos, '.');
-                    chars.into_iter().collect::<String>()
+                    round(&chars.into_iter().collect::<String>()).to_string()
                 } else {
                     // Regular number
                     digits[..(exp as usize)].to_string()
@@ -49,6 +49,39 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
 
 pub fn print_err(msg: &str) {
     println!("{}", Red.paint(msg));
+}
+
+fn round(value: &str) -> String {
+    let mut value_iter = value.chars().into_iter().rev().skip(1);
+    let last_char = value_iter.next().unwrap();
+    let mut last_char_count = 1;
+
+    // Find out how many repeating trailing (equal) characters there are
+    for c in value_iter {
+        if c == last_char {
+            last_char_count += 1;
+        } else {
+            break;
+        }
+    }
+
+    // Don't round if there aren't that many
+    if last_char_count < 5 {
+        return value.to_string();
+    }
+
+    // Remove zeroes.
+    // If it's nines, round it up.
+    // Otherwise, only show 3 of them and then three dots:
+    match last_char {
+        '0' => value[..value.len() - last_char_count - 1].to_string(),
+        '9' => value.parse::<f32>().unwrap().ceil().to_string(),
+        _ => format!(
+            "{}{}...",
+            &value[..value.len() - last_char_count - 1],
+            last_char.to_string().repeat(3)
+        ),
+    }
 }
 
 fn print_calc_err(err: CalcError) {
