@@ -16,7 +16,11 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
 
                 let num = if exp <= 0 {
                     // 0 < x < 1
-                    format!("0.{}{}", "0".repeat(exp.abs() as usize), digits)
+                    format!(
+                        "0.{}{}",
+                        "0".repeat(exp.abs() as usize),
+                        digits.trim_end_matches('0')
+                    )
                 } else if use_sci_notation || result.fract() != 0 {
                     // Insert the comma if there are supposed to be decimals.
                     let mut chars: Vec<char> = digits
