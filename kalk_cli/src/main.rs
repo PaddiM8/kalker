@@ -21,22 +21,37 @@ fn main() {
             break;
         };
 
-        if arg == "-i" {
-            let file_name = &args.next().expect("Expected input file."); // The next argument will be the file name.
-            let mut file_content = String::new();
-            File::open(&file_name)
-                .expect("Couldn't find file.")
-                .read_to_string(&mut file_content)
-                .expect("Failed to read input file.");
+        match arg.as_ref() {
+            "-h" | "--help" => {
+                // The indentation... Will have to do something more scalable in the future.
+                println!(
+                    "
+-= kalk help =-\n
+kalk [OPTIONS] [INPUT]
+-h, --help : show this
+-i         : load a file with predefined functions/variables
+                "
+                );
+                return;
+            }
+            "-i" => {
+                let file_name = &args.next().expect("Expected input file."); // The next argument will be the file name.
+                let mut file_content = String::new();
+                File::open(&file_name)
+                    .expect("Couldn't find file.")
+                    .read_to_string(&mut file_content)
+                    .expect("Failed to read input file.");
 
-            // Parse the input file content, resulting in the symbol table being filled out.
-            // Output is not needed here.
-            parser::eval(&mut parser_context, &file_content, 53)
-                .expect("Failed to parse input file.");
-        } else {
-            // Main argument. This is expected to be a maths expression.
-            // After the loop is finished, this will be parsed and outputted.
-            expr_input = Some(arg);
+                // Parse the input file content, resulting in the symbol table being filled out.
+                // Output is not needed here.
+                parser::eval(&mut parser_context, &file_content, 53)
+                    .expect("Failed to parse input file.");
+            }
+            _ => {
+                // Main argument. This is expected to be a maths expression.
+                // After the loop is finished, this will be parsed and outputted.
+                expr_input = Some(arg);
+            }
         }
     }
 
