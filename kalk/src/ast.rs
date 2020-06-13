@@ -7,6 +7,7 @@ use crate::parser::Unit;
 pub enum Stmt {
     VarDecl(String, Box<Expr>),
     FnDecl(String, Vec<String>, Box<Expr>),
+    UnitDecl(String, String, Box<Expr>),
     /// For simplicity, expressions can be put into statements. This is the form in which expressions are passed to the interpreter.
     Expr(Box<Expr>),
 }
@@ -16,7 +17,7 @@ pub enum Stmt {
 pub enum Expr {
     Binary(Box<Expr>, TokenKind, Box<Expr>),
     Unary(TokenKind, Box<Expr>),
-    Unit(Box<Expr>, TokenKind),
+    Unit(String, Box<Expr>),
     Var(String),
     Group(Box<Expr>),
     FnCall(String, Vec<Expr>),
