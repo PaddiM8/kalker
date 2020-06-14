@@ -8,6 +8,7 @@ impl Expr {
     pub fn invert(&self, symbol_table: &mut SymbolTable) -> Result<Self, CalcError> {
         let target_expr = Expr::Var(DECL_UNIT.into());
         let result = invert(target_expr, symbol_table, self);
+
         Ok(result?.0)
     }
 }
@@ -21,7 +22,7 @@ fn invert(
         Expr::Binary(left, op, right) => {
             invert_binary(target_expr, symbol_table, &left, op, &right)
         }
-        Expr::Unary(_, _) => Ok((target_expr, expr.clone())),
+        Expr::Unary(op, expr) => invert_unary(target_expr, op, &expr),
         Expr::Unit(identifier, expr) => invert_unit(target_expr, &identifier, &expr),
         Expr::Var(_) => Ok((target_expr, expr.clone())),
         Expr::Group(expr) => Ok((target_expr, *expr.clone())),
@@ -41,7 +42,19 @@ fn invert_binary(
 ) -> Result<(Expr, Expr), CalcError> {
     let op_inv = match op {
         TokenKind::Plus => TokenKind::Minus,
-        TokenKind::Minus => TokenKind::Plus,
+        TokenKind::Minus => {
+            if let Expr::Group(inside_group) = right {
+                return invert_binary(
+                    target_expr,
+                    symbol_table,
+                    left,
+                    op,
+                    &multiply_in(&Expr::Literal(String::from("-1")), inside_group)?,
+                );
+            }
+
+            TokenKind::Plus
+        }
         TokenKind::Star => {
             if let Expr::Group(inside_group) = left {
                 return invert(
@@ -87,11 +100,27 @@ fn invert_binary(
         )?);
     }
 
+    let final_target_expr = Expr::Binary(Box::new(target_expr), op_inv, Box::new(left.clone()));
+
     Ok(invert(
-        Expr::Binary(Box::new(target_expr), op_inv, Box::new(left.clone())),
+        if op == &TokenKind::Minus {
+            Expr::Unary(TokenKind::Minus, Box::new(final_target_expr))
+        } else {
+            final_target_expr
+        },
         symbol_table,
         right,
     )?)
+}
+
+fn invert_unary(target_expr: Expr, op: &TokenKind, expr: &Expr) -> Result<(Expr, Expr), CalcError> {
+    match op {
+        TokenKind::Minus => Ok((
+            Expr::Unary(TokenKind::Minus, Box::new(target_expr)),
+            expr.clone(),
+        )),
+        _ => unimplemented!(),
+    }
 }
 
 // Not necessary yet
