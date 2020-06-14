@@ -89,6 +89,10 @@ pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError>
     let mut statements: Vec<Stmt> = Vec::new();
     while !is_at_end(context) {
         statements.push(parse_stmt(context)?);
+
+        if match_token(context, TokenKind::Semicolon) {
+            advance(context);
+        }
     }
 
     Ok(statements)
