@@ -1,6 +1,6 @@
 [package]
 name = "kalk_cli"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["PaddiM8"]
 edition = "2018"
 readme = "../README.md"
@@ -15,7 +15,7 @@ path = "src/main.rs"
 name = "kalk"
 
 [dependencies]
-kalk = { path = "../kalk", version = "^0.1.10" }
+kalk = { path = "../kalk", version = "^0.1.11" }
 rustyline = "6.1.2"
 ansi_term = "0.12"
 regex = "1"
