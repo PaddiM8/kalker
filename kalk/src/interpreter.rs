@@ -26,6 +26,15 @@ impl<'a> Context<'a> {
         for (i, stmt) in statements.iter().enumerate() {
             let value = eval_stmt(self, stmt);
 
+            // Insert the last value into the `ans` variable.
+            self.symbol_table.set(
+                "ans",
+                Stmt::VarDecl(
+                    String::from("ans"),
+                    Box::new(Expr::Literal(value.clone()?.to_string())),
+                ),
+            );
+
             if i == statements.len() - 1 {
                 if let Stmt::Expr(_) = stmt {
                     return Ok(Some(value?));
