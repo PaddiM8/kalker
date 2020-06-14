@@ -43,6 +43,8 @@ fn invert_binary(
     let op_inv = match op {
         TokenKind::Plus => TokenKind::Minus,
         TokenKind::Minus => {
+            // Eg. a-(b+c)
+            // Multiply "-1" into the group, resulting in it becoming a normal expression. Then invert it normally.
             if let Expr::Group(inside_group) = right {
                 return invert_binary(
                     target_expr,
@@ -56,6 +58,8 @@ fn invert_binary(
             TokenKind::Plus
         }
         TokenKind::Star => {
+            // If the left expression is a group, multiply the right expression into it, dissolving the group.
+            // It can then be inverted normally.
             if let Expr::Group(inside_group) = left {
                 return invert(
                     target_expr,
@@ -64,6 +68,7 @@ fn invert_binary(
                 );
             }
 
+            // Same as above but left/right switched.
             if let Expr::Group(inside_group) = right {
                 return invert(target_expr, symbol_table, &multiply_in(left, inside_group)?);
             }
@@ -71,6 +76,8 @@ fn invert_binary(
             TokenKind::Slash
         }
         TokenKind::Slash => {
+            // Eg. (a+b)/c
+            // Just dissolve the group. Nothing more needs to be done mathematically.
             if let Expr::Group(inside_group) = left {
                 return invert(
                     target_expr,
@@ -79,6 +86,8 @@ fn invert_binary(
                 );
             }
 
+            // Eg. a/(b+c)
+            // Same as above.
             if let Expr::Group(inside_group) = right {
                 return invert(
                     target_expr,
@@ -92,6 +101,8 @@ fn invert_binary(
         _ => unreachable!(),
     };
 
+    // If the left expression contains the unit, invert the right one instead,
+    // since the unit should not be moved.
     if contains_the_unit(left) {
         return Ok(invert(
             Expr::Binary(Box::new(target_expr), op_inv, Box::new(right.clone())),
@@ -100,16 +111,19 @@ fn invert_binary(
         )?);
     }
 
+    // Otherwise, invert the left side.
     let final_target_expr = Expr::Binary(Box::new(target_expr), op_inv, Box::new(left.clone()));
-
     Ok(invert(
-        if op == &TokenKind::Minus {
+        // Eg. 2-a
+        // If the operator is minus (and the left expression is being inverted),
+        // make the target expression negative to keep balance.
+        if let TokenKind::Minus = op {
             Expr::Unary(TokenKind::Minus, Box::new(final_target_expr))
         } else {
             final_target_expr
         },
         symbol_table,
-        right,
+        right, // Then invert the right expression.
     )?)
 }
 

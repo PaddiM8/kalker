@@ -195,7 +195,6 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 
     context.symbol_table.insert(stmt.clone());
     context.symbol_table.insert(stmt_inv);
-    println!("{:#?}", context.symbol_table);
 
     Ok(stmt)
 }
