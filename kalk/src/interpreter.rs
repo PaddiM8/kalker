@@ -2,6 +2,7 @@ use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
 use crate::parser::Unit;
+use crate::parser::DECL_UNIT;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
 use rug::ops::Pow;
@@ -128,11 +129,11 @@ fn convert_unit(
     to_unit: &str,
 ) -> Result<Float, CalcError> {
     if let Some(Stmt::UnitDecl(_, _, unit_def)) =
-        context.symbol_table.get_unit(from_unit, to_unit).cloned()
+        context.symbol_table.get_unit(to_unit, from_unit).cloned()
     {
         context
             .symbol_table
-            .insert(Stmt::VarDecl(String::from("u"), Box::new(expr.clone())));
+            .insert(Stmt::VarDecl(DECL_UNIT.into(), Box::new(expr.clone())));
 
         eval_expr(context, &unit_def)
     } else {

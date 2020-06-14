@@ -6,6 +6,8 @@ use crate::{
 };
 use rug::Float;
 
+pub const DECL_UNIT: &'static str = ".u";
+
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
 /// # Examples
 /// ```
@@ -20,7 +22,7 @@ pub struct Context {
     symbol_table: SymbolTable,
     angle_unit: Unit,
     /// This is true whenever the parser is currently parsing a unit declaration.
-    /// It is necessary to keep track of this since you cannot use variables in unit declarations.
+    /// It is necessary to keep track of this in order to know when to find (figure out) units that haven't been defined yet.
     /// Unit names are instead treated as variables.
     parsing_unit_decl: bool,
     /// When a unit declaration is being parsed, this value will be set
@@ -346,11 +348,11 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     }
 
     // Eg. x
-    if context.parsing_unit_decl {
-        context.unit_decl_base_unit = Some(identifier.value);
-        Ok(Expr::Var(String::from("u")))
-    } else if context.symbol_table.contains_var(&identifier.value) {
+    if context.symbol_table.contains_var(&identifier.value) {
         Ok(Expr::Var(identifier.value))
+    } else if context.parsing_unit_decl {
+        context.unit_decl_base_unit = Some(identifier.value);
+        Ok(Expr::Var(DECL_UNIT.into()))
     } else {
         let mut chars = identifier.value.chars();
         let mut left = Expr::Var(chars.next().unwrap().to_string());
