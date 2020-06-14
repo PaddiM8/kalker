@@ -27,6 +27,7 @@ pub enum TokenKind {
     OpenParenthesis,
     ClosedParenthesis,
     Comma,
+    Semicolon,
 
     EOF,
 }
@@ -105,6 +106,7 @@ impl<'a> Lexer<'a> {
             '=' => build(TokenKind::Equals, "", span),
             '!' => build(TokenKind::Exclamation, "", span),
             ',' => build(TokenKind::Comma, "", span),
+            ';' => build(TokenKind::Semicolon, "", span),
             _ => build(TokenKind::Unknown, "", span),
         };
 
@@ -196,7 +198,7 @@ fn build(kind: TokenKind, value: &str, span: (usize, usize)) -> Token {
 
 fn is_valid_identifier(c: Option<&char>) -> bool {
     if let Some(c) = c {
-        regex::Regex::new(r"[^\s\n\r0-9\+-/\*\^!\(\)=\.,|⌊⌋⌈⌉]")
+        regex::Regex::new(r"[^\s\n\r0-9\+-/\*\^!\(\)=\.,;|⌊⌋⌈⌉]")
             .unwrap()
             .is_match(&c.to_string())
     } else {
