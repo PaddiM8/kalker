@@ -2,13 +2,12 @@ mod output;
 mod repl;
 
 use kalk::parser;
-use kalk::parser::Unit;
 use std::env;
 use std::fs::File;
 use std::io::Read;
 
 fn main() {
-    let mut parser_context = parser::Context::new().set_angle_unit(get_angle_unit());
+    let mut parser_context = parser::Context::new().set_angle_unit(&get_angle_unit());
 
     // Command line argument input, execute it and exit.
     let mut args = env::args().skip(1);
@@ -64,16 +63,10 @@ kalk [OPTIONS] [INPUT]
     }
 }
 
-fn get_angle_unit() -> Unit {
+fn get_angle_unit() -> String {
     if let Ok(angle_unit_var) = env::var("ANGLE_UNIT") {
-        match angle_unit_var.as_ref() {
-            "radians" => Unit::Radians,
-            "degrees" => Unit::Degrees,
-            _ => {
-                panic!("Unexpected angle unit: {}.", angle_unit_var);
-            }
-        }
+        angle_unit_var
     } else {
-        Unit::Radians
+        String::from("rad")
     }
 }
