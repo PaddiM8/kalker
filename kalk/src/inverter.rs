@@ -51,7 +51,7 @@ fn invert_binary(
                     symbol_table,
                     left,
                     op,
-                    &multiply_in(&Expr::Literal(String::from("-1")), inside_group)?,
+                    &multiply_into(&Expr::Literal(String::from("-1")), inside_group)?,
                 );
             }
 
@@ -64,13 +64,17 @@ fn invert_binary(
                 return invert(
                     target_expr,
                     symbol_table,
-                    &multiply_in(right, inside_group)?,
+                    &multiply_into(right, inside_group)?,
                 );
             }
 
             // Same as above but left/right switched.
             if let Expr::Group(inside_group) = right {
-                return invert(target_expr, symbol_table, &multiply_in(left, inside_group)?);
+                return invert(
+                    target_expr,
+                    symbol_table,
+                    &multiply_into(left, inside_group)?,
+                );
             }
 
             TokenKind::Slash
@@ -130,14 +134,15 @@ fn invert_binary(
 fn invert_unary(target_expr: Expr, op: &TokenKind, expr: &Expr) -> Result<(Expr, Expr), CalcError> {
     match op {
         TokenKind::Minus => Ok((
+            // Make the target expression negative
             Expr::Unary(TokenKind::Minus, Box::new(target_expr)),
-            expr.clone(),
+            expr.clone(), // And then continue inverting the inner-expression.
         )),
         _ => unimplemented!(),
     }
 }
 
-// Not necessary yet
+// TODO: Implement
 fn invert_unit(
     _target_expr: Expr,
     _identifier: &str,
@@ -152,6 +157,7 @@ fn invert_fn_call(
     identifier: &str,
     arguments: &Vec<Expr>,
 ) -> Result<(Expr, Expr), CalcError> {
+    // Get the function definition from the symbol table.
     let (parameters, body) =
         if let Some(Stmt::FnDecl(_, parameters, body)) = symbol_table.get_fn(identifier).cloned() {
             (parameters, body)
@@ -159,6 +165,7 @@ fn invert_fn_call(
             return Err(CalcError::UndefinedFn(identifier.into()));
         };
 
+    // Make sure the input-expression is valid.
     if parameters.len() != arguments.len() {
         return Err(CalcError::IncorrectAmountOfArguments(
             parameters.len(),
@@ -167,6 +174,7 @@ fn invert_fn_call(
         ));
     }
 
+    // Make the parameters usable as variables inside the function.
     let mut parameters_iter = parameters.iter();
     for argument in arguments {
         symbol_table.insert(Stmt::VarDecl(
@@ -175,10 +183,12 @@ fn invert_fn_call(
         ));
     }
 
+    // Invert everything in the function body.
     invert(target_expr, symbol_table, &body)
 }
 
 fn contains_the_unit(expr: &Expr) -> bool {
+    // Recursively scan the expression for the unit.
     match expr {
         Expr::Binary(left, _, right) => contains_the_unit(left) || contains_the_unit(right),
         Expr::Unary(_, expr) => contains_the_unit(expr),
@@ -198,21 +208,25 @@ fn contains_the_unit(expr: &Expr) -> bool {
     }
 }
 
-fn multiply_in(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
+/// Multiply an expression into a group.
+fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
     match base_expr {
         Expr::Binary(left, op, right) => match op {
+            // If + or -, multiply the expression with each term.
             TokenKind::Plus | TokenKind::Minus => Ok(Expr::Binary(
-                Box::new(multiply_in(expr, &left)?),
+                Box::new(multiply_into(expr, &left)?),
                 op.clone(),
-                Box::new(multiply_in(expr, &right)?),
+                Box::new(multiply_into(expr, &right)?),
             )),
+            // If * or /, only multiply with the first factor.
             TokenKind::Star | TokenKind::Slash => Ok(Expr::Binary(
-                Box::new(multiply_in(expr, &left)?),
+                Box::new(multiply_into(expr, &left)?),
                 op.clone(),
                 right.clone(),
             )),
             _ => unimplemented!(),
         },
+        // If it's a literal, just multiply them together.
         Expr::Literal(_) | Expr::Var(_) => Ok(Expr::Binary(
             Box::new(expr.clone()),
             TokenKind::Star,

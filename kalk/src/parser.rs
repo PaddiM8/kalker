@@ -414,6 +414,7 @@ mod tests {
 
     fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, CalcError> {
         context.tokens = tokens;
+        context.pos = 0;
 
         parse_stmt(context)
     }
@@ -421,6 +422,7 @@ mod tests {
     fn parse(tokens: Vec<Token>) -> Result<Stmt, CalcError> {
         let mut context = Context::new();
         context.tokens = tokens;
+        context.pos = 0;
 
         parse_stmt(&mut context)
     }
@@ -448,6 +450,7 @@ mod tests {
             token(Slash, ""),
             token(Literal, "5"),
             token(ClosedParenthesis, ""),
+            token(EOF, ""),
         ];
 
         assert_eq!(
@@ -480,6 +483,7 @@ mod tests {
             token(Literal, "4"),
             token(Plus, ""),
             token(Literal, "5"),
+            token(EOF, ""),
         ];
 
         assert_eq!(
@@ -500,20 +504,20 @@ mod tests {
         );
     }
 
-    /*#[test_case(Deg)]
-    #[test_case(Rad)]
-    fn test_unary(angle_unit: TokenKind) {
-        let tokens = vec![
-            token(Minus, ""),
-            token(Literal, "1"),
-            token(angle_unit.clone(), ""),
-        ];
+    #[test]
+    fn test_unit() {
+        let tokens = vec![token(Literal, "1"), token(Identifier, "a")];
+
+        let mut context = Context::new();
+        context
+            .symbol_table
+            .insert(unit_decl("a", "b", var(super::DECL_UNIT)));
 
         assert_eq!(
-            parse(tokens).unwrap(),
-            Stmt::Expr(unary(Minus, Box::new(Expr::Unit(literal("1"), angle_unit))))
+            parse_with_context(&mut context, tokens).unwrap(),
+            Stmt::Expr(unit("a", literal("1")))
         );
-    }*/
+    }
 
     #[test]
     fn test_var_decl() {
@@ -523,6 +527,7 @@ mod tests {
             token(Literal, "1"),
             token(Plus, ""),
             token(Literal, "2"),
+            token(EOF, ""),
         ];
 
         assert_eq!(
@@ -542,6 +547,7 @@ mod tests {
             token(Literal, "1"),
             token(Plus, ""),
             token(Literal, "2"),
+            token(EOF, ""),
         ];
 
         assert_eq!(
@@ -565,6 +571,7 @@ mod tests {
             token(ClosedParenthesis, ""),
             token(Plus, ""),
             token(Literal, "3"),
+            token(EOF, ""),
         ];
 
         let mut context = Context::new();
