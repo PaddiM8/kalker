@@ -3,8 +3,8 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct SymbolTable {
-    hashmap: HashMap<String, Stmt>,
-    unit_types: HashMap<String, ()>,
+    pub(crate) hashmap: HashMap<String, Stmt>,
+    pub(crate) unit_types: HashMap<String, ()>,
 }
 
 impl SymbolTable {
@@ -15,22 +15,24 @@ impl SymbolTable {
         }
     }
 
-    pub fn insert(&mut self, value: Stmt) -> Option<Stmt> {
+    pub fn insert(&mut self, value: Stmt) -> &mut Self {
         match &value {
             Stmt::VarDecl(identifier, _) => {
-                self.hashmap.insert(format!("var.{}", identifier), value)
+                self.hashmap.insert(format!("var.{}", identifier), value);
             }
             Stmt::UnitDecl(identifier, to_unit, _) => {
                 self.unit_types.insert(identifier.to_string(), ());
                 self.unit_types.insert(to_unit.to_string(), ());
                 self.hashmap
-                    .insert(format!("unit.{}.{}", identifier, to_unit), value)
+                    .insert(format!("unit.{}.{}", identifier, to_unit), value);
             }
             Stmt::FnDecl(identifier, _, _) => {
-                self.hashmap.insert(format!("fn.{}", identifier), value)
+                self.hashmap.insert(format!("fn.{}", identifier), value);
             }
             _ => panic!("Can only insert VarDecl, UnitDecl and FnDecl into symbol table."),
         }
+
+        self
     }
 
     pub fn get_var(&self, key: &str) -> Option<&Stmt> {

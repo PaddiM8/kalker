@@ -265,10 +265,38 @@ mod tests {
 
     const PRECISION: u32 = 53;
 
+    lazy_static::lazy_static! {
+        static ref DEG_RAD_UNIT: Stmt = unit_decl(
+            "deg",
+            "rad",
+            binary(
+                binary(
+                    var(crate::parser::DECL_UNIT),
+                    TokenKind::Star,
+                    literal("180"),
+                ),
+                TokenKind::Slash,
+                var("pi"),
+            ),
+        );
+        static ref RAD_DEG_UNIT: Stmt = unit_decl(
+            "rad",
+            "deg",
+            binary(
+                binary(var(crate::parser::DECL_UNIT), TokenKind::Star, var("pi")),
+                TokenKind::Slash,
+                literal("180"),
+            ),
+        );
+    }
+
     fn interpret(stmt: Stmt) -> Result<Option<Float>, CalcError> {
         let mut symbol_table = SymbolTable::new();
-        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
+        symbol_table
+            .insert(DEG_RAD_UNIT.clone())
+            .insert(RAD_DEG_UNIT.clone());
 
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
         context.interpret(vec![stmt])
     }
 
@@ -315,14 +343,19 @@ mod tests {
     fn test_angle_units() {
         let rad_explicit = Stmt::Expr(fn_call("sin", vec![*unit("rad", literal("1"))]));
         let deg_explicit = Stmt::Expr(fn_call("sin", vec![*unit("deg", literal("1"))]));
-        //let implicit = Stmt::Expr(fn_call("sin", vec![*literal("1")]));
+        let implicit = Stmt::Expr(fn_call("sin", vec![*literal("1")]));
 
         assert!(cmp(interpret(rad_explicit).unwrap().unwrap(), 0.84147098));
         assert!(cmp(interpret(deg_explicit).unwrap().unwrap(), 0.01745240));
 
-        // TODO: Get this to work.
-        /*let mut rad_symbol_table = SymbolTable::new();
+        let mut rad_symbol_table = SymbolTable::new();
+        rad_symbol_table
+            .insert(DEG_RAD_UNIT.clone())
+            .insert(RAD_DEG_UNIT.clone());
         let mut deg_symbol_table = SymbolTable::new();
+        deg_symbol_table
+            .insert(DEG_RAD_UNIT.clone())
+            .insert(RAD_DEG_UNIT.clone());
         let mut rad_context = Context::new(&mut rad_symbol_table, "rad", PRECISION);
         let mut deg_context = Context::new(&mut deg_symbol_table, "deg", PRECISION);
 
@@ -336,7 +369,7 @@ mod tests {
         assert!(cmp(
             deg_context.interpret(vec![implicit]).unwrap().unwrap(),
             0.01745240
-        ));*/
+        ));
     }
 
     #[test]
