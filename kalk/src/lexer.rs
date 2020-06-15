@@ -17,9 +17,7 @@ pub enum TokenKind {
     Exclamation,
 
     UnitKeyword,
-    To,
-    Deg,
-    Rad,
+    ToKeyword,
 
     Pipe,
     OpenCeil,
@@ -170,10 +168,8 @@ impl<'a> Lexer<'a> {
         }
 
         let kind = match value.as_ref() {
-            "deg" | "°" => TokenKind::Deg,
-            "rad" => TokenKind::Rad,
             "unit" => TokenKind::UnitKeyword,
-            "to" => TokenKind::To,
+            "to" => TokenKind::ToKeyword,
             _ => TokenKind::Identifier,
         };
 

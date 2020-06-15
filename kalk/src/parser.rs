@@ -7,6 +7,7 @@ use crate::{
 use rug::Float;
 
 pub const DECL_UNIT: &'static str = ".u";
+pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
 
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
 /// # Examples
@@ -20,7 +21,7 @@ pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
     symbol_table: SymbolTable,
-    angle_unit: Unit,
+    angle_unit: String,
     /// This is true whenever the parser is currently parsing a unit declaration.
     /// It is necessary to keep track of this in order to know when to find (figure out) units that haven't been defined yet.
     /// Unit names are instead treated as variables.
@@ -32,18 +33,22 @@ pub struct Context {
 
 impl Context {
     pub fn new() -> Self {
-        Context {
+        let mut context = Self {
             tokens: Vec::new(),
             pos: 0,
             symbol_table: SymbolTable::new(),
-            angle_unit: Unit::Radians,
+            angle_unit: DEFAULT_ANGLE_UNIT.into(),
             parsing_unit_decl: false,
             unit_decl_base_unit: None,
-        }
+        };
+
+        parse(&mut context, crate::prelude::INIT).unwrap();
+
+        context
     }
 
-    pub fn set_angle_unit(mut self, unit: Unit) -> Self {
-        self.angle_unit = unit;
+    pub fn set_angle_unit(mut self, unit: &str) -> Self {
+        self.angle_unit = unit.into();
 
         self
     }
@@ -53,13 +58,6 @@ impl Default for Context {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Mathematical unit used in calculations.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Unit {
-    Radians,
-    Degrees,
 }
 
 /// Error that occured during parsing or evaluation.

@@ -1,7 +1,6 @@
 use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
-use crate::parser::Unit;
 use crate::parser::DECL_UNIT;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
@@ -10,14 +9,14 @@ use rug::Float;
 
 pub struct Context<'a> {
     symbol_table: &'a mut SymbolTable,
-    angle_unit: Unit,
+    angle_unit: String,
     precision: u32,
 }
 
 impl<'a> Context<'a> {
-    pub fn new(symbol_table: &'a mut SymbolTable, angle_unit: &Unit, precision: u32) -> Self {
+    pub fn new(symbol_table: &'a mut SymbolTable, angle_unit: &str, precision: u32) -> Self {
         Context {
-            angle_unit: angle_unit.clone(),
+            angle_unit: angle_unit.into(),
             symbol_table,
             precision,
         }
@@ -68,7 +67,7 @@ fn eval_expr(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
     match expr {
         Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right),
         Expr::Unary(op, expr) => eval_unary_expr(context, op, expr),
-        Expr::Unit(_, expr) => eval_unit_expr(context, expr),
+        Expr::Unit(identifier, expr) => eval_unit_expr(context, identifier, expr),
         Expr::Var(identifier) => eval_var_expr(context, identifier),
         Expr::Literal(value) => eval_literal_expr(context, value),
         Expr::Group(expr) => eval_group_expr(context, &expr),
@@ -118,11 +117,20 @@ fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result
     }
 }
 
-fn eval_unit_expr(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
+fn eval_unit_expr(
+    context: &mut Context,
+    identifier: &str,
+    expr: &Expr,
+) -> Result<Float, CalcError> {
+    let angle_unit = &context.angle_unit.clone();
+    if (identifier == "rad" || identifier == "deg") && angle_unit != identifier {
+        return convert_unit(context, expr, identifier, angle_unit);
+    }
+
     eval_expr(context, expr)
 }
 
-fn convert_unit(
+pub fn convert_unit(
     context: &mut Context,
     expr: &Expr,
     from_unit: &str,
@@ -175,12 +183,12 @@ fn eval_fn_call_expr(
     let prelude_func = match expressions.len() {
         1 => {
             let x = eval_expr(context, &expressions[0])?;
-            prelude::call_unary_func(identifier, x, &context.angle_unit)
+            prelude::call_unary_func(context, identifier, x, &context.angle_unit.clone())
         }
         2 => {
             let x = eval_expr(context, &expressions[0])?;
             let y = eval_expr(context, &expressions[1])?;
-            prelude::call_binary_func(identifier, x, y, &context.angle_unit)
+            prelude::call_binary_func(context, identifier, x, y, &context.angle_unit.clone())
         }
         _ => None,
     };
@@ -259,8 +267,14 @@ mod tests {
 
     fn interpret(stmt: Stmt) -> Result<Option<Float>, CalcError> {
         let mut symbol_table = SymbolTable::new();
-        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
+
         context.interpret(vec![stmt])
+    }
+
+    fn cmp(x: Float, y: f64) -> bool {
+        println!("{} = {}", x.to_f64(), y);
+        (x.to_f64() - y).abs() < 0.0001
     }
 
     #[test]
@@ -292,26 +306,38 @@ mod tests {
     fn test_unary() {
         let neg = Stmt::Expr(unary(Minus, literal("1")));
         let fact = Stmt::Expr(unary(Exclamation, literal("5")));
-        let fact_dec = Stmt::Expr(unary(Exclamation, literal("5.2")));
 
         assert_eq!(interpret(neg).unwrap().unwrap(), -1);
         assert_eq!(interpret(fact).unwrap().unwrap(), 120);
-
-        let fact_dec_result = interpret(fact_dec).unwrap().unwrap();
-        assert!(fact_dec_result > 169.406 && fact_dec_result < 169.407);
     }
 
-    /*#[test]
-    fn test_unit() {
-        let rad = Stmt::Expr(Box::new(Expr::Unit(literal("1"), Rad)));
-        let deg = Stmt::Expr(Box::new(Expr::Unit(literal("1"), Deg)));
+    #[test]
+    fn test_angle_units() {
+        let rad_explicit = Stmt::Expr(fn_call("sin", vec![*unit("rad", literal("1"))]));
+        let deg_explicit = Stmt::Expr(fn_call("sin", vec![*unit("deg", literal("1"))]));
+        //let implicit = Stmt::Expr(fn_call("sin", vec![*literal("1")]));
 
-        assert_eq!(interpret(rad).unwrap().unwrap(), 1);
-        assert!(
-            (interpret(deg).unwrap().unwrap() - Float::with_val(PRECISION, 0.017456)).abs()
-                < Float::with_val(PRECISION, 0.0001)
-        );
-    }*/
+        assert!(cmp(interpret(rad_explicit).unwrap().unwrap(), 0.84147098));
+        assert!(cmp(interpret(deg_explicit).unwrap().unwrap(), 0.01745240));
+
+        // TODO: Get this to work.
+        /*let mut rad_symbol_table = SymbolTable::new();
+        let mut deg_symbol_table = SymbolTable::new();
+        let mut rad_context = Context::new(&mut rad_symbol_table, "rad", PRECISION);
+        let mut deg_context = Context::new(&mut deg_symbol_table, "deg", PRECISION);
+
+        assert!(cmp(
+            rad_context
+                .interpret(vec![implicit.clone()])
+                .unwrap()
+                .unwrap(),
+            0.84147098
+        ));
+        assert!(cmp(
+            deg_context.interpret(vec![implicit]).unwrap().unwrap(),
+            0.01745240
+        ));*/
+    }
 
     #[test]
     fn test_var() {
@@ -321,7 +347,7 @@ mod tests {
         let mut symbol_table = SymbolTable::new();
         symbol_table.insert(var_decl("x", literal("1")));
 
-        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
         assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 1);
     }
 
@@ -339,7 +365,7 @@ mod tests {
     fn test_var_decl() {
         let stmt = var_decl("x", literal("1"));
         let mut symbol_table = SymbolTable::new();
-        Context::new(&mut symbol_table, &Unit::Radians, PRECISION)
+        Context::new(&mut symbol_table, "rad", PRECISION)
             .interpret(vec![stmt])
             .unwrap();
 
@@ -358,7 +384,7 @@ mod tests {
             binary(var("x"), TokenKind::Plus, literal("2")),
         ));
 
-        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
         assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 3);
     }
 
