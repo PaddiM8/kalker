@@ -70,6 +70,7 @@ pub enum CalcError {
     UnexpectedToken(TokenKind),
     UndefinedFn(String),
     UndefinedVar(String),
+    UnsupportedExpression(String),
     Unknown,
 }
 

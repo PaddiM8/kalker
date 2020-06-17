@@ -108,6 +108,14 @@ fn invert_binary(
     // If the left expression contains the unit, invert the right one instead,
     // since the unit should not be moved.
     if contains_the_unit(symbol_table, left) {
+        // But if the right expression *also* contains the unit,
+        // throw an error, since it can't handle this yet.
+        if contains_the_unit(symbol_table, right) {
+            return Err(CalcError::UnsupportedExpression(String::from(
+                "Can't invert expressions with several instances of an unknown variable (yet).",
+            )));
+        }
+
         return Ok(invert(
             Expr::Binary(Box::new(target_expr), op_inv, Box::new(right.clone())),
             symbol_table,
@@ -148,7 +156,9 @@ fn invert_unit(
     _identifier: &str,
     _expr: &Expr,
 ) -> Result<(Expr, Expr), CalcError> {
-    unimplemented!()
+    Err(CalcError::UnsupportedExpression(String::from(
+        "Cannot invert expressions containing other units (yet).",
+    )))
 }
 
 fn invert_var(
@@ -253,6 +263,9 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
             TokenKind::Star,
             Box::new(base_expr.clone()),
         )),
+        Expr::Group(_) => Err(CalcError::UnsupportedExpression(String::from(
+            "Cannot invert parenthesis multiplied with parenthesis (yet).",
+        ))),
         _ => unimplemented!(),
     }
 }
