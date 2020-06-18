@@ -27,20 +27,27 @@ impl<'a> Context<'a> {
         statements: Vec<Stmt>,
     ) -> Result<Option<(Float, String)>, CalcError> {
         for (i, stmt) in statements.iter().enumerate() {
-            let value = eval_stmt(self, stmt);
+            let (value, unit) = eval_stmt(self, stmt)?;
 
             // Insert the last value into the `ans` variable.
-            self.symbol_table.set(
-                "ans",
+            self.symbol_table.set(if (&unit).len() > 0 {
                 Stmt::VarDecl(
                     String::from("ans"),
-                    Box::new(Expr::Literal(value.clone()?.to_string())),
-                ),
-            );
+                    Box::new(Expr::Unit(
+                        unit.clone(),
+                        Box::new(Expr::Literal(value.clone().to_string())),
+                    )),
+                )
+            } else {
+                Stmt::VarDecl(
+                    String::from("ans"),
+                    Box::new(Expr::Literal(value.clone().to_string())),
+                )
+            });
 
             if i == statements.len() - 1 {
                 if let Stmt::Expr(_) = stmt {
-                    return Ok(Some(value?));
+                    return Ok(Some((value, unit)));
                 }
             }
         }
