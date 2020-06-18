@@ -1,10 +1,10 @@
 [package]
 name = "kalk_cli"
-version = "0.1.10"
+version = "0.2.0"
 authors = ["PaddiM8"]
 edition = "2018"
 readme = "../README.md"
-description = "A calculator that supports user-defined functions and variables and can handle fairly ambiguous syntax."
+description = "A calculator that supports user-defined functions, variables and units, and can handle fairly ambiguous syntax."
 repository = "https://github.com/PaddiM8/kalk"
 license = "MIT"
 keywords = ["math", "calculator", "cli", "command-line"]
@@ -15,7 +15,7 @@ path = "src/main.rs"
 name = "kalk"
 
 [dependencies]
-kalk = { path = "../kalk", version = "^0.1.11" }
+kalk = { path = "../kalk", version = "^0.2.0" }
 rustyline = "6.1.2"
 ansi_term = "0.12"
 regex = "1"

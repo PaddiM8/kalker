@@ -5,7 +5,7 @@
 ![Build status](https://img.shields.io/travis/PaddiM8/kalk/master?label=build%20%26%20test)
 
 
-Kalk is a calculator (both program and library) that supports user-defined variables and functions.  
+Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental).
 [Project kanban board (Kolan)](https://kolan.smrk.me/Board/4RAdMjLDz)
 
 ![](example.png)
@@ -15,6 +15,7 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 * Groups: (), ⌈⌉, ⌋⌊
 * [Pre-defined functions and constants](https://github.com/PaddiM8/kalk/blob/master/kalk/src/prelude.rs)
 * User-defined functions and variables. `f(x, y) = xy`, `x = 5`
+* User-defined units (experimental). `unit m = cm/100`, `2m/50cm`, `50cm to m`
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
 * Syntax highlighting
 * Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
@@ -33,3 +34,30 @@ Run `cargo install kalk_cli`
 1. Go into the `kalk_cli` directory.
 2. Run `cargo build --release`
 3. Grab the binary from `targets/release`
+
+## Syntax
+
+### Functions
+__Defining:__ name(parameter1, parameter2, ...) = expression  
+**Example:** `f(x) = 2x+3`  
+
+__Using:__ name(argument1, argument2)  
+**Example:** `f(2)`  
+
+### Variables
+__Defining:__ name = expression  
+**Example:** `x = 3`  
+
+__Using:__ name  
+**Example:** `x`  
+
+### Units
+*Note: You only need to define the relationship between two units once. You will be able to convert between both of them.*
+__Defining:__ `unit` name = expression  
+**Example:** `unit deg = (rad*180)/π`  
+
+__Using:__ Use them freely in expressions.  
+**Example:** `2m/50cm`  
+
+__Converting:__ expression `to` unit  
+**Example:** `2 m to cm`  
