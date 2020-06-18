@@ -140,6 +140,7 @@ dependencies = [
 name = "kalk"
 version = "0.1.11"
 dependencies = [
+ "lazy_static",
  "phf",
  "regex",
  "rug",

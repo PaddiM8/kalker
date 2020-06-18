@@ -6,33 +6,50 @@ use crate::{
 };
 use rug::Float;
 
+pub const DECL_UNIT: &'static str = ".u";
+pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
+
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
 /// # Examples
 /// ```
 /// use kalk::parser;
 /// let mut parser_context = parser::Context::new();
 /// let precision = 53;
-/// assert_eq!(parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap(), 15);
+/// let (result, unit) = parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap();
+/// assert_eq!(result, 15);
 /// ```
 pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
     symbol_table: SymbolTable,
-    angle_unit: Unit,
+    angle_unit: String,
+    /// This is true whenever the parser is currently parsing a unit declaration.
+    /// It is necessary to keep track of this in order to know when to find (figure out) units that haven't been defined yet.
+    /// Unit names are instead treated as variables.
+    parsing_unit_decl: bool,
+    /// When a unit declaration is being parsed, this value will be set
+    /// whenever a unit in the expression is found. Eg. unit a = 3b, it will be set to Some("b")
+    unit_decl_base_unit: Option<String>,
 }
 
 impl Context {
     pub fn new() -> Self {
-        Context {
+        let mut context = Self {
             tokens: Vec::new(),
             pos: 0,
             symbol_table: SymbolTable::new(),
-            angle_unit: Unit::Radians,
-        }
+            angle_unit: DEFAULT_ANGLE_UNIT.into(),
+            parsing_unit_decl: false,
+            unit_decl_base_unit: None,
+        };
+
+        parse(&mut context, crate::prelude::INIT).unwrap();
+
+        context
     }
 
-    pub fn set_angle_unit(mut self, unit: Unit) -> Self {
-        self.angle_unit = unit;
+    pub fn set_angle_unit(mut self, unit: &str) -> Self {
+        self.angle_unit = unit.into();
 
         self
     }
@@ -42,13 +59,6 @@ impl Default for Context {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Mathematical unit used in calculations.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Unit {
-    Radians,
-    Degrees,
 }
 
 /// Error that occured during parsing or evaluation.
@@ -61,6 +71,7 @@ pub enum CalcError {
     UnexpectedToken(TokenKind),
     UndefinedFn(String),
     UndefinedVar(String),
+    UnableToInvert(String),
     Unknown,
 }
 
@@ -71,7 +82,7 @@ pub fn eval(
     context: &mut Context,
     input: &str,
     precision: u32,
-) -> Result<Option<Float>, CalcError> {
+) -> Result<Option<(Float, String)>, CalcError> {
     let statements = parse(context, input)?;
 
     let mut interpreter =
@@ -85,6 +96,8 @@ pub fn eval(
 pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError> {
     context.tokens = Lexer::lex(input);
     context.pos = 0;
+    context.parsing_unit_decl = false;
+    context.unit_decl_base_unit = None;
 
     let mut statements: Vec<Stmt> = Vec::new();
     while !is_at_end(context) {
@@ -105,6 +118,8 @@ fn parse_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
             TokenKind::OpenParenthesis => parse_identifier_stmt(context)?,
             _ => Stmt::Expr(Box::new(parse_expr(context)?)),
         });
+    } else if match_token(context, TokenKind::UnitKeyword) {
+        return parse_unit_decl_stmt(context);
     }
 
     Ok(Stmt::Expr(Box::new(parse_expr(context)?)))
@@ -136,9 +151,7 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 
             // Insert the function declaration into the symbol table during parsing
             // so that the parser can find out if particular functions exist.
-            context
-                .symbol_table
-                .insert(&format!("{}()", identifier), fn_decl.clone());
+            context.symbol_table.insert(fn_decl.clone());
 
             return Ok(fn_decl);
         }
@@ -160,8 +173,54 @@ fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     Ok(Stmt::VarDecl(identifier.value, Box::new(expr)))
 }
 
+fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
+    advance(context); // Unit keyword
+    let identifier = advance(context).clone();
+    consume(context, TokenKind::Equals)?;
+
+    // Parse the mut definition
+    context.unit_decl_base_unit = None;
+    context.parsing_unit_decl = true;
+    let def = parse_expr(context)?;
+    context.parsing_unit_decl = false;
+
+    let base_unit = if let Some(base_unit) = &context.unit_decl_base_unit {
+        base_unit.clone()
+    } else {
+        return Err(CalcError::InvalidUnit);
+    };
+
+    // Automatically create a second unit decl with the expression inverted.
+    // This will turn eg. unit a = 3b, into unit b = a/3
+    // This is so that you only have to define `a`, and it will figure out the formula for `b` since it is used in the formula for `a`.
+    let stmt_inv = Stmt::UnitDecl(
+        base_unit.clone(),
+        identifier.value.clone(),
+        Box::new(def.invert(&mut context.symbol_table)?),
+    );
+    let stmt = Stmt::UnitDecl(identifier.value, base_unit, Box::new(def));
+
+    context.symbol_table.insert(stmt.clone());
+    context.symbol_table.insert(stmt_inv);
+
+    Ok(stmt)
+}
+
 fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
-    Ok(parse_sum(context)?)
+    Ok(parse_to(context)?)
+}
+
+fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
+    let left = parse_sum(context)?;
+
+    if match_token(context, TokenKind::ToKeyword) {
+        let op = advance(context).kind.clone();
+        let right = Expr::Var(advance(context).value.clone()); // Parse this as a variable for now.
+
+        return Ok(Expr::Binary(Box::new(left), op, Box::new(right)));
+    }
+
+    Ok(left)
 }
 
 fn parse_sum(context: &mut Context) -> Result<Expr, CalcError> {
@@ -179,7 +238,7 @@ fn parse_sum(context: &mut Context) -> Result<Expr, CalcError> {
 }
 
 fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
-    let mut left = parse_unary(context)?;
+    let mut left = parse_unit(context)?;
 
     while match_token(context, TokenKind::Star)
         || match_token(context, TokenKind::Slash)
@@ -192,11 +251,25 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
             _ => advance(context).kind.clone(),
         };
 
-        let right = parse_unary(context)?;
+        let right = parse_unit(context)?;
         left = Expr::Binary(Box::new(left), op, Box::new(right));
     }
 
     Ok(left)
+}
+
+fn parse_unit(context: &mut Context) -> Result<Expr, CalcError> {
+    let expr = parse_unary(context)?;
+    let peek = &peek(&context).value;
+
+    if match_token(context, TokenKind::Identifier) && context.symbol_table.contains_unit(&peek) {
+        return Ok(Expr::Unit(
+            advance(context).value.to_string(),
+            Box::new(expr),
+        ));
+    }
+
+    Ok(expr)
 }
 
 fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
@@ -240,11 +313,7 @@ fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
         _ => Expr::Literal(advance(context).value.clone()),
     };
 
-    if !is_at_end(context) && peek(context).kind.is_unit() {
-        Ok(Expr::Unit(Box::new(expr), advance(context).kind.clone()))
-    } else {
-        Ok(expr)
-    }
+    Ok(expr)
 }
 
 fn parse_group(context: &mut Context) -> Result<Expr, CalcError> {
@@ -301,6 +370,9 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     // Eg. x
     if context.symbol_table.contains_var(&identifier.value) {
         Ok(Expr::Var(identifier.value))
+    } else if context.parsing_unit_decl {
+        context.unit_decl_base_unit = Some(identifier.value);
+        Ok(Expr::Var(DECL_UNIT.into()))
     } else {
         let mut chars = identifier.value.chars();
         let mut left = Expr::Var(chars.next().unwrap().to_string());
@@ -319,19 +391,19 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     }
 }
 
-fn peek(context: &mut Context) -> &Token {
+fn peek(context: &Context) -> &Token {
     &context.tokens[context.pos]
 }
 
-fn peek_next(context: &mut Context) -> &Token {
+fn peek_next(context: &Context) -> &Token {
     &context.tokens[context.pos + 1]
 }
 
-fn previous(context: &mut Context) -> &Token {
+fn previous(context: &Context) -> &Token {
     &context.tokens[context.pos - 1]
 }
 
-fn match_token(context: &mut Context, kind: TokenKind) -> bool {
+fn match_token(context: &Context, kind: TokenKind) -> bool {
     if is_at_end(context) {
         return false;
     }
@@ -352,7 +424,7 @@ fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, CalcError> 
     Err(CalcError::UnexpectedToken(kind))
 }
 
-fn is_at_end(context: &mut Context) -> bool {
+fn is_at_end(context: &Context) -> bool {
     context.pos >= context.tokens.len() || peek(context).kind == TokenKind::EOF
 }
 
@@ -361,10 +433,10 @@ mod tests {
     use super::*;
     use crate::lexer::{Token, TokenKind::*};
     use crate::test_helpers::*;
-    use test_case::test_case;
 
     fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, CalcError> {
         context.tokens = tokens;
+        context.pos = 0;
 
         parse_stmt(context)
     }
@@ -372,6 +444,7 @@ mod tests {
     fn parse(tokens: Vec<Token>) -> Result<Stmt, CalcError> {
         let mut context = Context::new();
         context.tokens = tokens;
+        context.pos = 0;
 
         parse_stmt(&mut context)
     }
@@ -399,6 +472,7 @@ mod tests {
             token(Slash, ""),
             token(Literal, "5"),
             token(ClosedParenthesis, ""),
+            token(EOF, ""),
         ];
 
         assert_eq!(
@@ -431,6 +505,7 @@ mod tests {
             token(Literal, "4"),
             token(Plus, ""),
             token(Literal, "5"),
+            token(EOF, ""),
         ];
 
         assert_eq!(
@@ -451,18 +526,18 @@ mod tests {
         );
     }
 
-    #[test_case(Deg)]
-    #[test_case(Rad)]
-    fn test_unary(angle_unit: TokenKind) {
-        let tokens = vec![
-            token(Minus, ""),
-            token(Literal, "1"),
-            token(angle_unit.clone(), ""),
-        ];
+    #[test]
+    fn test_unit() {
+        let tokens = vec![token(Literal, "1"), token(Identifier, "a")];
+
+        let mut context = Context::new();
+        context
+            .symbol_table
+            .insert(unit_decl("a", "b", var(super::DECL_UNIT)));
 
         assert_eq!(
-            parse(tokens).unwrap(),
-            Stmt::Expr(unary(Minus, Box::new(Expr::Unit(literal("1"), angle_unit))))
+            parse_with_context(&mut context, tokens).unwrap(),
+            Stmt::Expr(unit("a", literal("1")))
         );
     }
 
@@ -474,6 +549,7 @@ mod tests {
             token(Literal, "1"),
             token(Plus, ""),
             token(Literal, "2"),
+            token(EOF, ""),
         ];
 
         assert_eq!(
@@ -493,6 +569,7 @@ mod tests {
             token(Literal, "1"),
             token(Plus, ""),
             token(Literal, "2"),
+            token(EOF, ""),
         ];
 
         assert_eq!(
@@ -516,15 +593,17 @@ mod tests {
             token(ClosedParenthesis, ""),
             token(Plus, ""),
             token(Literal, "3"),
+            token(EOF, ""),
         ];
 
         let mut context = Context::new();
 
         // Add the function to the symbol table first, in order to prevent errors.
-        context.symbol_table.set(
-            "f()",
-            Stmt::FnDecl(String::from("f"), vec![String::from("x")], literal("1")),
-        );
+        context.symbol_table.set(Stmt::FnDecl(
+            String::from("f"),
+            vec![String::from("x")],
+            literal("1"),
+        ));
 
         assert_eq!(
             parse_with_context(&mut context, tokens).unwrap(),

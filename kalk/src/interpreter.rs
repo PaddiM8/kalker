@@ -1,7 +1,7 @@
 use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
-use crate::parser::Unit;
+use crate::parser::DECL_UNIT;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
 use rug::ops::Pow;
@@ -9,20 +9,23 @@ use rug::Float;
 
 pub struct Context<'a> {
     symbol_table: &'a mut SymbolTable,
-    angle_unit: Unit,
+    angle_unit: String,
     precision: u32,
 }
 
 impl<'a> Context<'a> {
-    pub fn new(symbol_table: &'a mut SymbolTable, angle_unit: &Unit, precision: u32) -> Self {
+    pub fn new(symbol_table: &'a mut SymbolTable, angle_unit: &str, precision: u32) -> Self {
         Context {
-            angle_unit: angle_unit.clone(),
+            angle_unit: angle_unit.into(),
             symbol_table,
             precision,
         }
     }
 
-    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<Option<Float>, CalcError> {
+    pub fn interpret(
+        &mut self,
+        statements: Vec<Stmt>,
+    ) -> Result<Option<(Float, String)>, CalcError> {
         for (i, stmt) in statements.iter().enumerate() {
             let value = eval_stmt(self, stmt);
 
@@ -46,72 +49,110 @@ impl<'a> Context<'a> {
     }
 }
 
-fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<Float, CalcError> {
+fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<(Float, String), CalcError> {
     match stmt {
-        Stmt::VarDecl(identifier, _) => eval_var_decl_stmt(context, stmt, identifier),
+        Stmt::VarDecl(_, _) => eval_var_decl_stmt(context, stmt),
         Stmt::FnDecl(_, _, _) => eval_fn_decl_stmt(context),
+        Stmt::UnitDecl(_, _, _) => eval_unit_decl_stmt(context),
         Stmt::Expr(expr) => eval_expr_stmt(context, &expr),
     }
 }
 
-fn eval_var_decl_stmt(
-    context: &mut Context,
-    stmt: &Stmt,
-    identifier: &str,
-) -> Result<Float, CalcError> {
-    context.symbol_table.insert(&identifier, stmt.clone());
-    Ok(Float::with_val(context.precision, 1))
+fn eval_var_decl_stmt(context: &mut Context, stmt: &Stmt) -> Result<(Float, String), CalcError> {
+    context.symbol_table.insert(stmt.clone());
+    Ok((Float::with_val(context.precision, 1), String::new()))
 }
 
-fn eval_fn_decl_stmt(context: &mut Context) -> Result<Float, CalcError> {
-    Ok(Float::with_val(context.precision, 1)) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
+fn eval_fn_decl_stmt(context: &mut Context) -> Result<(Float, String), CalcError> {
+    Ok((Float::with_val(context.precision, 1), String::new())) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
 }
 
-fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
-    eval_expr(context, &expr)
+fn eval_unit_decl_stmt(context: &mut Context) -> Result<(Float, String), CalcError> {
+    Ok((Float::with_val(context.precision, 1), String::new()))
 }
 
-fn eval_expr(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
+fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<(Float, String), CalcError> {
+    eval_expr(context, &expr, "")
+}
+
+fn eval_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<(Float, String), CalcError> {
     match expr {
-        Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right),
-        Expr::Unary(op, expr) => eval_unary_expr(context, op, expr),
-        Expr::Unit(expr, kind) => eval_unit_expr(context, expr, kind),
-        Expr::Var(identifier) => eval_var_expr(context, identifier),
-        Expr::Literal(value) => eval_literal_expr(context, value),
-        Expr::Group(expr) => eval_group_expr(context, &expr),
+        Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right, unit),
+        Expr::Unary(op, expr) => eval_unary_expr(context, op, expr, unit),
+        Expr::Unit(identifier, expr) => eval_unit_expr(context, identifier, expr),
+        Expr::Var(identifier) => eval_var_expr(context, identifier, unit),
+        Expr::Literal(value) => eval_literal_expr(context, value, unit),
+        Expr::Group(expr) => eval_group_expr(context, &expr, unit),
         Expr::FnCall(identifier, expressions) => {
-            eval_fn_call_expr(context, identifier, expressions)
+            eval_fn_call_expr(context, identifier, expressions, unit)
         }
     }
 }
 
 fn eval_binary_expr(
     context: &mut Context,
-    left: &Expr,
+    left_expr: &Expr,
     op: &TokenKind,
-    right: &Expr,
-) -> Result<Float, CalcError> {
-    let left = eval_expr(context, &left)?;
-    let right = eval_expr(context, &right)?;
+    right_expr: &Expr,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
+    if let TokenKind::ToKeyword = op {
+        // TODO: When the unit conversion function takes a Float instead of Expr,
+        // move this to the match statement further down.
+        if let Expr::Var(right_unit) = right_expr {
+            let (_, left_unit) = eval_expr(context, left_expr, "")?;
+            return convert_unit(context, left_expr, &left_unit, &right_unit); // TODO: Avoid evaluating this twice.
+        }
+    }
 
-    Ok(match op {
-        TokenKind::Plus => left + right,
-        TokenKind::Minus => left - right,
-        TokenKind::Star => left * right,
-        TokenKind::Slash => left / right,
-        TokenKind::Power => left.pow(right),
-        _ => Float::with_val(1, 1),
-    })
+    let (left, left_unit) = eval_expr(context, left_expr, "")?;
+    let (right, _) = if left_unit.len() > 0 {
+        let (_, right_unit) = eval_expr(context, right_expr, "")?; // TODO: Avoid evaluating this twice.
+
+        if right_unit.len() > 0 {
+            convert_unit(context, right_expr, &right_unit, &left_unit)?
+        } else {
+            eval_expr(context, right_expr, unit)?
+        }
+    } else {
+        eval_expr(context, right_expr, unit)?
+    };
+
+    let final_unit = if unit.len() == 0 {
+        left_unit
+    } else {
+        unit.into()
+    };
+
+    Ok((
+        match op {
+            TokenKind::Plus => left + right,
+            TokenKind::Minus => left - right,
+            TokenKind::Star => left * right,
+            TokenKind::Slash => left / right,
+            TokenKind::Power => left.pow(right),
+            _ => Float::with_val(1, 1),
+        },
+        final_unit,
+    ))
 }
 
-fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result<Float, CalcError> {
-    let expr_value = eval_expr(context, &expr)?;
+fn eval_unary_expr(
+    context: &mut Context,
+    op: &TokenKind,
+    expr: &Expr,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
+    let (expr_value, unit) = eval_expr(context, &expr, unit)?;
 
     match op {
-        TokenKind::Minus => Ok(-expr_value),
-        TokenKind::Exclamation => Ok(Float::with_val(
-            context.precision,
-            prelude::special_funcs::factorial(expr_value),
+        TokenKind::Minus => Ok((-expr_value, unit)),
+        TokenKind::Exclamation => Ok((
+            Float::with_val(
+                context.precision,
+                prelude::special_funcs::factorial(expr_value),
+            ),
+            unit,
         )),
         _ => Err(CalcError::InvalidOperator),
     }
@@ -119,73 +160,105 @@ fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result
 
 fn eval_unit_expr(
     context: &mut Context,
+    identifier: &str,
     expr: &Expr,
-    kind: &TokenKind,
-) -> Result<Float, CalcError> {
-    let x = eval_expr(context, &expr);
-    let unit = kind.to_unit()?;
-
-    // Don't do any angle conversions if the defauly angle unit is the same as the unit kind
-    match unit {
-        Unit::Degrees | Unit::Radians => {
-            if context.angle_unit == unit {
-                return x;
-            }
-        }
+) -> Result<(Float, String), CalcError> {
+    let angle_unit = &context.angle_unit.clone();
+    if (identifier == "rad" || identifier == "deg") && angle_unit != identifier {
+        return convert_unit(context, expr, identifier, angle_unit);
     }
 
-    match unit {
-        Unit::Degrees => Ok(prelude::special_funcs::to_radians(x?)),
-        Unit::Radians => Ok(prelude::special_funcs::to_degrees(x?)),
+    eval_expr(context, expr, identifier)
+}
+
+pub fn convert_unit(
+    context: &mut Context,
+    expr: &Expr,
+    from_unit: &str,
+    to_unit: &str,
+) -> Result<(Float, String), CalcError> {
+    if let Some(Stmt::UnitDecl(_, _, unit_def)) =
+        context.symbol_table.get_unit(to_unit, from_unit).cloned()
+    {
+        context
+            .symbol_table
+            .insert(Stmt::VarDecl(DECL_UNIT.into(), Box::new(expr.clone())));
+
+        Ok((eval_expr(context, &unit_def, "")?.0, to_unit.into()))
+    } else {
+        Err(CalcError::InvalidUnit)
     }
 }
 
-fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<Float, CalcError> {
+fn eval_var_expr(
+    context: &mut Context,
+    identifier: &str,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
     // If there is a constant with this name, return a literal expression with its value
     if let Some(value) = prelude::CONSTANTS.get(identifier) {
-        return eval_expr(context, &Expr::Literal((*value).to_string()));
+        return eval_expr(context, &Expr::Literal((*value).to_string()), unit);
     }
 
     // Look for the variable in the symbol table
-    let var_decl = context.symbol_table.get(identifier).cloned();
+    let var_decl = context.symbol_table.get_var(identifier).cloned();
     match var_decl {
-        Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr),
+        Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr, unit),
         _ => Err(CalcError::UndefinedVar(identifier.into())),
     }
 }
 
-fn eval_literal_expr(context: &mut Context, value: &str) -> Result<Float, CalcError> {
+fn eval_literal_expr(
+    context: &mut Context,
+    value: &str,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
     match Float::parse(value) {
-        Ok(parsed_value) => Ok(Float::with_val(context.precision, parsed_value)),
+        Ok(parsed_value) => Ok((
+            Float::with_val(context.precision, parsed_value),
+            unit.into(),
+        )),
         Err(_) => Err(CalcError::InvalidNumberLiteral(value.into())),
     }
 }
 
-fn eval_group_expr(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
-    eval_expr(context, expr)
+fn eval_group_expr(
+    context: &mut Context,
+    expr: &Expr,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
+    eval_expr(context, expr, unit)
 }
 
 fn eval_fn_call_expr(
     context: &mut Context,
     identifier: &str,
     expressions: &[Expr],
-) -> Result<Float, CalcError> {
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
     // Prelude
     let prelude_func = match expressions.len() {
         1 => {
-            let x = eval_expr(context, &expressions[0])?;
-            prelude::call_unary_func(identifier, x, &context.angle_unit)
+            let x = eval_expr(context, &expressions[0], "")?.0;
+            prelude::call_unary_func(context, identifier, x, &context.angle_unit.clone())
         }
         2 => {
-            let x = eval_expr(context, &expressions[0])?;
-            let y = eval_expr(context, &expressions[1])?;
-            prelude::call_binary_func(identifier, x, y, &context.angle_unit)
+            let x = eval_expr(context, &expressions[0], "")?.0;
+            let y = eval_expr(context, &expressions[1], "")?.0;
+            prelude::call_binary_func(context, identifier, x, y, &context.angle_unit.clone())
         }
         _ => None,
     };
 
-    if let Some(result) = prelude_func {
-        return Ok(result);
+    if let Some((result, func_unit)) = prelude_func {
+        return Ok((
+            result,
+            if unit.len() > 0 {
+                unit.into()
+            } else {
+                func_unit.into()
+            },
+        ));
     }
 
     // Special functions
@@ -200,8 +273,8 @@ fn eval_fn_call_expr(
                 ));
             }
 
-            let start = eval_expr(context, &expressions[0])?.to_f64() as i128;
-            let end = eval_expr(context, &expressions[1])?.to_f64() as i128;
+            let start = eval_expr(context, &expressions[0], "")?.0.to_f64() as i128;
+            let end = eval_expr(context, &expressions[1], "")?.0.to_f64() as i128;
             let mut sum = Float::with_val(context.precision, 0);
 
             for n in start..=end {
@@ -211,20 +284,17 @@ fn eval_fn_call_expr(
                 // then calculate the expression and add it to the total sum.
                 context
                     .symbol_table
-                    .set("n", Stmt::VarDecl(String::from("n"), Box::new(n_expr)));
-                sum += eval_expr(context, &expressions[2])?;
+                    .set(Stmt::VarDecl(String::from("n"), Box::new(n_expr)));
+                sum += eval_expr(context, &expressions[2], "")?.0;
             }
 
-            return Ok(sum);
+            return Ok((sum, unit.into()));
         }
         _ => (),
     }
 
     // Symbol Table
-    let stmt_definition = context
-        .symbol_table
-        .get(&format!("{}()", identifier))
-        .cloned();
+    let stmt_definition = context.symbol_table.get_fn(identifier).cloned();
 
     match stmt_definition {
         Some(Stmt::FnDecl(_, arguments, fn_body)) => {
@@ -244,7 +314,7 @@ fn eval_fn_call_expr(
                 )?;
             }
 
-            eval_expr(context, &*fn_body)
+            eval_expr(context, &fn_body, unit)
         }
         _ => Err(CalcError::UndefinedFn(identifier.into())),
     }
@@ -259,10 +329,52 @@ mod tests {
 
     const PRECISION: u32 = 53;
 
-    fn interpret(stmt: Stmt) -> Result<Option<Float>, CalcError> {
+    lazy_static::lazy_static! {
+        static ref DEG_RAD_UNIT: Stmt = unit_decl(
+            "deg",
+            "rad",
+            binary(
+                binary(
+                    var(crate::parser::DECL_UNIT),
+                    TokenKind::Star,
+                    literal("180"),
+                ),
+                TokenKind::Slash,
+                var("pi"),
+            ),
+        );
+        static ref RAD_DEG_UNIT: Stmt = unit_decl(
+            "rad",
+            "deg",
+            binary(
+                binary(var(crate::parser::DECL_UNIT), TokenKind::Star, var("pi")),
+                TokenKind::Slash,
+                literal("180"),
+            ),
+        );
+    }
+
+    fn interpret_with_unit(stmt: Stmt) -> Result<Option<(Float, String)>, CalcError> {
         let mut symbol_table = SymbolTable::new();
-        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
+        symbol_table
+            .insert(DEG_RAD_UNIT.clone())
+            .insert(RAD_DEG_UNIT.clone());
+
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
         context.interpret(vec![stmt])
+    }
+
+    fn interpret(stmt: Stmt) -> Result<Option<Float>, CalcError> {
+        if let Some((result, _)) = interpret_with_unit(stmt)? {
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn cmp(x: Float, y: f64) -> bool {
+        println!("{} = {}", x.to_f64(), y);
+        (x.to_f64() - y).abs() < 0.0001
     }
 
     #[test]
@@ -294,25 +406,43 @@ mod tests {
     fn test_unary() {
         let neg = Stmt::Expr(unary(Minus, literal("1")));
         let fact = Stmt::Expr(unary(Exclamation, literal("5")));
-        let fact_dec = Stmt::Expr(unary(Exclamation, literal("5.2")));
 
         assert_eq!(interpret(neg).unwrap().unwrap(), -1);
         assert_eq!(interpret(fact).unwrap().unwrap(), 120);
-
-        let fact_dec_result = interpret(fact_dec).unwrap().unwrap();
-        assert!(fact_dec_result > 169.406 && fact_dec_result < 169.407);
     }
 
     #[test]
-    fn test_unit() {
-        let rad = Stmt::Expr(Box::new(Expr::Unit(literal("1"), Rad)));
-        let deg = Stmt::Expr(Box::new(Expr::Unit(literal("1"), Deg)));
+    fn test_angle_units() {
+        let rad_explicit = Stmt::Expr(fn_call("sin", vec![*unit("rad", literal("1"))]));
+        let deg_explicit = Stmt::Expr(fn_call("sin", vec![*unit("deg", literal("1"))]));
+        let implicit = Stmt::Expr(fn_call("sin", vec![*literal("1")]));
 
-        assert_eq!(interpret(rad).unwrap().unwrap(), 1);
-        assert!(
-            (interpret(deg).unwrap().unwrap() - Float::with_val(PRECISION, 0.017456)).abs()
-                < Float::with_val(PRECISION, 0.0001)
-        );
+        assert!(cmp(interpret(rad_explicit).unwrap().unwrap(), 0.84147098));
+        assert!(cmp(interpret(deg_explicit).unwrap().unwrap(), 0.01745240));
+
+        let mut rad_symbol_table = SymbolTable::new();
+        rad_symbol_table
+            .insert(DEG_RAD_UNIT.clone())
+            .insert(RAD_DEG_UNIT.clone());
+        let mut deg_symbol_table = SymbolTable::new();
+        deg_symbol_table
+            .insert(DEG_RAD_UNIT.clone())
+            .insert(RAD_DEG_UNIT.clone());
+        let mut rad_context = Context::new(&mut rad_symbol_table, "rad", PRECISION);
+        let mut deg_context = Context::new(&mut deg_symbol_table, "deg", PRECISION);
+
+        assert!(cmp(
+            rad_context
+                .interpret(vec![implicit.clone()])
+                .unwrap()
+                .unwrap()
+                .0,
+            0.84147098
+        ));
+        assert!(cmp(
+            deg_context.interpret(vec![implicit]).unwrap().unwrap().0,
+            0.01745240
+        ));
     }
 
     #[test]
@@ -321,10 +451,10 @@ mod tests {
 
         // Prepare by inserting a variable declaration in the symbol table.
         let mut symbol_table = SymbolTable::new();
-        symbol_table.insert("x", var_decl("x", literal("1")));
+        symbol_table.insert(var_decl("x", literal("1")));
 
-        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
-        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 1);
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
+        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap().0, 1);
     }
 
     #[test]
@@ -341,7 +471,7 @@ mod tests {
     fn test_var_decl() {
         let stmt = var_decl("x", literal("1"));
         let mut symbol_table = SymbolTable::new();
-        Context::new(&mut symbol_table, &Unit::Radians, PRECISION)
+        Context::new(&mut symbol_table, "rad", PRECISION)
             .interpret(vec![stmt])
             .unwrap();
 
@@ -354,17 +484,14 @@ mod tests {
 
         // Prepare by inserting a variable declaration in the symbol table.
         let mut symbol_table = SymbolTable::new();
-        symbol_table.insert(
-            "f()",
-            fn_decl(
-                "f",
-                vec![String::from("x")],
-                binary(var("x"), TokenKind::Plus, literal("2")),
-            ),
-        );
+        symbol_table.insert(fn_decl(
+            "f",
+            vec![String::from("x")],
+            binary(var("x"), TokenKind::Plus, literal("2")),
+        ));
 
-        let mut context = Context::new(&mut symbol_table, &Unit::Radians, PRECISION);
-        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 3);
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
+        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap().0, 3);
     }
 
     #[test]

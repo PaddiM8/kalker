@@ -36,10 +36,18 @@ pub fn group(expr: Box<Expr>) -> Box<Expr> {
     Box::new(Expr::Group(expr))
 }
 
+pub fn unit(identifier: &str, expr: Box<Expr>) -> Box<Expr> {
+    Box::new(Expr::Unit(identifier.into(), expr))
+}
+
 pub fn var_decl(identifier: &str, value: Box<Expr>) -> Stmt {
     Stmt::VarDecl(identifier.into(), value)
 }
 
 pub fn fn_decl(identifier: &str, parameters: Vec<String>, value: Box<Expr>) -> Stmt {
     Stmt::FnDecl(identifier.into(), parameters, value)
+}
+
+pub fn unit_decl(unit: &str, base_unit: &str, expr: Box<Expr>) -> Stmt {
+    Stmt::UnitDecl(unit.into(), base_unit.into(), expr)
 }
