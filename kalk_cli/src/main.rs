@@ -25,10 +25,14 @@ fn main() {
                 // The indentation... Will have to do something more scalable in the future.
                 println!(
                     "
--= kalk help =-\n
+[kalk help]
+
 kalk [OPTIONS] [INPUT]
 -h, --help : show this
 -i         : load a file with predefined functions/variables
+
+[Environment variables]
+ANGLE_UNIT=(deg/rad) : Sets the default unit used for trigonometric functions.
                 "
                 );
                 return;
