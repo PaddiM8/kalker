@@ -2,7 +2,36 @@ use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
 use crate::parser::DECL_UNIT;
+use crate::prelude;
 use crate::symbol_table::SymbolTable;
+
+pub const INVERSE_UNARY_FUNCS: phf::Map<&'static str, &'static str> = phf::phf_map! {
+    "cos" => "acos",
+    "cosec" => "acosec",
+    "cosech" => "cosech",
+    "cosh" => "acosh",
+    "cot" => "acot",
+    "coth" => "acoth",
+    "sec" => "asec",
+    "sech" => "asech",
+    "sin" => "asin",
+    "sinh" => "asinh",
+    "tan" => "atan",
+    "tanh" => "atanh",
+
+    "acos" => "cos",
+    "acosec" => "cosec",
+    "acosech" => "cosech",
+    "acosh" => "cosh",
+    "acot" => "cot",
+    "acoth" => "coth",
+    "asec" => "sec",
+    "asech" => "sech",
+    "asin" => "sin",
+    "asinh" => "sinh",
+    "atan" => "tan",
+    "atanh" => "tanh",
+};
 
 impl Expr {
     pub fn invert(&self, symbol_table: &mut SymbolTable) -> Result<Self, CalcError> {
@@ -111,8 +140,8 @@ fn invert_binary(
         // But if the right expression *also* contains the unit,
         // throw an error, since it can't handle this yet.
         if contains_the_unit(symbol_table, right) {
-            return Err(CalcError::UnsupportedExpression(String::from(
-                "Can't invert expressions with several instances of an unknown variable (yet). Try simplifying the expression.",
+            return Err(CalcError::UnableToInvert(String::from(
+                "Expressions with several instances of an unknown variable (this might be supported in the future). Try simplifying the expression.",
             )));
         }
 
@@ -155,8 +184,8 @@ fn invert_unit(
     _identifier: &str,
     _expr: &Expr,
 ) -> Result<(Expr, Expr), CalcError> {
-    Err(CalcError::UnsupportedExpression(String::from(
-        "Cannot invert expressions containing other units (yet).",
+    Err(CalcError::UnableToInvert(String::from(
+        "Expressions containing other units (this should be supported in the future).",
     )))
 }
 
@@ -178,6 +207,48 @@ fn invert_fn_call(
     identifier: &str,
     arguments: &Vec<Expr>,
 ) -> Result<(Expr, Expr), CalcError> {
+    // If prelude function
+    match arguments.len() {
+        1 => {
+            if prelude::UNARY_FUNCS.contains_key(identifier) {
+                if let Some(fn_inv) = INVERSE_UNARY_FUNCS.get(identifier) {
+                    return Ok((
+                        Expr::FnCall(fn_inv.to_string(), vec![target_expr]),
+                        arguments[0].clone(),
+                    ));
+                } else {
+                    match identifier {
+                        "sqrt" => {
+                            return Ok((
+                                Expr::Binary(
+                                    Box::new(target_expr),
+                                    TokenKind::Power,
+                                    Box::new(Expr::Literal(String::from("2"))),
+                                ),
+                                arguments[0].clone(),
+                            ));
+                        }
+                        _ => {
+                            return Err(CalcError::UnableToInvert(format!(
+                                "Function '{}'",
+                                identifier
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        2 => {
+            if prelude::BINARY_FUNCS.contains_key(identifier) {
+                return Err(CalcError::UnableToInvert(format!(
+                    "Function '{}'",
+                    identifier
+                )));
+            }
+        }
+        _ => (),
+    }
+
     // Get the function definition from the symbol table.
     let (parameters, body) =
         if let Some(Stmt::FnDecl(_, parameters, body)) = symbol_table.get_fn(identifier).cloned() {
@@ -262,8 +333,8 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
             TokenKind::Star,
             Box::new(base_expr.clone()),
         )),
-        Expr::Group(_) => Err(CalcError::UnsupportedExpression(String::from(
-            "Cannot invert parenthesis multiplied with parenthesis (yet).",
+        Expr::Group(_) => Err(CalcError::UnableToInvert(String::from(
+            "Parenthesis multiplied with parenthesis (this should be possible in the future).",
         ))),
         _ => unimplemented!(),
     }

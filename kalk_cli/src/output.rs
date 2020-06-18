@@ -94,9 +94,9 @@ fn print_calc_err(err: CalcError) {
         InvalidOperator => format!("Invalid operator."),
         InvalidUnit => format!("Invalid unit."),
         UnexpectedToken(kind) => format!("Unexpected token: '{:?}'.", kind),
+        UnableToInvert(msg) => format!("Unable to invert: {}", msg),
         UndefinedFn(name) => format!("Undefined function: '{}'.", name),
         UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
-        UnsupportedExpression(msg) => format!("{}", msg),
         Unknown => format!("Unknown error."),
     });
 }
