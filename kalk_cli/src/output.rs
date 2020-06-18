@@ -3,7 +3,7 @@ use kalk::parser::{self, CalcError, CalcError::*};
 
 pub fn eval(parser: &mut parser::Context, input: &str) {
     match parser::eval(parser, input, 53) {
-        Ok(Some(result)) => {
+        Ok(Some((result, unit))) => {
             let (_, digits, exp_option) = result.to_sign_string_exp(10, None);
             let exp = if let Some(exp) = exp_option { exp } else { 0 };
 
@@ -36,9 +36,9 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
                 };
 
                 if use_sci_notation {
-                    println!("{}{}*10^{}", sign, num, exp - 1);
+                    println!("{}{}*10^{} {}", sign, num, exp - 1, unit);
                 } else {
-                    println!("{}{}", sign, num);
+                    println!("{}{} {}", sign, num, unit);
                 }
             }
         }

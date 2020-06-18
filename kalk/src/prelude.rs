@@ -138,16 +138,22 @@ pub fn call_binary_func(
 fn to_angle_unit(context: &mut interpreter::Context, x: Float, angle_unit: &str) -> Float {
     match angle_unit {
         "rad" => x,
-        _ => interpreter::convert_unit(context, &Expr::Literal(x.to_string()), "rad", angle_unit)
-            .unwrap(),
+        _ => {
+            interpreter::convert_unit(context, &Expr::Literal(x.to_string()), "rad", angle_unit)
+                .unwrap()
+                .0
+        }
     }
 }
 
 fn from_angle_unit(context: &mut interpreter::Context, x: Float, angle_unit: &str) -> Float {
     match angle_unit {
         "rad" => x,
-        _ => interpreter::convert_unit(context, &Expr::Literal(x.to_string()), angle_unit, "rad")
-            .unwrap(),
+        _ => {
+            interpreter::convert_unit(context, &Expr::Literal(x.to_string()), angle_unit, "rad")
+                .unwrap()
+                .0
+        }
     }
 }
 
