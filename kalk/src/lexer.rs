@@ -175,6 +175,10 @@ impl<'a> Lexer<'a> {
             _ => TokenKind::Identifier,
         };
 
+        if &value == "°" {
+            value = String::from("deg");
+        }
+
         build(kind, &value, (start, end))
     }
 
