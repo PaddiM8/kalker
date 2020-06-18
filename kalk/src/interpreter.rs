@@ -22,7 +22,10 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<Option<Float>, CalcError> {
+    pub fn interpret(
+        &mut self,
+        statements: Vec<Stmt>,
+    ) -> Result<Option<(Float, String)>, CalcError> {
         for (i, stmt) in statements.iter().enumerate() {
             let value = eval_stmt(self, stmt);
 
@@ -37,7 +40,7 @@ impl<'a> Context<'a> {
     }
 }
 
-fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<Float, CalcError> {
+fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<(Float, String), CalcError> {
     match stmt {
         Stmt::VarDecl(_, _) => eval_var_decl_stmt(context, stmt),
         Stmt::FnDecl(_, _, _) => eval_fn_decl_stmt(context),
@@ -46,33 +49,33 @@ fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<Float, CalcError> {
     }
 }
 
-fn eval_var_decl_stmt(context: &mut Context, stmt: &Stmt) -> Result<Float, CalcError> {
+fn eval_var_decl_stmt(context: &mut Context, stmt: &Stmt) -> Result<(Float, String), CalcError> {
     context.symbol_table.insert(stmt.clone());
-    Ok(Float::with_val(context.precision, 1))
+    Ok((Float::with_val(context.precision, 1), String::new()))
 }
 
-fn eval_fn_decl_stmt(context: &mut Context) -> Result<Float, CalcError> {
-    Ok(Float::with_val(context.precision, 1)) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
+fn eval_fn_decl_stmt(context: &mut Context) -> Result<(Float, String), CalcError> {
+    Ok((Float::with_val(context.precision, 1), String::new())) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
 }
 
-fn eval_unit_decl_stmt(context: &mut Context) -> Result<Float, CalcError> {
-    Ok(Float::with_val(context.precision, 1))
+fn eval_unit_decl_stmt(context: &mut Context) -> Result<(Float, String), CalcError> {
+    Ok((Float::with_val(context.precision, 1), String::new()))
 }
 
-fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
-    eval_expr(context, &expr)
+fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<(Float, String), CalcError> {
+    eval_expr(context, &expr, "")
 }
 
-fn eval_expr(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
+fn eval_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<(Float, String), CalcError> {
     match expr {
-        Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right),
-        Expr::Unary(op, expr) => eval_unary_expr(context, op, expr),
+        Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right, unit),
+        Expr::Unary(op, expr) => eval_unary_expr(context, op, expr, unit),
         Expr::Unit(identifier, expr) => eval_unit_expr(context, identifier, expr),
-        Expr::Var(identifier) => eval_var_expr(context, identifier),
-        Expr::Literal(value) => eval_literal_expr(context, value),
-        Expr::Group(expr) => eval_group_expr(context, &expr),
+        Expr::Var(identifier) => eval_var_expr(context, identifier, unit),
+        Expr::Literal(value) => eval_literal_expr(context, value, unit),
+        Expr::Group(expr) => eval_group_expr(context, &expr, unit),
         Expr::FnCall(identifier, expressions) => {
-            eval_fn_call_expr(context, identifier, expressions)
+            eval_fn_call_expr(context, identifier, expressions, unit)
         }
     }
 }
@@ -82,36 +85,56 @@ fn eval_binary_expr(
     left_expr: &Expr,
     op: &TokenKind,
     right_expr: &Expr,
-) -> Result<Float, CalcError> {
-    let left = eval_expr(context, left_expr)?;
-    let right = if let Expr::Unit(left_unit, _) = left_expr {
-        if let Expr::Unit(right_unit, right_unit_expr) = right_expr {
-            convert_unit(context, right_unit_expr, right_unit, &left_unit)?
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
+    let (left, left_unit) = eval_expr(context, left_expr, "")?;
+    let (right, _) = if left_unit.len() > 0 {
+        let (_, right_unit) = eval_expr(context, right_expr, "")?; // TODO: Avoid evaluating this twice.
+
+        if right_unit.len() > 0 {
+            convert_unit(context, right_expr, &right_unit, &left_unit)?
         } else {
-            eval_expr(context, right_expr)?
+            eval_expr(context, right_expr, unit)?
         }
     } else {
-        eval_expr(context, right_expr)?
+        eval_expr(context, right_expr, unit)?
     };
 
-    Ok(match op {
-        TokenKind::Plus => left + right,
-        TokenKind::Minus => left - right,
-        TokenKind::Star => left * right,
-        TokenKind::Slash => left / right,
-        TokenKind::Power => left.pow(right),
-        _ => Float::with_val(1, 1),
-    })
+    let final_unit = if unit.len() == 0 {
+        left_unit
+    } else {
+        unit.into()
+    };
+
+    Ok((
+        match op {
+            TokenKind::Plus => left + right,
+            TokenKind::Minus => left - right,
+            TokenKind::Star => left * right,
+            TokenKind::Slash => left / right,
+            TokenKind::Power => left.pow(right),
+            _ => Float::with_val(1, 1),
+        },
+        final_unit,
+    ))
 }
 
-fn eval_unary_expr(context: &mut Context, op: &TokenKind, expr: &Expr) -> Result<Float, CalcError> {
-    let expr_value = eval_expr(context, &expr)?;
+fn eval_unary_expr(
+    context: &mut Context,
+    op: &TokenKind,
+    expr: &Expr,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
+    let (expr_value, unit) = eval_expr(context, &expr, unit)?;
 
     match op {
-        TokenKind::Minus => Ok(-expr_value),
-        TokenKind::Exclamation => Ok(Float::with_val(
-            context.precision,
-            prelude::special_funcs::factorial(expr_value),
+        TokenKind::Minus => Ok((-expr_value, unit)),
+        TokenKind::Exclamation => Ok((
+            Float::with_val(
+                context.precision,
+                prelude::special_funcs::factorial(expr_value),
+            ),
+            unit,
         )),
         _ => Err(CalcError::InvalidOperator),
     }
@@ -121,13 +144,13 @@ fn eval_unit_expr(
     context: &mut Context,
     identifier: &str,
     expr: &Expr,
-) -> Result<Float, CalcError> {
+) -> Result<(Float, String), CalcError> {
     let angle_unit = &context.angle_unit.clone();
     if (identifier == "rad" || identifier == "deg") && angle_unit != identifier {
         return convert_unit(context, expr, identifier, angle_unit);
     }
 
-    eval_expr(context, expr)
+    eval_expr(context, expr, identifier)
 }
 
 pub fn convert_unit(
@@ -135,7 +158,7 @@ pub fn convert_unit(
     expr: &Expr,
     from_unit: &str,
     to_unit: &str,
-) -> Result<Float, CalcError> {
+) -> Result<(Float, String), CalcError> {
     if let Some(Stmt::UnitDecl(_, _, unit_def)) =
         context.symbol_table.get_unit(to_unit, from_unit).cloned()
     {
@@ -143,58 +166,74 @@ pub fn convert_unit(
             .symbol_table
             .insert(Stmt::VarDecl(DECL_UNIT.into(), Box::new(expr.clone())));
 
-        eval_expr(context, &unit_def)
+        Ok((eval_expr(context, &unit_def, "")?.0, to_unit.into()))
     } else {
         Err(CalcError::InvalidUnit)
     }
 }
 
-fn eval_var_expr(context: &mut Context, identifier: &str) -> Result<Float, CalcError> {
+fn eval_var_expr(
+    context: &mut Context,
+    identifier: &str,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
     // If there is a constant with this name, return a literal expression with its value
     if let Some(value) = prelude::CONSTANTS.get(identifier) {
-        return eval_expr(context, &Expr::Literal((*value).to_string()));
+        return eval_expr(context, &Expr::Literal((*value).to_string()), unit);
     }
 
     // Look for the variable in the symbol table
     let var_decl = context.symbol_table.get_var(identifier).cloned();
     match var_decl {
-        Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr),
+        Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr, unit),
         _ => Err(CalcError::UndefinedVar(identifier.into())),
     }
 }
 
-fn eval_literal_expr(context: &mut Context, value: &str) -> Result<Float, CalcError> {
+fn eval_literal_expr(
+    context: &mut Context,
+    value: &str,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
     match Float::parse(value) {
-        Ok(parsed_value) => Ok(Float::with_val(context.precision, parsed_value)),
+        Ok(parsed_value) => Ok((
+            Float::with_val(context.precision, parsed_value),
+            unit.into(),
+        )),
         Err(_) => Err(CalcError::InvalidNumberLiteral(value.into())),
     }
 }
 
-fn eval_group_expr(context: &mut Context, expr: &Expr) -> Result<Float, CalcError> {
-    eval_expr(context, expr)
+fn eval_group_expr(
+    context: &mut Context,
+    expr: &Expr,
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
+    eval_expr(context, expr, unit)
 }
 
 fn eval_fn_call_expr(
     context: &mut Context,
     identifier: &str,
     expressions: &[Expr],
-) -> Result<Float, CalcError> {
+    unit: &str,
+) -> Result<(Float, String), CalcError> {
     // Prelude
     let prelude_func = match expressions.len() {
         1 => {
-            let x = eval_expr(context, &expressions[0])?;
+            let x = eval_expr(context, &expressions[0], "")?.0;
             prelude::call_unary_func(context, identifier, x, &context.angle_unit.clone())
         }
         2 => {
-            let x = eval_expr(context, &expressions[0])?;
-            let y = eval_expr(context, &expressions[1])?;
+            let x = eval_expr(context, &expressions[0], "")?.0;
+            let y = eval_expr(context, &expressions[1], "")?.0;
             prelude::call_binary_func(context, identifier, x, y, &context.angle_unit.clone())
         }
         _ => None,
     };
 
     if let Some(result) = prelude_func {
-        return Ok(result);
+        return Ok((result, unit.into()));
     }
 
     // Special functions
@@ -209,8 +248,8 @@ fn eval_fn_call_expr(
                 ));
             }
 
-            let start = eval_expr(context, &expressions[0])?.to_f64() as i128;
-            let end = eval_expr(context, &expressions[1])?.to_f64() as i128;
+            let start = eval_expr(context, &expressions[0], "")?.0.to_f64() as i128;
+            let end = eval_expr(context, &expressions[1], "")?.0.to_f64() as i128;
             let mut sum = Float::with_val(context.precision, 0);
 
             for n in start..=end {
@@ -221,10 +260,10 @@ fn eval_fn_call_expr(
                 context
                     .symbol_table
                     .set(Stmt::VarDecl(String::from("n"), Box::new(n_expr)));
-                sum += eval_expr(context, &expressions[2])?;
+                sum += eval_expr(context, &expressions[2], "")?.0;
             }
 
-            return Ok(sum);
+            return Ok((sum, unit.into()));
         }
         _ => (),
     }
@@ -250,7 +289,7 @@ fn eval_fn_call_expr(
                 )?;
             }
 
-            eval_expr(context, &*fn_body)
+            eval_expr(context, &fn_body, unit)
         }
         _ => Err(CalcError::UndefinedFn(identifier.into())),
     }
@@ -290,7 +329,7 @@ mod tests {
         );
     }
 
-    fn interpret(stmt: Stmt) -> Result<Option<Float>, CalcError> {
+    fn interpret_with_unit(stmt: Stmt) -> Result<Option<(Float, String)>, CalcError> {
         let mut symbol_table = SymbolTable::new();
         symbol_table
             .insert(DEG_RAD_UNIT.clone())
@@ -298,6 +337,14 @@ mod tests {
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
         context.interpret(vec![stmt])
+    }
+
+    fn interpret(stmt: Stmt) -> Result<Option<Float>, CalcError> {
+        if let Some((result, _)) = interpret_with_unit(stmt)? {
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 
     fn cmp(x: Float, y: f64) -> bool {
@@ -363,11 +410,12 @@ mod tests {
             rad_context
                 .interpret(vec![implicit.clone()])
                 .unwrap()
-                .unwrap(),
+                .unwrap()
+                .0,
             0.84147098
         ));
         assert!(cmp(
-            deg_context.interpret(vec![implicit]).unwrap().unwrap(),
+            deg_context.interpret(vec![implicit]).unwrap().unwrap().0,
             0.01745240
         ));
     }

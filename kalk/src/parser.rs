@@ -81,7 +81,7 @@ pub fn eval(
     context: &mut Context,
     input: &str,
     precision: u32,
-) -> Result<Option<Float>, CalcError> {
+) -> Result<Option<(Float, String)>, CalcError> {
     let statements = parse(context, input)?;
 
     let mut interpreter =
