@@ -15,7 +15,8 @@ pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
 /// use kalk::parser;
 /// let mut parser_context = parser::Context::new();
 /// let precision = 53;
-/// assert_eq!(parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap(), 15);
+/// let (result, unit) = parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap();
+/// assert_eq!(result, 15);
 /// ```
 pub struct Context {
     tokens: Vec<Token>,
