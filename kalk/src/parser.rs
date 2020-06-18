@@ -95,6 +95,8 @@ pub fn eval(
 pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError> {
     context.tokens = Lexer::lex(input);
     context.pos = 0;
+    context.parsing_unit_decl = false;
+    context.unit_decl_base_unit = None;
 
     let mut statements: Vec<Stmt> = Vec::new();
     while !is_at_end(context) {
@@ -171,7 +173,8 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let identifier = advance(context).clone();
     consume(context, TokenKind::Equals)?;
 
-    // Parse the definition
+    // Parse the mut definition
+    context.unit_decl_base_unit = None;
     context.parsing_unit_decl = true;
     let def = parse_expr(context)?;
     context.parsing_unit_decl = false;
@@ -199,7 +202,20 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 }
 
 fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
-    Ok(parse_sum(context)?)
+    Ok(parse_to(context)?)
+}
+
+fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
+    let left = parse_sum(context)?;
+
+    if match_token(context, TokenKind::ToKeyword) {
+        let op = advance(context).kind.clone();
+        let right = Expr::Var(advance(context).value.clone()); // Parse this as a variable for now.
+
+        return Ok(Expr::Binary(Box::new(left), op, Box::new(right)));
+    }
+
+    Ok(left)
 }
 
 fn parse_sum(context: &mut Context) -> Result<Expr, CalcError> {

@@ -87,6 +87,15 @@ fn eval_binary_expr(
     right_expr: &Expr,
     unit: &str,
 ) -> Result<(Float, String), CalcError> {
+    if let TokenKind::ToKeyword = op {
+        // TODO: When the unit conversion function takes a Float instead of Expr,
+        // move this to the match statement further down.
+        if let Expr::Var(right_unit) = right_expr {
+            let (_, left_unit) = eval_expr(context, left_expr, "")?;
+            return convert_unit(context, left_expr, &left_unit, &right_unit); // TODO: Avoid evaluating this twice.
+        }
+    }
+
     let (left, left_unit) = eval_expr(context, left_expr, "")?;
     let (right, _) = if left_unit.len() > 0 {
         let (_, right_unit) = eval_expr(context, right_expr, "")?; // TODO: Avoid evaluating this twice.

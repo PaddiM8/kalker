@@ -194,7 +194,9 @@ fn invert_var(
     symbol_table: &mut SymbolTable,
     identifier: &str,
 ) -> Result<(Expr, Expr), CalcError> {
-    if let Some(Stmt::VarDecl(_, var_expr)) = symbol_table.get_var(identifier).cloned() {
+    if identifier == DECL_UNIT {
+        Ok((target_expr, Expr::Var(identifier.into())))
+    } else if let Some(Stmt::VarDecl(_, var_expr)) = symbol_table.get_var(identifier).cloned() {
         invert(target_expr, symbol_table, &var_expr)
     } else {
         Ok((target_expr, Expr::Var(identifier.into())))
