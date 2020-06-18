@@ -438,7 +438,7 @@ mod tests {
         symbol_table.insert(var_decl("x", literal("1")));
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
-        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 1);
+        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap().0, 1);
     }
 
     #[test]
@@ -475,7 +475,7 @@ mod tests {
         ));
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
-        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 3);
+        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap().0, 3);
     }
 
     #[test]
