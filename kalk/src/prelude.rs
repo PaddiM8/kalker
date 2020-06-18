@@ -1,5 +1,9 @@
+use crate::ast::Expr;
+use crate::interpreter;
 use rug::Float;
 use FuncType::*;
+
+pub const INIT: &'static str = "unit deg = (rad*180)/pi";
 
 pub const CONSTANTS: phf::Map<&'static str, &'static str> = phf::phf_map! {
     "pi" => "3.14159265",
@@ -11,56 +15,55 @@ pub const CONSTANTS: phf::Map<&'static str, &'static str> = phf::phf_map! {
     "ϕ" => "1.61803398",
 };
 
-use crate::parser::Unit;
 use funcs::*;
-pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
-    "cos" => UnaryFuncInfo(cos, Trig),
-    "cosec" => UnaryFuncInfo(cosec, Trig),
-    "cosech" => UnaryFuncInfo(cosech, Trig),
-    "cosh" => UnaryFuncInfo(cosh, Trig),
-    "cot" => UnaryFuncInfo(cot, Trig),
-    "coth" => UnaryFuncInfo(coth, Trig),
-    "sec" => UnaryFuncInfo(sec, Trig),
-    "sech" => UnaryFuncInfo(sech, Trig),
-    "sin" => UnaryFuncInfo(sin, Trig),
-    "sinh" => UnaryFuncInfo(sinh, Trig),
-    "tan" => UnaryFuncInfo(tan, Trig),
-    "tanh" => UnaryFuncInfo(tanh, Trig),
+pub const UNARY_FUNCS: phf::Map<&'static str, (UnaryFuncInfo, &'static str)> = phf::phf_map! {
+    "cos" => (UnaryFuncInfo(cos, Trig), ""),
+    "cosec" => (UnaryFuncInfo(cosec, Trig), ""),
+    "cosech" => (UnaryFuncInfo(cosech, Trig), ""),
+    "cosh" => (UnaryFuncInfo(cosh, Trig), ""),
+    "cot" => (UnaryFuncInfo(cot, Trig), ""),
+    "coth" => (UnaryFuncInfo(coth, Trig), ""),
+    "sec" => (UnaryFuncInfo(sec, Trig), ""),
+    "sech" => (UnaryFuncInfo(sech, Trig), ""),
+    "sin" => (UnaryFuncInfo(sin, Trig), ""),
+    "sinh" => (UnaryFuncInfo(sinh, Trig), ""),
+    "tan" => (UnaryFuncInfo(tan, Trig), ""),
+    "tanh" => (UnaryFuncInfo(tanh, Trig), ""),
 
-    "acos" => UnaryFuncInfo(acos, InverseTrig),
-    "acosec" => UnaryFuncInfo(acosec, InverseTrig),
-    "acosech" => UnaryFuncInfo(acosech, InverseTrig),
-    "acosh" => UnaryFuncInfo(acosh, InverseTrig),
-    "acot" => UnaryFuncInfo(acot, InverseTrig),
-    "acoth" => UnaryFuncInfo(acoth, InverseTrig),
-    "asec" => UnaryFuncInfo(asec, InverseTrig),
-    "asech" => UnaryFuncInfo(asech, InverseTrig),
-    "asin" => UnaryFuncInfo(asin, InverseTrig),
-    "asinh" => UnaryFuncInfo(asinh, InverseTrig),
-    "atan" => UnaryFuncInfo(atan, InverseTrig),
-    "atanh" => UnaryFuncInfo(atanh, InverseTrig),
+    "acos" => (UnaryFuncInfo(acos, InverseTrig), "rad"),
+    "acosec" => (UnaryFuncInfo(acosec, InverseTrig), "rad"),
+    "acosech" => (UnaryFuncInfo(acosech, InverseTrig), "rad"),
+    "acosh" => (UnaryFuncInfo(acosh, InverseTrig), "rad"),
+    "acot" => (UnaryFuncInfo(acot, InverseTrig), "rad"),
+    "acoth" => (UnaryFuncInfo(acoth, InverseTrig), "rad"),
+    "asec" => (UnaryFuncInfo(asec, InverseTrig), "rad"),
+    "asech" => (UnaryFuncInfo(asech, InverseTrig), "rad"),
+    "asin" => (UnaryFuncInfo(asin, InverseTrig), "rad"),
+    "asinh" => (UnaryFuncInfo(asinh, InverseTrig), "rad"),
+    "atan" => (UnaryFuncInfo(atan, InverseTrig), "rad"),
+    "atanh" => (UnaryFuncInfo(atanh, InverseTrig), "rad"),
 
-    "abs" => UnaryFuncInfo(abs, Other),
-    "cbrt" => UnaryFuncInfo(cbrt, Other),
-    "ceil" => UnaryFuncInfo(ceil, Other),
-    "exp" => UnaryFuncInfo(exp, Other),
-    "floor" => UnaryFuncInfo(floor, Other),
-    "frac" => UnaryFuncInfo(frac, Other),
-    "gamma" => UnaryFuncInfo(gamma, Other),
-    "Γ" => UnaryFuncInfo(gamma, Other),
-    "log" => UnaryFuncInfo(log, Other),
-    "ln" => UnaryFuncInfo(ln, Other),
-    "round" => UnaryFuncInfo(round, Other),
-    "sqrt" => UnaryFuncInfo(sqrt, Other),
-    "√" => UnaryFuncInfo(sqrt, Other),
-    "trunc" => UnaryFuncInfo(trunc, Other),
+    "abs" => (UnaryFuncInfo(abs, Other), ""),
+    "cbrt" => (UnaryFuncInfo(cbrt, Other), ""),
+    "ceil" => (UnaryFuncInfo(ceil, Other), ""),
+    "exp" => (UnaryFuncInfo(exp, Other), ""),
+    "floor" => (UnaryFuncInfo(floor, Other), ""),
+    "frac" => (UnaryFuncInfo(frac, Other), ""),
+    "gamma" => (UnaryFuncInfo(gamma, Other), ""),
+    "Γ" => (UnaryFuncInfo(gamma, Other), ""),
+    "log" => (UnaryFuncInfo(log, Other), ""),
+    "ln" => (UnaryFuncInfo(ln, Other), ""),
+    "round" => (UnaryFuncInfo(round, Other), ""),
+    "sqrt" => (UnaryFuncInfo(sqrt, Other), ""),
+    "√" => (UnaryFuncInfo(sqrt, Other), ""),
+    "trunc" => (UnaryFuncInfo(trunc, Other), ""),
 };
-pub const BINARY_FUNCS: phf::Map<&'static str, BinaryFuncInfo> = phf::phf_map! {
-    "max" => BinaryFuncInfo(max, Other),
-    "min" => BinaryFuncInfo(min, Other),
-    "hyp" => BinaryFuncInfo(hyp, Other),
-    "log" => BinaryFuncInfo(logx, Other),
-    "sqrt" => BinaryFuncInfo(nth_sqrt, Other),
+pub const BINARY_FUNCS: phf::Map<&'static str, (BinaryFuncInfo, &'static str)> = phf::phf_map! {
+    "max" => (BinaryFuncInfo(max, Other), ""),
+    "min" => (BinaryFuncInfo(min, Other), ""),
+    "hyp" => (BinaryFuncInfo(hyp, Other), ""),
+    "log" => (BinaryFuncInfo(logx, Other), ""),
+    "root" => (BinaryFuncInfo(nth_root, Other), ""),
 };
 
 enum FuncType {
@@ -75,57 +78,88 @@ pub struct UnaryFuncInfo(fn(Float) -> Float, FuncType);
 pub struct BinaryFuncInfo(fn(Float, Float) -> Float, FuncType);
 
 impl UnaryFuncInfo {
-    fn call(&self, x: Float, angle_unit: &Unit) -> Float {
+    fn call(&self, context: &mut interpreter::Context, x: Float, angle_unit: &str) -> Float {
         let func = self.0;
         match self.1 {
-            FuncType::Trig => func(from_angle_unit(x, angle_unit)),
-            FuncType::InverseTrig => to_angle_unit(func(x), angle_unit),
+            FuncType::Trig => func(from_angle_unit(context, x, angle_unit)),
+            FuncType::InverseTrig => to_angle_unit(context, func(x), angle_unit),
             FuncType::Other => func(x),
         }
     }
 }
 
 impl BinaryFuncInfo {
-    fn call(&self, x: Float, y: Float, angle_unit: &Unit) -> Float {
+    fn call(
+        &self,
+        context: &mut interpreter::Context,
+        x: Float,
+        y: Float,
+        angle_unit: &str,
+    ) -> Float {
         let func = self.0;
         match self.1 {
             FuncType::Trig => func(
-                from_angle_unit(x, angle_unit),
-                from_angle_unit(y, angle_unit),
+                from_angle_unit(context, x, angle_unit),
+                from_angle_unit(context, y, angle_unit),
             ),
-            FuncType::InverseTrig => to_angle_unit(func(x, y), angle_unit),
+            FuncType::InverseTrig => to_angle_unit(context, func(x, y), angle_unit),
             FuncType::Other => func(x, y),
         }
     }
 }
 
-pub fn call_unary_func(name: &str, x: Float, angle_unit: &Unit) -> Option<Float> {
-    if let Some(func_info) = UNARY_FUNCS.get(name) {
-        Some(func_info.call(x, &angle_unit))
+pub fn call_unary_func(
+    context: &mut interpreter::Context,
+    name: &str,
+    x: Float,
+    angle_unit: &str,
+) -> Option<(Float, String)> {
+    if let Some((func_info, func_unit)) = UNARY_FUNCS.get(name) {
+        Some((
+            func_info.call(context, x, &angle_unit),
+            func_unit.to_string(),
+        ))
     } else {
         None
     }
 }
 
-pub fn call_binary_func(name: &str, x: Float, y: Float, angle_unit: &Unit) -> Option<Float> {
-    if let Some(func_info) = BINARY_FUNCS.get(name) {
-        Some(func_info.call(x, y, angle_unit))
+pub fn call_binary_func(
+    context: &mut interpreter::Context,
+    name: &str,
+    x: Float,
+    y: Float,
+    angle_unit: &str,
+) -> Option<(Float, String)> {
+    if let Some((func_info, func_unit)) = BINARY_FUNCS.get(name) {
+        Some((
+            func_info.call(context, x, y, angle_unit),
+            func_unit.to_string(),
+        ))
     } else {
         None
     }
 }
 
-fn to_angle_unit(x: Float, angle_unit: &Unit) -> Float {
+fn to_angle_unit(context: &mut interpreter::Context, x: Float, angle_unit: &str) -> Float {
     match angle_unit {
-        Unit::Radians => x,
-        Unit::Degrees => special_funcs::to_degrees(x),
+        "rad" => x,
+        _ => {
+            interpreter::convert_unit(context, &Expr::Literal(x.to_string()), "rad", angle_unit)
+                .unwrap()
+                .0
+        }
     }
 }
 
-fn from_angle_unit(x: Float, angle_unit: &Unit) -> Float {
+fn from_angle_unit(context: &mut interpreter::Context, x: Float, angle_unit: &str) -> Float {
     match angle_unit {
-        Unit::Radians => x,
-        Unit::Degrees => special_funcs::to_radians(x),
+        "rad" => x,
+        _ => {
+            interpreter::convert_unit(context, &Expr::Literal(x.to_string()), angle_unit, "rad")
+                .unwrap()
+                .0
+        }
     }
 }
 
@@ -134,14 +168,6 @@ pub mod special_funcs {
 
     pub fn factorial(x: Float) -> Float {
         ((x + 1) as Float).gamma()
-    }
-
-    pub fn to_degrees(x: Float) -> Float {
-        Float::with_val(53, x.to_f64().to_degrees())
-    }
-
-    pub fn to_radians(x: Float) -> Float {
-        Float::with_val(53, x.to_f64().to_radians())
     }
 }
 
@@ -297,7 +323,7 @@ mod funcs {
         x.sqrt()
     }
 
-    pub fn nth_sqrt(x: Float, n: Float) -> Float {
+    pub fn nth_root(x: Float, n: Float) -> Float {
         x.pow(Float::with_val(1, 1) / n)
     }
 
