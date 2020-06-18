@@ -16,54 +16,54 @@ pub const CONSTANTS: phf::Map<&'static str, &'static str> = phf::phf_map! {
 };
 
 use funcs::*;
-pub const UNARY_FUNCS: phf::Map<&'static str, UnaryFuncInfo> = phf::phf_map! {
-    "cos" => UnaryFuncInfo(cos, Trig),
-    "cosec" => UnaryFuncInfo(cosec, Trig),
-    "cosech" => UnaryFuncInfo(cosech, Trig),
-    "cosh" => UnaryFuncInfo(cosh, Trig),
-    "cot" => UnaryFuncInfo(cot, Trig),
-    "coth" => UnaryFuncInfo(coth, Trig),
-    "sec" => UnaryFuncInfo(sec, Trig),
-    "sech" => UnaryFuncInfo(sech, Trig),
-    "sin" => UnaryFuncInfo(sin, Trig),
-    "sinh" => UnaryFuncInfo(sinh, Trig),
-    "tan" => UnaryFuncInfo(tan, Trig),
-    "tanh" => UnaryFuncInfo(tanh, Trig),
+pub const UNARY_FUNCS: phf::Map<&'static str, (UnaryFuncInfo, &'static str)> = phf::phf_map! {
+    "cos" => (UnaryFuncInfo(cos, Trig), ""),
+    "cosec" => (UnaryFuncInfo(cosec, Trig), ""),
+    "cosech" => (UnaryFuncInfo(cosech, Trig), ""),
+    "cosh" => (UnaryFuncInfo(cosh, Trig), ""),
+    "cot" => (UnaryFuncInfo(cot, Trig), ""),
+    "coth" => (UnaryFuncInfo(coth, Trig), ""),
+    "sec" => (UnaryFuncInfo(sec, Trig), ""),
+    "sech" => (UnaryFuncInfo(sech, Trig), ""),
+    "sin" => (UnaryFuncInfo(sin, Trig), ""),
+    "sinh" => (UnaryFuncInfo(sinh, Trig), ""),
+    "tan" => (UnaryFuncInfo(tan, Trig), ""),
+    "tanh" => (UnaryFuncInfo(tanh, Trig), ""),
 
-    "acos" => UnaryFuncInfo(acos, InverseTrig),
-    "acosec" => UnaryFuncInfo(acosec, InverseTrig),
-    "acosech" => UnaryFuncInfo(acosech, InverseTrig),
-    "acosh" => UnaryFuncInfo(acosh, InverseTrig),
-    "acot" => UnaryFuncInfo(acot, InverseTrig),
-    "acoth" => UnaryFuncInfo(acoth, InverseTrig),
-    "asec" => UnaryFuncInfo(asec, InverseTrig),
-    "asech" => UnaryFuncInfo(asech, InverseTrig),
-    "asin" => UnaryFuncInfo(asin, InverseTrig),
-    "asinh" => UnaryFuncInfo(asinh, InverseTrig),
-    "atan" => UnaryFuncInfo(atan, InverseTrig),
-    "atanh" => UnaryFuncInfo(atanh, InverseTrig),
+    "acos" => (UnaryFuncInfo(acos, InverseTrig), "rad"),
+    "acosec" => (UnaryFuncInfo(acosec, InverseTrig), "rad"),
+    "acosech" => (UnaryFuncInfo(acosech, InverseTrig), "rad"),
+    "acosh" => (UnaryFuncInfo(acosh, InverseTrig), "rad"),
+    "acot" => (UnaryFuncInfo(acot, InverseTrig), "rad"),
+    "acoth" => (UnaryFuncInfo(acoth, InverseTrig), "rad"),
+    "asec" => (UnaryFuncInfo(asec, InverseTrig), "rad"),
+    "asech" => (UnaryFuncInfo(asech, InverseTrig), "rad"),
+    "asin" => (UnaryFuncInfo(asin, InverseTrig), "rad"),
+    "asinh" => (UnaryFuncInfo(asinh, InverseTrig), "rad"),
+    "atan" => (UnaryFuncInfo(atan, InverseTrig), "rad"),
+    "atanh" => (UnaryFuncInfo(atanh, InverseTrig), "rad"),
 
-    "abs" => UnaryFuncInfo(abs, Other),
-    "cbrt" => UnaryFuncInfo(cbrt, Other),
-    "ceil" => UnaryFuncInfo(ceil, Other),
-    "exp" => UnaryFuncInfo(exp, Other),
-    "floor" => UnaryFuncInfo(floor, Other),
-    "frac" => UnaryFuncInfo(frac, Other),
-    "gamma" => UnaryFuncInfo(gamma, Other),
-    "Γ" => UnaryFuncInfo(gamma, Other),
-    "log" => UnaryFuncInfo(log, Other),
-    "ln" => UnaryFuncInfo(ln, Other),
-    "round" => UnaryFuncInfo(round, Other),
-    "sqrt" => UnaryFuncInfo(sqrt, Other),
-    "√" => UnaryFuncInfo(sqrt, Other),
-    "trunc" => UnaryFuncInfo(trunc, Other),
+    "abs" => (UnaryFuncInfo(abs, Other), ""),
+    "cbrt" => (UnaryFuncInfo(cbrt, Other), ""),
+    "ceil" => (UnaryFuncInfo(ceil, Other), ""),
+    "exp" => (UnaryFuncInfo(exp, Other), ""),
+    "floor" => (UnaryFuncInfo(floor, Other), ""),
+    "frac" => (UnaryFuncInfo(frac, Other), ""),
+    "gamma" => (UnaryFuncInfo(gamma, Other), ""),
+    "Γ" => (UnaryFuncInfo(gamma, Other), ""),
+    "log" => (UnaryFuncInfo(log, Other), ""),
+    "ln" => (UnaryFuncInfo(ln, Other), ""),
+    "round" => (UnaryFuncInfo(round, Other), ""),
+    "sqrt" => (UnaryFuncInfo(sqrt, Other), ""),
+    "√" => (UnaryFuncInfo(sqrt, Other), ""),
+    "trunc" => (UnaryFuncInfo(trunc, Other), ""),
 };
-pub const BINARY_FUNCS: phf::Map<&'static str, BinaryFuncInfo> = phf::phf_map! {
-    "max" => BinaryFuncInfo(max, Other),
-    "min" => BinaryFuncInfo(min, Other),
-    "hyp" => BinaryFuncInfo(hyp, Other),
-    "log" => BinaryFuncInfo(logx, Other),
-    "root" => BinaryFuncInfo(nth_root, Other),
+pub const BINARY_FUNCS: phf::Map<&'static str, (BinaryFuncInfo, &'static str)> = phf::phf_map! {
+    "max" => (BinaryFuncInfo(max, Other), ""),
+    "min" => (BinaryFuncInfo(min, Other), ""),
+    "hyp" => (BinaryFuncInfo(hyp, Other), ""),
+    "log" => (BinaryFuncInfo(logx, Other), ""),
+    "root" => (BinaryFuncInfo(nth_root, Other), ""),
 };
 
 enum FuncType {
@@ -113,9 +113,12 @@ pub fn call_unary_func(
     name: &str,
     x: Float,
     angle_unit: &str,
-) -> Option<Float> {
-    if let Some(func_info) = UNARY_FUNCS.get(name) {
-        Some(func_info.call(context, x, &angle_unit))
+) -> Option<(Float, String)> {
+    if let Some((func_info, func_unit)) = UNARY_FUNCS.get(name) {
+        Some((
+            func_info.call(context, x, &angle_unit),
+            func_unit.to_string(),
+        ))
     } else {
         None
     }
@@ -127,9 +130,12 @@ pub fn call_binary_func(
     x: Float,
     y: Float,
     angle_unit: &str,
-) -> Option<Float> {
-    if let Some(func_info) = BINARY_FUNCS.get(name) {
-        Some(func_info.call(context, x, y, angle_unit))
+) -> Option<(Float, String)> {
+    if let Some((func_info, func_unit)) = BINARY_FUNCS.get(name) {
+        Some((
+            func_info.call(context, x, y, angle_unit),
+            func_unit.to_string(),
+        ))
     } else {
         None
     }

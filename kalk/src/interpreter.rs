@@ -241,8 +241,15 @@ fn eval_fn_call_expr(
         _ => None,
     };
 
-    if let Some(result) = prelude_func {
-        return Ok((result, unit.into()));
+    if let Some((result, func_unit)) = prelude_func {
+        return Ok((
+            result,
+            if unit.len() > 0 {
+                unit.into()
+            } else {
+                func_unit.into()
+            },
+        ));
     }
 
     // Special functions
