@@ -63,7 +63,7 @@ pub const BINARY_FUNCS: phf::Map<&'static str, BinaryFuncInfo> = phf::phf_map! {
     "min" => BinaryFuncInfo(min, Other),
     "hyp" => BinaryFuncInfo(hyp, Other),
     "log" => BinaryFuncInfo(logx, Other),
-    "sqrt" => BinaryFuncInfo(nth_sqrt, Other),
+    "root" => BinaryFuncInfo(nth_root, Other),
 };
 
 enum FuncType {
@@ -317,7 +317,7 @@ mod funcs {
         x.sqrt()
     }
 
-    pub fn nth_sqrt(x: Float, n: Float) -> Float {
+    pub fn nth_root(x: Float, n: Float) -> Float {
         x.pow(Float::with_val(1, 1) / n)
     }
 
