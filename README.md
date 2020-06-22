@@ -24,13 +24,16 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 * Misc: separate expressions by a semicolon to write them on the same line, use the `ans` variable to get the value of the previously calculated expression.
 
 ## Installing
+### Binaries
+Pre-compiled binaries for Linux and Windows (64-bit) are available in the [releases page](https://github.com/PaddiM8/kalk/release). A Windows binary may not always be available for the newest version as of now.
+### Compiling
 Make sure you have `diffutils` `gcc` `make` and `m4` installed. **If you use windows:** [follow the instructions here](https://docs.rs/gmp-mpfr-sys/1.2.3/gmp_mpfr_sys/index.html#building-on-windows)  
 If anyone knows how to get `gmp_mpfr_sys` on Windows on Travis, let me know.
 
-### Cargo install
+#### Cargo
 Run `cargo install kalk_cli`
 
-### Compiling yourself
+#### Manually
 1. Go into the `kalk_cli` directory.
 2. Run `cargo build --release`
 3. Grab the binary from `targets/release`
