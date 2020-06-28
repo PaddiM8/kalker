@@ -25,7 +25,7 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 
 ## Installing
 ### Binaries
-Pre-compiled binaries for Linux and Windows (64-bit) are available in the [releases page](https://github.com/PaddiM8/kalk/release). A Windows binary may not always be available for the newest version as of now.
+Pre-compiled binaries for Linux and Windows (64-bit) are available in the [releases page](https://github.com/PaddiM8/kalk/releases). A Windows binary may not always be available for the newest version as of now.
 ### Compiling
 Make sure you have `diffutils` `gcc` `make` and `m4` installed. **If you use windows:** [follow the instructions here](https://docs.rs/gmp-mpfr-sys/1.2.3/gmp_mpfr_sys/index.html#building-on-windows)  
 If anyone knows how to get `gmp_mpfr_sys` on Windows on Travis, let me know.
