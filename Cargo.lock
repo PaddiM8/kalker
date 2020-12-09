@@ -103,12 +103,13 @@ dependencies = [
 
 [[package]]
 name = "kalk_cli"
-version = "0.2.2"
+version = "0.3.2"
 dependencies = [
  "ansi_term",
  "kalk",
  "phf",
  "regex",
+ "rug",
  "rustyline",
 ]
 

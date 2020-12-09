@@ -1,6 +1,6 @@
 [package]
 name = "kalk_cli"
-version = "0.2.2"
+version = "0.3.2"
 authors = ["PaddiM8"]
 edition = "2018"
 readme = "../README.md"
@@ -20,3 +20,4 @@ rustyline = "6.1.2"
 ansi_term = "0.12"
 regex = "1"
 phf = { version = "0.8", features = ["macros"] }
+rug = "1.11.0"
