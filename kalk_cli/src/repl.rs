@@ -55,7 +55,7 @@ impl Highlighter for LineHighlighter {
         let reg = Regex::new(
             r"(?x)
             (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉]+(_\d+)?) |
-            (?P<op>[+\-/*^!])",
+            (?P<op>[+\-/*%^!])",
         )
         .unwrap();
 

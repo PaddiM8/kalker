@@ -61,6 +61,7 @@ fn print_calc_err(err: CalcError) {
         UnableToInvert(msg) => format!("Unable to invert: {}", msg),
         UndefinedFn(name) => format!("Undefined function: '{}'.", name),
         UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
+        UnableToParseExpression => format!("Unable to parse expression."),
         Unknown => format!("Unknown error."),
     });
 }
