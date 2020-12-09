@@ -27,7 +27,7 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
                         .chars()
                         .collect();
                     chars.insert(comma_pos, '.');
-                    chars.into_iter().collect::<String>().to_string()
+                    chars.into_iter().collect::<String>()
                 } else {
                     // Regular number
                     digits[..(exp as usize)].to_string()
