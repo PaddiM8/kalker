@@ -153,11 +153,11 @@ impl<'a> Lexer<'a> {
         while is_valid_identifier(self.peek()) {
             let c = *self.peek().unwrap();
 
-            // If the current character is an underscore, expect a number next.
+            // If the current character is an underscore, allow a number next.
             // This is to allow the notation like the following: x_1
             if c == '_' {
                 self.advance();
-                let num = self.next_number_literal().value;
+                let num = self.next().value;
                 value.push('_');
                 value.push_str(&num.trim_end()); // Trim, since the number_literal function allows whitespace, which identifiers should not contain.
                 break;
