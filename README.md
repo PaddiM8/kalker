@@ -2,7 +2,7 @@
 [![Crates.io](https://img.shields.io/crates/v/kalk_cli)](https://crates.io/crates/kalk_cli)
 [![GitHub](https://img.shields.io/github/license/PaddiM8/kalk)](https://github.com/PaddiM8/kalk/blob/master/LICENSE)
 [![Docs.rs](https://docs.rs/kalk/badge.svg)](https://docs.rs/kalk/latest/kalk/)
-![Build status](https://img.shields.io/travis/PaddiM8/kalk/master?label=build%20%26%20test)
+![Build status](https://img.shields.io/github/workflow/status/PaddiM8/kalk/Rust?event=push&label=build%20%26%20test)
 
 
 Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental).
