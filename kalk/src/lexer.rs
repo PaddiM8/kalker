@@ -15,6 +15,7 @@ pub enum TokenKind {
     Power,
     Equals,
     Exclamation,
+    Percent,
 
     UnitKeyword,
     ToKeyword,
@@ -112,6 +113,7 @@ impl<'a> Lexer<'a> {
             '!' => build(TokenKind::Exclamation, "", span),
             ',' => build(TokenKind::Comma, "", span),
             ';' => build(TokenKind::Semicolon, "", span),
+            '%' => build(TokenKind::Percent, "", span),
             _ => build(TokenKind::Unknown, "", span),
         };
 
@@ -207,7 +209,7 @@ fn build(kind: TokenKind, value: &str, span: (usize, usize)) -> Token {
 
 fn is_valid_identifier(c: Option<&char>) -> bool {
     if let Some(c) = c {
-        regex::Regex::new(r"[^\s\n\r0-9\+-/\*\^!\(\)=\.,;|⌊⌋⌈⌉]")
+        regex::Regex::new(r"[^\s\n\r0-9\+-/%\*\^!\(\)=\.,;|⌊⌋⌈⌉]")
             .unwrap()
             .is_match(&c.to_string())
     } else {
@@ -230,12 +232,13 @@ mod tests {
 
     #[test]
     fn test_token_kinds() {
-        let tokens = Lexer::lex("+-*/^()|=!,");
+        let tokens = Lexer::lex("+-*/%^()|=!,");
         let expected = vec![
             TokenKind::Plus,
             TokenKind::Minus,
             TokenKind::Star,
             TokenKind::Slash,
+            TokenKind::Percent,
             TokenKind::Power,
             TokenKind::OpenParenthesis,
             TokenKind::ClosedParenthesis,

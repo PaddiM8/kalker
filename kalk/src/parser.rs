@@ -72,6 +72,7 @@ pub enum CalcError {
     UndefinedFn(String),
     UndefinedVar(String),
     UnableToInvert(String),
+    UnableToParseExpression,
     Unknown,
 }
 
@@ -240,18 +241,41 @@ fn parse_sum(context: &mut Context) -> Result<Expr, CalcError> {
 fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
     let mut left = parse_unit(context)?;
 
+    if let Expr::Unary(TokenKind::Percent, percent_left) = left.clone() {
+        let try_parse = parse_factor(context);
+        if !try_parse.is_err() {
+            left = Expr::Binary(
+                percent_left,
+                TokenKind::Percent,
+                Box::new(try_parse.unwrap()),
+            );
+        }
+    }
+
     while match_token(context, TokenKind::Star)
         || match_token(context, TokenKind::Slash)
+        || match_token(context, TokenKind::Percent)
         || match_token(context, TokenKind::Identifier)
         || match_token(context, TokenKind::Literal)
     {
-        // If the next token is an identifier, assume it's multiplication. Eg. 3y
+        // If the token is an identifier, assume it's multiplication. Eg. 3y
         let op = match peek(context).kind {
             TokenKind::Identifier | TokenKind::Literal => TokenKind::Star,
             _ => advance(context).kind.clone(),
         };
 
-        let right = parse_unit(context)?;
+        let parse_next = parse_unit(context);
+        let right = if let Ok(right) = parse_next {
+            right
+        /*} else if let Err(CalcError::UnableToParseExpression) = parse_next {
+        // If it failed to parse further,
+        // try to parse it as something else.
+        // Eg. percent unary
+        break;*/
+        } else {
+            return parse_next;
+        };
+
         left = Expr::Binary(Box::new(left), op, Box::new(right));
     }
 
@@ -279,7 +303,12 @@ fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
         return Ok(Expr::Unary(op, expr));
     }
 
-    Ok(parse_exponent(context)?)
+    let expr = parse_exponent(context)?;
+    if match_token(context, TokenKind::Percent) {
+        Ok(Expr::Unary(advance(context).kind.clone(), Box::new(expr)))
+    } else {
+        Ok(expr)
+    }
 }
 
 fn parse_exponent(context: &mut Context) -> Result<Expr, CalcError> {
@@ -310,7 +339,8 @@ fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
         TokenKind::OpenParenthesis => parse_group(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
-        _ => Expr::Literal(advance(context).value.clone()),
+        TokenKind::Literal => Expr::Literal(advance(context).value.clone()),
+        _ => return Err(CalcError::UnableToParseExpression),
     };
 
     Ok(expr)
@@ -523,6 +553,28 @@ mod tests {
                 Plus,
                 literal("5")
             )),
+        );
+    }
+
+    #[test]
+    fn test_percent() {
+        let tokens = vec![
+            token(Literal, "1"),
+            token(Percent, ""),
+            token(Literal, "1"),
+            token(Plus, ""),
+            token(Literal, "5"),
+            token(Percent, ""),
+            token(EOF, ""),
+        ];
+
+        assert_eq!(
+            parse(tokens).unwrap(),
+            Stmt::Expr(binary(
+                binary(literal("1"), Percent, literal("1"),),
+                Plus,
+                unary(Percent, literal("5"))
+            ))
         );
     }
 

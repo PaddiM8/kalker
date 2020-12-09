@@ -113,7 +113,7 @@ fn eval_binary_expr(
     }
 
     let (left, left_unit) = eval_expr(context, left_expr, "")?;
-    let (right, _) = if left_unit.len() > 0 {
+    let (mut right, _) = if left_unit.len() > 0 {
         let (_, right_unit) = eval_expr(context, right_expr, "")?; // TODO: Avoid evaluating this twice.
 
         if right_unit.len() > 0 {
@@ -131,12 +131,17 @@ fn eval_binary_expr(
         unit.into()
     };
 
+    if let Expr::Unary(TokenKind::Percent, _) = right_expr {
+        right *= left.clone();
+    }
+
     Ok((
         match op {
             TokenKind::Plus => left + right,
             TokenKind::Minus => left - right,
             TokenKind::Star => left * right,
             TokenKind::Slash => left / right,
+            TokenKind::Percent => left % right,
             TokenKind::Power => left.pow(right),
             _ => Float::with_val(1, 1),
         },
@@ -154,6 +159,7 @@ fn eval_unary_expr(
 
     match op {
         TokenKind::Minus => Ok((-expr_value, unit)),
+        TokenKind::Percent => Ok((expr_value * 0.01, unit)),
         TokenKind::Exclamation => Ok((
             Float::with_val(
                 context.precision,
@@ -407,6 +413,17 @@ mod tests {
         assert_eq!(interpret(mul).unwrap().unwrap(), 6);
         assert_eq!(interpret(div).unwrap().unwrap(), 0.5);
         assert_eq!(interpret(pow).unwrap().unwrap(), 8);
+    }
+
+    #[test]
+    fn test_percent() {
+        let stmt = Stmt::Expr(binary(
+            literal("5"),
+            Percent,
+            group(binary(literal("3"), Star, unary(Percent, literal("2")))),
+        ));
+
+        assert!(cmp(interpret(stmt).unwrap().unwrap(), 0.14));
     }
 
     #[test]
