@@ -11,6 +11,12 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
                 print_err("Too big to process.");
             } else {
                 let use_sci_notation = exp > 8 || exp < -6;
+
+                if !use_sci_notation {
+                    println!("{}", round_value(result));
+                    return;
+                }
+
                 let comma_pos = if use_sci_notation { 1 } else { exp as usize };
                 let sign = if result >= 0 { "" } else { "-" };
 
@@ -19,7 +25,7 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
                     format!("0.{}{}", "0".repeat(exp.abs() as usize), digits)
                         .trim_end_matches('0')
                         .to_string()
-                } else if use_sci_notation || result.fract() != 0 {
+                } else {
                     // Insert the comma if there are supposed to be decimals.
                     let mut chars: Vec<char> = digits
                         .trim_end_matches('0')
@@ -28,16 +34,9 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
                         .collect();
                     chars.insert(comma_pos, '.');
                     chars.into_iter().collect::<String>()
-                } else {
-                    // Regular number
-                    digits[..(exp as usize)].to_string()
                 };
 
-                if use_sci_notation {
-                    println!("{}{}*10^{} {}", sign, num, exp - 1, unit);
-                } else {
-                    println!("{}{} {}", sign, num, unit);
-                }
+                println!("{}{}*10^{} {}", sign, num, exp - 1, unit);
             }
         }
         Ok(None) => print!(""),
@@ -64,4 +63,11 @@ fn print_calc_err(err: CalcError) {
         UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
         Unknown => format!("Unknown error."),
     });
+}
+
+fn round_value(value: rug::Float) -> String {
+    format!("{:.10}", value.to_f64_round(rug::float::Round::Down))
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string()
 }
