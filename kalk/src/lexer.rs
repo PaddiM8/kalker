@@ -67,18 +67,23 @@ impl<'a> Lexer<'a> {
     }
 
     fn next(&mut self) -> Token {
+        let eof = build(TokenKind::EOF, "", (self.index, self.index));
         let mut c = if let Some(c) = self.peek() {
             *c
         } else {
-            return build(TokenKind::EOF, "", (self.index, self.index));
+            return eof;
         };
 
         while c == ' ' || c == '\t' || c == '\r' || c == '\n' {
             if let None = self.advance() {
-                return build(TokenKind::EOF, "", (self.index, self.index));
+                return eof;
             }
 
-            c = *self.peek().unwrap();
+            c = if let Some(c) = self.peek() {
+                *c
+            } else {
+                return eof;
+            }
         }
 
         if c.is_digit(10) {
@@ -242,6 +247,24 @@ mod tests {
         ];
 
         match_tokens(tokens, expected);
+    }
+
+    #[test]
+    fn test_empty() {
+        // test_case macro doesn't seem to work with spaces.
+        let test_cases = vec![" ", "     ", "test ", " test     "];
+
+        for input in test_cases {
+            let tokens = Lexer::lex(input);
+
+            if regex::Regex::new(r"^\s*$").unwrap().is_match(input) {
+                let expected = vec![TokenKind::EOF];
+                match_tokens(tokens, expected);
+            } else {
+                let expected = vec![TokenKind::Identifier, TokenKind::EOF];
+                match_tokens(tokens, expected);
+            }
+        }
     }
 
     #[test_case("1")]
