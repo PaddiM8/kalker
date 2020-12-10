@@ -1,6 +1,7 @@
 use crate::output;
 use ansi_term::Colour::{self, Cyan};
 use kalk::parser;
+use lazy_static::lazy_static;
 use regex::Captures;
 use regex::Regex;
 use rustyline::completion::Completer;
@@ -14,6 +15,7 @@ use rustyline::validate::Validator;
 use rustyline::{Editor, Helper};
 use std::borrow::Cow;
 use std::borrow::Cow::Owned;
+use std::collections::HashMap;
 use std::process;
 
 pub fn start(mut parser: &mut parser::Context) {
@@ -90,18 +92,22 @@ struct RLHelper {
 
 impl Helper for RLHelper {}
 
-const COMPLETION_FUNCS: phf::Map<&'static str, &'static str> = phf::phf_map! {
-    "ceil" => "⌈⌉",
-    "deg" => "°",
-    "floor" => "⌊⌋",
-    "gamma" => "Γ",
-    "sum" => "Σ()",
-    "phi" => "ϕ",
-    "pi" => "π",
-    "sqrt" => "√",
-    "tau" => "τ",
-    "(" => "()",
-};
+lazy_static! {
+    pub static ref COMPLETION_FUNCS: HashMap<&'static str, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert("ceil", "⌈⌉");
+        m.insert("deg", "°");
+        m.insert("floor", "⌊⌋");
+        m.insert("gamma", "Γ");
+        m.insert("sum", "Σ()");
+        m.insert("phi", "ϕ");
+        m.insert("pi", "π");
+        m.insert("sqrt", "√");
+        m.insert("tau", "τ");
+        m.insert("(", "()");
+        m
+    };
+}
 
 impl Completer for RLHelper {
     type Candidate = String;

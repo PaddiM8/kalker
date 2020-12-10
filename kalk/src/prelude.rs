@@ -1,70 +1,79 @@
 use crate::ast::Expr;
 use crate::interpreter;
+use funcs::*;
+use lazy_static::lazy_static;
 use rug::Float;
+use std::collections::HashMap;
 use FuncType::*;
 
 pub const INIT: &'static str = "unit deg = (rad*180)/pi";
 
-pub const CONSTANTS: phf::Map<&'static str, &'static str> = phf::phf_map! {
-    "pi" => "3.14159265",
-    "π" => "3.14159265",
-    "e" => "2.71828182",
-    "tau" => "6.28318530",
-    "τ" => "6.28318530",
-    "phi" => "1.61803398",
-    "ϕ" => "1.61803398",
-};
+lazy_static! {
+    pub static ref CONSTANTS: HashMap<&'static str, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert("pi", "3.14159265");
+        m.insert("π", "3.14159265");
+        m.insert("e", "2.71828182");
+        m.insert("tau", "6.28318530");
+        m.insert("τ", "6.28318530");
+        m.insert("phi", "1.61803398");
+        m.insert("ϕ", "1.61803398");
+        m
+    };
+    pub static ref UNARY_FUNCS: HashMap<&'static str, (UnaryFuncInfo, &'static str)> = {
+        let mut m = HashMap::new();
+        m.insert("cos", (UnaryFuncInfo(cos, Trig), ""));
+        m.insert("cosec", (UnaryFuncInfo(cosec, Trig), ""));
+        m.insert("cosech", (UnaryFuncInfo(cosech, Trig), ""));
+        m.insert("cosh", (UnaryFuncInfo(cosh, Trig), ""));
+        m.insert("cot", (UnaryFuncInfo(cot, Trig), ""));
+        m.insert("coth", (UnaryFuncInfo(coth, Trig), ""));
+        m.insert("sec", (UnaryFuncInfo(sec, Trig), ""));
+        m.insert("sech", (UnaryFuncInfo(sech, Trig), ""));
+        m.insert("sin", (UnaryFuncInfo(sin, Trig), ""));
+        m.insert("sinh", (UnaryFuncInfo(sinh, Trig), ""));
+        m.insert("tan", (UnaryFuncInfo(tan, Trig), ""));
+        m.insert("tanh", (UnaryFuncInfo(tanh, Trig), ""));
 
-use funcs::*;
-pub const UNARY_FUNCS: phf::Map<&'static str, (UnaryFuncInfo, &'static str)> = phf::phf_map! {
-    "cos" => (UnaryFuncInfo(cos, Trig), ""),
-    "cosec" => (UnaryFuncInfo(cosec, Trig), ""),
-    "cosech" => (UnaryFuncInfo(cosech, Trig), ""),
-    "cosh" => (UnaryFuncInfo(cosh, Trig), ""),
-    "cot" => (UnaryFuncInfo(cot, Trig), ""),
-    "coth" => (UnaryFuncInfo(coth, Trig), ""),
-    "sec" => (UnaryFuncInfo(sec, Trig), ""),
-    "sech" => (UnaryFuncInfo(sech, Trig), ""),
-    "sin" => (UnaryFuncInfo(sin, Trig), ""),
-    "sinh" => (UnaryFuncInfo(sinh, Trig), ""),
-    "tan" => (UnaryFuncInfo(tan, Trig), ""),
-    "tanh" => (UnaryFuncInfo(tanh, Trig), ""),
+        m.insert("acos", (UnaryFuncInfo(acos, InverseTrig), "rad"));
+        m.insert("acosec", (UnaryFuncInfo(acosec, InverseTrig), "rad"));
+        m.insert("acosech", (UnaryFuncInfo(acosech, InverseTrig), "rad"));
+        m.insert("acosh", (UnaryFuncInfo(acosh, InverseTrig), "rad"));
+        m.insert("acot", (UnaryFuncInfo(acot, InverseTrig), "rad"));
+        m.insert("acoth", (UnaryFuncInfo(acoth, InverseTrig), "rad"));
+        m.insert("asec", (UnaryFuncInfo(asec, InverseTrig), "rad"));
+        m.insert("asech", (UnaryFuncInfo(asech, InverseTrig), "rad"));
+        m.insert("asin", (UnaryFuncInfo(asin, InverseTrig), "rad"));
+        m.insert("asinh", (UnaryFuncInfo(asinh, InverseTrig), "rad"));
+        m.insert("atan", (UnaryFuncInfo(atan, InverseTrig), "rad"));
+        m.insert("atanh", (UnaryFuncInfo(atanh, InverseTrig), "rad"));
 
-    "acos" => (UnaryFuncInfo(acos, InverseTrig), "rad"),
-    "acosec" => (UnaryFuncInfo(acosec, InverseTrig), "rad"),
-    "acosech" => (UnaryFuncInfo(acosech, InverseTrig), "rad"),
-    "acosh" => (UnaryFuncInfo(acosh, InverseTrig), "rad"),
-    "acot" => (UnaryFuncInfo(acot, InverseTrig), "rad"),
-    "acoth" => (UnaryFuncInfo(acoth, InverseTrig), "rad"),
-    "asec" => (UnaryFuncInfo(asec, InverseTrig), "rad"),
-    "asech" => (UnaryFuncInfo(asech, InverseTrig), "rad"),
-    "asin" => (UnaryFuncInfo(asin, InverseTrig), "rad"),
-    "asinh" => (UnaryFuncInfo(asinh, InverseTrig), "rad"),
-    "atan" => (UnaryFuncInfo(atan, InverseTrig), "rad"),
-    "atanh" => (UnaryFuncInfo(atanh, InverseTrig), "rad"),
-
-    "abs" => (UnaryFuncInfo(abs, Other), ""),
-    "cbrt" => (UnaryFuncInfo(cbrt, Other), ""),
-    "ceil" => (UnaryFuncInfo(ceil, Other), ""),
-    "exp" => (UnaryFuncInfo(exp, Other), ""),
-    "floor" => (UnaryFuncInfo(floor, Other), ""),
-    "frac" => (UnaryFuncInfo(frac, Other), ""),
-    "gamma" => (UnaryFuncInfo(gamma, Other), ""),
-    "Γ" => (UnaryFuncInfo(gamma, Other), ""),
-    "log" => (UnaryFuncInfo(log, Other), ""),
-    "ln" => (UnaryFuncInfo(ln, Other), ""),
-    "round" => (UnaryFuncInfo(round, Other), ""),
-    "sqrt" => (UnaryFuncInfo(sqrt, Other), ""),
-    "√" => (UnaryFuncInfo(sqrt, Other), ""),
-    "trunc" => (UnaryFuncInfo(trunc, Other), ""),
-};
-pub const BINARY_FUNCS: phf::Map<&'static str, (BinaryFuncInfo, &'static str)> = phf::phf_map! {
-    "max" => (BinaryFuncInfo(max, Other), ""),
-    "min" => (BinaryFuncInfo(min, Other), ""),
-    "hyp" => (BinaryFuncInfo(hyp, Other), ""),
-    "log" => (BinaryFuncInfo(logx, Other), ""),
-    "root" => (BinaryFuncInfo(nth_root, Other), ""),
-};
+        m.insert("abs", (UnaryFuncInfo(abs, Other), ""));
+        m.insert("cbrt", (UnaryFuncInfo(cbrt, Other), ""));
+        m.insert("ceil", (UnaryFuncInfo(ceil, Other), ""));
+        m.insert("exp", (UnaryFuncInfo(exp, Other), ""));
+        m.insert("floor", (UnaryFuncInfo(floor, Other), ""));
+        m.insert("frac", (UnaryFuncInfo(frac, Other), ""));
+        m.insert("gamma", (UnaryFuncInfo(gamma, Other), ""));
+        m.insert("Γ", (UnaryFuncInfo(gamma, Other), ""));
+        m.insert("log", (UnaryFuncInfo(log, Other), ""));
+        m.insert("ln", (UnaryFuncInfo(ln, Other), ""));
+        m.insert("round", (UnaryFuncInfo(round, Other), ""));
+        m.insert("sqrt", (UnaryFuncInfo(sqrt, Other), ""));
+        m.insert("√", (UnaryFuncInfo(sqrt, Other), ""));
+        m.insert("trunc", (UnaryFuncInfo(trunc, Other), ""));
+        m
+    };
+    pub static ref BINARY_FUNCS: HashMap<&'static str, (BinaryFuncInfo, &'static str)> = {
+        let mut m = HashMap::new();
+        m.insert("max", (BinaryFuncInfo(max, Other), ""));
+        m.insert("min", (BinaryFuncInfo(min, Other), ""));
+        m.insert("hyp", (BinaryFuncInfo(hyp, Other), ""));
+        m.insert("log", (BinaryFuncInfo(logx, Other), ""));
+        m.insert("root", (BinaryFuncInfo(nth_root, Other), ""));
+        m
+    };
+}
 
 enum FuncType {
     Trig,
