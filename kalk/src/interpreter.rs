@@ -424,10 +424,10 @@ mod tests {
         let stmt = Stmt::Expr(binary(
             literal("5"),
             Percent,
-            group(binary(literal("3"), Star, unary(Percent, literal("2")))),
+            group(binary(literal("3"), Plus, unary(Percent, literal("2")))),
         ));
 
-        assert!(cmp(interpret(stmt).unwrap().unwrap(), 0.14));
+        assert!(cmp(interpret(stmt).unwrap().unwrap(), 1.94));
     }
 
     #[test]
