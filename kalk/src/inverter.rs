@@ -4,34 +4,40 @@ use crate::parser::CalcError;
 use crate::parser::DECL_UNIT;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 
-pub const INVERSE_UNARY_FUNCS: phf::Map<&'static str, &'static str> = phf::phf_map! {
-    "cos" => "acos",
-    "cosec" => "acosec",
-    "cosech" => "cosech",
-    "cosh" => "acosh",
-    "cot" => "acot",
-    "coth" => "acoth",
-    "sec" => "asec",
-    "sech" => "asech",
-    "sin" => "asin",
-    "sinh" => "asinh",
-    "tan" => "atan",
-    "tanh" => "atanh",
+lazy_static! {
+    pub static ref INVERSE_UNARY_FUNCS: HashMap<&'static str, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert("cos", "acos");
+        m.insert("cosec", "acosec");
+        m.insert("cosech", "cosech");
+        m.insert("cosh", "acosh");
+        m.insert("cot", "acot");
+        m.insert("coth", "acoth");
+        m.insert("sec", "asec");
+        m.insert("sech", "asech");
+        m.insert("sin", "asin");
+        m.insert("sinh", "asinh");
+        m.insert("tan", "atan");
+        m.insert("tanh", "atanh");
 
-    "acos" => "cos",
-    "acosec" => "cosec",
-    "acosech" => "cosech",
-    "acosh" => "cosh",
-    "acot" => "cot",
-    "acoth" => "coth",
-    "asec" => "sec",
-    "asech" => "sech",
-    "asin" => "sin",
-    "asinh" => "sinh",
-    "atan" => "tan",
-    "atanh" => "tanh",
-};
+        m.insert("acos", "cos");
+        m.insert("acosec", "cosec");
+        m.insert("acosech", "cosech");
+        m.insert("acosh", "cosh");
+        m.insert("acot", "cot");
+        m.insert("acoth", "coth");
+        m.insert("asec", "sec");
+        m.insert("asech", "sech");
+        m.insert("asin", "sin");
+        m.insert("asinh", "sinh");
+        m.insert("atan", "tan");
+        m.insert("atanh", "tanh");
+        m
+    };
+}
 
 impl Expr {
     pub fn invert(&self, symbol_table: &mut SymbolTable) -> Result<Self, CalcError> {
