@@ -45,7 +45,12 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
 }
 
 pub fn print_err(msg: &str) {
-    println!("{}", Red.paint(msg));
+    let msg = if cfg!(windows) {
+        msg.to_string()
+    } else {
+        Red.paint(msg).to_string()
+    };
+    println!("{}", msg);
 }
 
 fn print_calc_err(err: CalcError) {
