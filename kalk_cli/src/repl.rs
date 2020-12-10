@@ -24,7 +24,12 @@ pub fn start(mut parser: &mut parser::Context) {
     }));
 
     loop {
-        let readline = editor.readline(&Cyan.paint(">> ").to_string());
+        let prompt = if cfg!(windows) {
+            String::from(">> ")
+        } else {
+            Cyan.paint(">> ").to_string()
+        };
+        let readline = editor.readline(&prompt);
 
         match readline {
             Ok(input) => {
