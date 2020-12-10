@@ -132,7 +132,11 @@ fn eval_binary_expr(
     };
 
     if let Expr::Unary(TokenKind::Percent, _) = right_expr {
-        right *= left.clone();
+        if let TokenKind::Star = op {
+            right *= 0.01;
+        } else {
+            right *= left.clone();
+        }
     }
 
     Ok((
