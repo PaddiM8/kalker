@@ -149,6 +149,8 @@ impl Highlighter for RLHelper {
 }
 
 impl Hinter for RLHelper {
+    type Hint = String;
+
     fn hint(&self, _: &str, _: usize, _: &rustyline::Context) -> Option<String> {
         None
     }
