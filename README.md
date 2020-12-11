@@ -5,8 +5,10 @@
 ![Build status](https://img.shields.io/github/workflow/status/PaddiM8/kalk/Rust?event=push&label=build%20%26%20test)
 
 
-Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental).
-[Project kanban board (Kolan)](https://kolan.smrk.me/Board/4RAdMjLDz)
+Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental).  
+[Project kanban board (Kolan)](https://kolan.strct.net/Board/4RAdMjLDz)  
+
+Website: [kalk.strct.net](https://kalk.strct.net)
 
 ![](example.png)
 
@@ -25,10 +27,9 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 
 ## Installing
 ### Binaries
-Pre-compiled binaries for Linux and Windows (64-bit) are available in the [releases page](https://github.com/PaddiM8/kalk/releases). A Windows binary may not always be available for the newest version as of now.
+Pre-compiled binaries for Linux, Windows, and macOS (64-bit) are available in the [releases page](https://github.com/PaddiM8/kalk/releases).
 ### Compiling
-Make sure you have `diffutils` `gcc` `make` and `m4` installed. **If you use windows:** [follow the instructions here](https://docs.rs/gmp-mpfr-sys/1.2.3/gmp_mpfr_sys/index.html#building-on-windows)  
-If anyone knows how to get `gmp_mpfr_sys` on Windows on Travis, let me know.
+Make sure you have `diffutils` `gcc` `make` and `m4` installed. **If you use windows:** [follow the instructions here](https://docs.rs/gmp-mpfr-sys/1.2.3/gmp_mpfr_sys/index.html#building-on-windows) (don't forget to install `mingw-w64-x86_64-rust` in MSYS2).
 
 #### Cargo
 Run `cargo install kalk_cli`
