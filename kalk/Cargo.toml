@@ -11,7 +11,7 @@ keywords = ["math", "calculator", "evaluator"]
 categories = ["mathematics", "parser-implementations"]
 
 [dependencies]
-rug = "1.11.0"
+rug = { version = "1.11.0", features = ["float"] }
 test-case = "1.0.0"
 regex = "1"
 lazy_static = "1.4.0"

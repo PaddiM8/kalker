@@ -19,5 +19,5 @@ kalk = { path = "../kalk", version = "^0.2.3" }
 rustyline = "7.0.0"
 ansi_term = "0.12"
 regex = "1"
-rug = "1.11.0"
+rug = { version = "1.11.0", features = ["float"] }
 lazy_static = "1.4.0"
