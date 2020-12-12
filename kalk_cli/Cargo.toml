@@ -1,6 +1,6 @@
 [package]
 name = "kalk_cli"
-version = "0.3.3"
+version = "0.3.4"
 authors = ["PaddiM8"]
 edition = "2018"
 readme = "../README.md"
@@ -9,6 +9,7 @@ repository = "https://github.com/PaddiM8/kalk"
 license = "MIT"
 keywords = ["math", "calculator", "cli", "command-line"]
 categories = ["mathematics", "command-line-utilities"]
+build = "build.rs"
 
 [[bin]]
 path = "src/main.rs"
@@ -21,3 +22,15 @@ ansi_term = "0.12"
 regex = "1"
 rug = { version = "1.11.0", features = ["float"] }
 lazy_static = "1.4.0"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
+[package.metadata.bundle]
+name = "kalk"
+identifier = "net.strct.kalk"
+icon = ["../res/icon*"]
+short_description = "A calculator that supports user-defined functions, variables and units, and can handle fairly ambiguous syntax."
+
+[package.metadata.bundle.bin.kalk]
+name = "kalk"
