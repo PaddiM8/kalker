@@ -45,25 +45,23 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo/bin/cargo-bundle
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             target
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
       - name: Compile
         run: |
-          [ ! -f ~/.cargo/bin/cargo-bundle ] && cargo install cargo-bundle
-          cd kalk_cli
-          ~/.cargo/bin/cargo-bundle bundle --release --bin kalk
-          mv ../target/release/kalk ../target/release/kalk-macOS-cli
-          cd ../target/release/bundle/osx/kalk.app
-          zip -r kalk-macOS.zip kalk.app
+          cargo build --release --verbose
+          chmod +x run.command
+          mkdir kalk-macOS
+          mv run.command kalk-macOS
+          mv target/release/kalk kalk-macOS
+          zip -r kalk-macOS.zip kalk-macOS
       - uses: actions/upload-artifact@v2
         with:
           name: binaries
           path: |
             target/release/bundle/osx/kalk-macOS.zip
-            target/release/kalk-macOS-cli
 
   release_windows:
     name: release windows
