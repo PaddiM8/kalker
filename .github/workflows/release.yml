@@ -52,16 +52,11 @@ jobs:
       - name: Compile
         run: |
           cargo build --release --verbose
-          chmod +x run.command
-          mkdir kalk-macOS
-          mv run.command kalk-macOS
-          mv target/release/kalk kalk-macOS
-          zip -r kalk-macOS.zip kalk-macOS
+          zip -r kalk-macOS.zip target/release/kalk
       - uses: actions/upload-artifact@v2
         with:
           name: binaries
-          path: |
-            target/release/bundle/osx/kalk-macOS.zip
+          path: kalk-macOS.zip
 
   release_windows:
     name: release windows
