@@ -55,11 +55,15 @@ jobs:
           [ ! -f ~/.cargo/bin/cargo-bundle ] && cargo install cargo-bundle
           cd kalk_cli
           ~/.cargo/bin/cargo-bundle bundle --release --bin kalk
-          zip -r ../kalk-macOS.zip ../target/release/bundle/osx/kalk.app
+          mv ../target/release/kalk ../target/release/kalk-macOS-cli
+          cd ../target/release/bundle/osx/kalk.app
+          zip -r kalk-macOS.zip kalk.app
       - uses: actions/upload-artifact@v2
         with:
           name: binaries
-          path: kalk-macOS.zip
+          path: |
+            target/release/bundle/osx/kalk-macOS.zip
+            target/release/kalk-macOS-cli
 
   release_windows:
     name: release windows
