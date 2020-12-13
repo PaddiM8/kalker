@@ -184,9 +184,11 @@ pub fn convert_unit(
             .symbol_table
             .insert(Stmt::VarDecl(DECL_UNIT.into(), Box::new(expr.clone())));
 
-        Ok(KalkNum::new(
-            eval_expr(context, &unit_def, "")?.value,
+        let num = eval_expr(context, &unit_def, "")?;
+        Ok(KalkNum::new_with_rational(
+            num.clone().value,
             to_unit.into(),
+            num.get_internal_rational(),
         ))
     } else {
         Err(CalcError::InvalidUnit)
@@ -243,7 +245,7 @@ fn eval_fn_call_expr(
     };
 
     if let Some((result, func_unit)) = prelude_func {
-        return Ok(KalkNum::new(
+        return Ok(KalkNum::new_without_rational(
             result,
             if unit.len() > 0 { unit } else { &func_unit },
         ));

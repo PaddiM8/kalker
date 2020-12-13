@@ -1,11 +1,13 @@
 use crate::ast::Expr;
 use rug::ops::Pow;
 use rug::Float;
+use rug::Rational;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct KalkNum {
     pub(crate) value: Float,
     pub(crate) unit: String,
+    rational: Option<Rational>,
 }
 
 pub struct ScientificNotation {
@@ -34,8 +36,25 @@ impl ScientificNotation {
 impl KalkNum {
     pub fn new(value: Float, unit: &str) -> Self {
         Self {
-            value,
+            value: value.clone(),
             unit: unit.to_string(),
+            rational: value.to_rational(),
+        }
+    }
+
+    pub(crate) fn new_with_rational(value: Float, unit: &str, rational: Option<Rational>) -> Self {
+        Self {
+            value: value.clone(),
+            unit: unit.to_string(),
+            rational: rational,
+        }
+    }
+
+    pub fn new_without_rational(value: Float, unit: &str) -> Self {
+        Self {
+            value: value.clone(),
+            unit: unit.to_string(),
+            rational: None,
         }
     }
 
@@ -66,6 +85,16 @@ impl KalkNum {
 
     pub fn get_unit(&self) -> &str {
         &self.unit
+    }
+
+    pub fn get_rational(self) -> Option<(i64, i64)> {
+        let (numer, denom) = self.rational?.into_numer_denom();
+
+        Some((numer.to_i64()?, denom.to_i64()?))
+    }
+
+    pub fn get_internal_rational(self) -> Option<Rational> {
+        self.rational
     }
 
     pub fn has_unit(&self) -> bool {
@@ -109,32 +138,52 @@ impl KalkNum {
 
     pub fn add(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value + right.value, &right.unit)
+        let mut num = KalkNum::new_without_rational(self.value + right.value, &right.unit);
+        if let (Some(left_rational), Some(right_rational)) = (self.rational, right.rational) {
+            num.rational = Some(left_rational + right_rational);
+        };
+
+        num
     }
 
     pub fn sub(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value - right.value, &right.unit)
+        let mut num = KalkNum::new_without_rational(self.value - right.value, &right.unit);
+        if let (Some(left_rational), Some(right_rational)) = (self.rational, right.rational) {
+            num.rational = Some(left_rational - right_rational);
+        };
+
+        num
     }
 
     pub fn mul(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value * right.value, &right.unit)
+        let mut num = KalkNum::new_without_rational(self.value * right.value, &right.unit);
+        if let (Some(left_rational), Some(right_rational)) = (self.rational, right.rational) {
+            num.rational = Some(left_rational * right_rational);
+        };
+
+        num
     }
 
     pub fn div(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value / right.value, &right.unit)
+        let mut num = KalkNum::new_without_rational(self.value / right.value, &right.unit);
+        if let (Some(left_rational), Some(right_rational)) = (self.rational, right.rational) {
+            num.rational = Some(left_rational / right_rational);
+        };
+
+        num
     }
 
     pub fn rem(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value % right.value, &right.unit)
+        KalkNum::new_without_rational(self.value % right.value, &right.unit)
     }
 
     pub fn pow(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value.pow(right.value), &right.unit)
+        KalkNum::new_without_rational(self.value.pow(right.value), &right.unit)
     }
 }
 
@@ -146,7 +195,11 @@ fn calculate_unit(
     if left.has_unit() && right.has_unit() {
         right.convert_to_unit(context, &left.unit)
     } else {
-        Some(KalkNum::new(right.value, &left.unit))
+        Some(KalkNum::new_with_rational(
+            right.value,
+            &left.unit,
+            right.rational,
+        ))
     }
 }
 

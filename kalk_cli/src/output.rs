@@ -12,6 +12,12 @@ pub fn eval(parser: &mut parser::Context, input: &str) {
             };
 
             println!("{} {}", result_str, result.get_unit());
+
+            if result_str.contains(".") {
+                if let Some((numer, denom)) = result.get_rational() {
+                    println!("{}/{}", numer, denom);
+                }
+            }
         }
         Ok(None) => print!(""),
         Err(err) => print_calc_err(err),
