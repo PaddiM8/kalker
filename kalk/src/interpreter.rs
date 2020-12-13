@@ -11,6 +11,7 @@ pub struct Context<'a> {
     symbol_table: &'a mut SymbolTable,
     angle_unit: String,
     precision: u32,
+    sum_n_value: Option<i128>,
 }
 
 impl<'a> Context<'a> {
@@ -19,6 +20,7 @@ impl<'a> Context<'a> {
             angle_unit: angle_unit.into(),
             symbol_table,
             precision,
+            sum_n_value: None,
         }
     }
 
@@ -203,6 +205,12 @@ fn eval_var_expr(
         return eval_expr(context, &Expr::Literal(*value), unit);
     }
 
+    if identifier == "n" {
+        if let Some(value) = context.sum_n_value {
+            return Ok(KalkNum::from(value));
+        }
+    }
+
     // Look for the variable in the symbol table
     let var_decl = context.symbol_table.get_var(identifier).cloned();
     match var_decl {
@@ -266,13 +274,7 @@ fn eval_fn_call_expr(
             let mut sum = Float::with_val(context.precision, 0);
 
             for n in start..=end {
-                let n_expr = Expr::Literal(n as f64);
-
-                // Update the variable "n" in the symbol table on every iteration,
-                // then calculate the expression and add it to the total sum.
-                context
-                    .symbol_table
-                    .set(Stmt::VarDecl(String::from("n"), Box::new(n_expr)));
+                context.sum_n_value = Some(n);
                 sum += eval_expr(context, &expressions[2], "")?.value;
             }
 
