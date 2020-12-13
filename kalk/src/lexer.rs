@@ -2,7 +2,7 @@ use std::iter::Peekable;
 use std::str;
 use std::str::Chars;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum TokenKind {
     Unknown,
     Literal,

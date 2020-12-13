@@ -278,6 +278,8 @@ fn eval_fn_call_expr(
                 sum += eval_expr(context, &expressions[2], "")?.value;
             }
 
+            context.sum_n_value = None;
+
             return Ok(KalkNum::new(sum, unit.into()));
         }
         _ => (),
