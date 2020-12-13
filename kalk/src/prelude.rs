@@ -13,11 +13,11 @@ lazy_static! {
         let mut m = HashMap::new();
         m.insert("pi", 3.14159265);
         m.insert("π", 3.14159265);
-        m.insert("e", 2.71828182);
+        m.insert("e", 2.71828183);
         m.insert("tau", 6.28318530);
         m.insert("τ", 6.28318530);
-        m.insert("phi", 1.61803398);
-        m.insert("ϕ", 1.61803398);
+        m.insert("phi", 1.61803399);
+        m.insert("ϕ", 1.61803399);
         m
     };
     pub static ref UNARY_FUNCS: HashMap<&'static str, (UnaryFuncInfo, &'static str)> = {
