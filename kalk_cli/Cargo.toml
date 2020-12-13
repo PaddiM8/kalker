@@ -21,6 +21,7 @@ rustyline = "7.0.0"
 ansi_term = "0.12"
 regex = "1"
 lazy_static = "1.4.0"
+seahorse = "1.1.1"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

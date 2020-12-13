@@ -170,6 +170,7 @@ dependencies = [
  "lazy_static",
  "regex",
  "rustyline",
+ "seahorse",
  "winres",
 ]
 
@@ -314,6 +315,12 @@ name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
+
+[[package]]
+name = "seahorse"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce7d9440e2865cce0db733bdc530591b37d37a2d32badace34a1fc9ba5686d58"
 
 [[package]]
 name = "serde"
