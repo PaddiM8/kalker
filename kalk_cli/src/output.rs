@@ -39,7 +39,9 @@ fn print_calc_err(err: CalcError) {
         InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
         InvalidOperator => format!("Invalid operator."),
         InvalidUnit => format!("Invalid unit."),
-        UnexpectedToken(kind) => format!("Unexpected token: '{:?}'.", kind),
+        UnexpectedToken(got, expected) => {
+            format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
+        }
         UnableToInvert(msg) => format!("Unable to invert: {}", msg),
         UndefinedFn(name) => format!("Undefined function: '{}'.", name),
         UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
