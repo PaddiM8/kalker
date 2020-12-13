@@ -30,6 +30,7 @@ pub struct Context {
     /// When a unit declaration is being parsed, this value will be set
     /// whenever a unit in the expression is found. Eg. unit a = 3b, it will be set to Some("b")
     unit_decl_base_unit: Option<String>,
+    parsing_identifier_stmt: bool,
 }
 
 impl Context {
@@ -41,6 +42,7 @@ impl Context {
             angle_unit: DEFAULT_ANGLE_UNIT.into(),
             parsing_unit_decl: false,
             unit_decl_base_unit: None,
+            parsing_identifier_stmt: false,
         };
 
         parse(&mut context, crate::prelude::INIT).unwrap();
@@ -128,7 +130,9 @@ fn parse_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 
 fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let began_at = context.pos;
+    context.parsing_identifier_stmt = true;
     let primary = parse_primary(context)?; // Since function declarations and function calls look the same at first, simply parse a "function call", and re-use the data.
+    context.parsing_identifier_stmt = false;
 
     // If `primary` is followed by an equal sign, it is a function declaration.
     if let TokenKind::Equals = peek(context).kind {
@@ -159,7 +163,7 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 
         Err(CalcError::Unknown)
     } else {
-        // It is a function call, not a function declaration.
+        // It is a function call or eg. x(x + 3), not a function declaration.
         // Redo the parsing for this specific part.
         context.pos = began_at;
         Ok(Stmt::Expr(Box::new(parse_expr(context)?)))
@@ -257,10 +261,14 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
         || match_token(context, TokenKind::Percent)
         || match_token(context, TokenKind::Identifier)
         || match_token(context, TokenKind::Literal)
+        || match_token(context, TokenKind::OpenParenthesis)
     {
-        // If the token is an identifier, assume it's multiplication. Eg. 3y
+        // If the token is an identifier, literal, or open parenthesis,
+        // assume it's multiplication. Eg. 3y or (3x + 2)(2 + 3)
         let op = match peek(context).kind {
-            TokenKind::Identifier | TokenKind::Literal => TokenKind::Star,
+            TokenKind::Identifier | TokenKind::Literal | TokenKind::OpenParenthesis => {
+                TokenKind::Star
+            }
             _ => advance(context).kind,
         };
 
@@ -380,8 +388,15 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         }
     }
 
+    let parse_as_var_instead = match_token(context, TokenKind::OpenParenthesis)
+        && !context.parsing_identifier_stmt
+        && !context.symbol_table.contains_fn(&identifier.value);
+
     // Eg. sqrt(64)
-    if match_token(context, TokenKind::OpenParenthesis) {
+    // If the function doesn't exist, parse it as a variable and multiplication instead.
+    // Although, if the parse_identifier_stmt function called this function,
+    // parse it as a function anyway, since it might be creating one.
+    if !parse_as_var_instead && match_token(context, TokenKind::OpenParenthesis) {
         advance(context);
 
         let mut parameters = Vec::new();
@@ -398,7 +413,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     }
 
     // Eg. x
-    if context.symbol_table.contains_var(&identifier.value) {
+    if parse_as_var_instead || context.symbol_table.contains_var(&identifier.value) {
         Ok(Expr::Var(identifier.value))
     } else if context.parsing_unit_decl {
         context.unit_decl_base_unit = Some(identifier.value);
