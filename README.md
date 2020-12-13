@@ -40,6 +40,7 @@ Run `cargo install kalk_cli`
 3. Grab the binary from `targets/release`
 
 ## Syntax
+A more complete reference can be found on [the website](https://kalk.strct.net)
 
 ### Functions
 __Defining:__ name(parameter1, parameter2, ...) = expression  
@@ -55,7 +56,7 @@ __Defining:__ name = expression
 __Using:__ name  
 **Example:** `x`  
 
-### Units
+### Units (experimental, are likely to not work properly)
 *Note: You only need to define the relationship between two units once. You will be able to convert between both of them.*
 __Defining:__ `unit` name = expression  
 **Example:** `unit deg = (rad*180)/π`  
