@@ -1,5 +1,6 @@
 use rug::Float;
 
+#[derive(PartialEq, Debug)]
 pub struct KalkNum {
     value: Float,
     unit: String,

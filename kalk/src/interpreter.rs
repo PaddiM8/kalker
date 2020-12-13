@@ -396,10 +396,7 @@ mod tests {
     fn test_literal() {
         let stmt = Stmt::Expr(literal("1"));
 
-        assert_eq!(
-            interpret(stmt).unwrap().unwrap(),
-            Float::with_val(PRECISION, 1)
-        );
+        assert_eq!(interpret(stmt).unwrap().unwrap().to_f64(), 1f64);
     }
 
     #[test]
@@ -410,11 +407,11 @@ mod tests {
         let div = Stmt::Expr(binary(literal("2"), Slash, literal("4")));
         let pow = Stmt::Expr(binary(literal("2"), Power, literal("3")));
 
-        assert_eq!(interpret(add).unwrap().unwrap(), 5);
-        assert_eq!(interpret(sub).unwrap().unwrap(), -1);
-        assert_eq!(interpret(mul).unwrap().unwrap(), 6);
-        assert_eq!(interpret(div).unwrap().unwrap(), 0.5);
-        assert_eq!(interpret(pow).unwrap().unwrap(), 8);
+        assert_eq!(interpret(add).unwrap().unwrap().to_f64(), 5f64);
+        assert_eq!(interpret(sub).unwrap().unwrap().to_f64(), -1f64);
+        assert_eq!(interpret(mul).unwrap().unwrap().to_f64(), 6f64);
+        assert_eq!(interpret(div).unwrap().unwrap().to_f64(), 0.5f64);
+        assert_eq!(interpret(pow).unwrap().unwrap().to_f64(), 8f64);
     }
 
     #[test]
@@ -425,7 +422,7 @@ mod tests {
             group(binary(literal("3"), Plus, unary(Percent, literal("2")))),
         ));
 
-        assert!(cmp(interpret(stmt).unwrap().unwrap(), 1.94));
+        assert!(cmp(interpret(stmt).unwrap().unwrap(), 1.94f64));
     }
 
     #[test]
@@ -433,8 +430,8 @@ mod tests {
         let neg = Stmt::Expr(unary(Minus, literal("1")));
         let fact = Stmt::Expr(unary(Exclamation, literal("5")));
 
-        assert_eq!(interpret(neg).unwrap().unwrap(), -1);
-        assert_eq!(interpret(fact).unwrap().unwrap(), 120);
+        assert_eq!(interpret(neg).unwrap().unwrap().to_f64(), -1f64);
+        assert_eq!(interpret(fact).unwrap().unwrap().to_f64(), 120f64);
     }
 
     #[test]
@@ -479,7 +476,10 @@ mod tests {
         symbol_table.insert(var_decl("x", literal("1")));
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
-        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 1);
+        assert_eq!(
+            context.interpret(vec![stmt]).unwrap().unwrap().to_f64(),
+            1f64
+        );
     }
 
     #[test]
@@ -516,7 +516,10 @@ mod tests {
         ));
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
-        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 3);
+        assert_eq!(
+            context.interpret(vec![stmt]).unwrap().unwrap().to_f64(),
+            3f64
+        );
     }
 
     #[test]
@@ -541,6 +544,6 @@ mod tests {
             ],
         ));
 
-        assert_eq!(interpret(stmt).unwrap().unwrap(), result);
+        assert_eq!(interpret(stmt).unwrap().unwrap().to_f64(), result);
     }
 }
