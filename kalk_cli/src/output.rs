@@ -1,14 +1,17 @@
+use crate::DEFAULT_PRECISION;
 use ansi_term::Colour::Red;
 use kalk::parser::{self, CalcError, CalcError::*};
 
-pub fn eval(parser: &mut parser::Context, input: &str) {
-    match parser::eval(parser, input, 53) {
+pub fn eval(parser: &mut parser::Context, input: &str, precision: u32) {
+    match parser::eval(parser, input, precision) {
         Ok(Some(result)) => {
             let sci_notation = result.to_scientific_notation();
             let result_str = if sci_notation.exponent > 8 || sci_notation.exponent < -6 {
                 sci_notation.to_string()
-            } else {
+            } else if precision == DEFAULT_PRECISION {
                 result.to_string()
+            } else {
+                result.to_string_big()
             };
 
             println!("{} {}", result_str, result.get_unit());

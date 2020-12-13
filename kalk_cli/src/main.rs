@@ -6,12 +6,15 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 
+static DEFAULT_PRECISION: u32 = 53;
+
 fn main() {
     let mut parser_context = parser::Context::new().set_angle_unit(&get_angle_unit());
 
     // Command line argument input, execute it and exit.
     let mut args = env::args().skip(1);
     let mut expr_input: Option<String> = None;
+    let mut precision = DEFAULT_PRECISION;
     loop {
         // Get the next argument if possible, otherwise break the loop.
         let arg = if let Some(arg) = args.next() {
@@ -28,8 +31,9 @@ fn main() {
 [kalk help]
 
 kalk [OPTIONS] [INPUT]
--h, --help : show this
--i         : load a file with predefined functions/variables
+-h, --help  : show this
+-i          : load a file with predefined functions/variables
+--precision : specify number precision
 
 [Environment variables]
 ANGLE_UNIT=(deg/rad) : Sets the default unit used for trigonometric functions.
@@ -47,8 +51,15 @@ ANGLE_UNIT=(deg/rad) : Sets the default unit used for trigonometric functions.
 
                 // Parse the input file content, resulting in the symbol table being filled out.
                 // Output is not needed here.
-                parser::eval(&mut parser_context, &file_content, 53)
+                parser::eval(&mut parser_context, &file_content, precision)
                     .expect("Failed to parse input file.");
+            }
+            "--precision" => {
+                precision = args
+                    .next()
+                    .expect("Expected precision input.")
+                    .parse::<u32>()
+                    .expect("Precision value could not be parsed.");
             }
             _ => {
                 // Main argument. This is expected to be a maths expression.
@@ -60,10 +71,10 @@ ANGLE_UNIT=(deg/rad) : Sets the default unit used for trigonometric functions.
 
     if let Some(input) = expr_input {
         // Direct output
-        output::eval(&mut parser_context, &input);
+        output::eval(&mut parser_context, &input, precision);
     } else {
         // REPL
-        repl::start(&mut parser_context);
+        repl::start(&mut parser_context, precision);
     }
 }
 
