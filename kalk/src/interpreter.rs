@@ -1,4 +1,5 @@
 use crate::ast::{Expr, Stmt};
+use crate::kalk_num::KalkNum;
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
 use crate::parser::DECL_UNIT;
@@ -22,10 +23,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn interpret(
-        &mut self,
-        statements: Vec<Stmt>,
-    ) -> Result<Option<(Float, String)>, CalcError> {
+    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<Option<KalkNum>, CalcError> {
         for (i, stmt) in statements.iter().enumerate() {
             let (value, unit) = eval_stmt(self, stmt)?;
 
@@ -47,7 +45,7 @@ impl<'a> Context<'a> {
 
             if i == statements.len() - 1 {
                 if let Stmt::Expr(_) = stmt {
-                    return Ok(Some((value, unit)));
+                    return Ok(Some(KalkNum::new(value, &unit)));
                 }
             }
         }
@@ -371,7 +369,7 @@ mod tests {
         );
     }
 
-    fn interpret_with_unit(stmt: Stmt) -> Result<Option<(Float, String)>, CalcError> {
+    fn interpret_with_unit(stmt: Stmt) -> Result<Option<KalkNum>, CalcError> {
         let mut symbol_table = SymbolTable::new();
         symbol_table
             .insert(DEG_RAD_UNIT.clone())
@@ -381,15 +379,15 @@ mod tests {
         context.interpret(vec![stmt])
     }
 
-    fn interpret(stmt: Stmt) -> Result<Option<Float>, CalcError> {
-        if let Some((result, _)) = interpret_with_unit(stmt)? {
+    fn interpret(stmt: Stmt) -> Result<Option<KalkNum>, CalcError> {
+        if let Some(result) = interpret_with_unit(stmt)? {
             Ok(Some(result))
         } else {
             Ok(None)
         }
     }
 
-    fn cmp(x: Float, y: f64) -> bool {
+    fn cmp(x: KalkNum, y: f64) -> bool {
         println!("{} = {}", x.to_f64(), y);
         (x.to_f64() - y).abs() < 0.0001
     }
@@ -463,12 +461,11 @@ mod tests {
             rad_context
                 .interpret(vec![implicit.clone()])
                 .unwrap()
-                .unwrap()
-                .0,
+                .unwrap(),
             0.84147098
         ));
         assert!(cmp(
-            deg_context.interpret(vec![implicit]).unwrap().unwrap().0,
+            deg_context.interpret(vec![implicit]).unwrap().unwrap(),
             0.01745240
         ));
     }
@@ -482,7 +479,7 @@ mod tests {
         symbol_table.insert(var_decl("x", literal("1")));
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
-        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap().0, 1);
+        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 1);
     }
 
     #[test]
@@ -519,7 +516,7 @@ mod tests {
         ));
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
-        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap().0, 3);
+        assert_eq!(context.interpret(vec![stmt]).unwrap().unwrap(), 3);
     }
 
     #[test]

@@ -3,41 +3,15 @@ use kalk::parser::{self, CalcError, CalcError::*};
 
 pub fn eval(parser: &mut parser::Context, input: &str) {
     match parser::eval(parser, input, 53) {
-        Ok(Some((result, unit))) => {
-            let (_, digits, exp_option) = result.to_sign_string_exp(10, None);
-            let exp = if let Some(exp) = exp_option { exp } else { 0 };
-
-            if result.is_infinite() {
-                print_err("Too big to process.");
+        Ok(Some(result)) => {
+            let sci_notation = result.to_scientific_notation();
+            let result_str = if sci_notation.exponent > 8 || sci_notation.exponent < -6 {
+                sci_notation.to_string()
             } else {
-                let use_sci_notation = exp > 8 || exp < -6;
+                result.to_string()
+            };
 
-                if !use_sci_notation {
-                    println!("{}", round_value(result));
-                    return;
-                }
-
-                let comma_pos = if use_sci_notation { 1 } else { exp as usize };
-                let sign = if result >= 0 { "" } else { "-" };
-
-                let num = if exp <= 0 {
-                    // 0 < x < 1
-                    format!("0.{}{}", "0".repeat(exp.abs() as usize), digits)
-                        .trim_end_matches('0')
-                        .to_string()
-                } else {
-                    // Insert the comma if there are supposed to be decimals.
-                    let mut chars: Vec<char> = digits
-                        .trim_end_matches('0')
-                        .trim_end_matches('.')
-                        .chars()
-                        .collect();
-                    chars.insert(comma_pos, '.');
-                    chars.into_iter().collect::<String>()
-                };
-
-                println!("{}{}*10^{} {}", sign, num, exp - 1, unit);
-            }
+            println!("{} {}", result_str, result.get_unit());
         }
         Ok(None) => print!(""),
         Err(err) => print_calc_err(err),
@@ -69,11 +43,4 @@ fn print_calc_err(err: CalcError) {
         UnableToParseExpression => format!("Unable to parse expression."),
         Unknown => format!("Unknown error."),
     });
-}
-
-fn round_value(value: rug::Float) -> String {
-    format!("{:.10}", value.to_f64_round(rug::float::Round::Down))
-        .trim_end_matches('0')
-        .trim_end_matches('.')
-        .to_string()
 }

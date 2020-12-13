@@ -1,10 +1,10 @@
+use crate::kalk_num::KalkNum;
 use crate::{
     ast::{Expr, Stmt},
     interpreter,
     lexer::{Lexer, Token, TokenKind},
     symbol_table::SymbolTable,
 };
-use rug::Float;
 
 pub const DECL_UNIT: &'static str = ".u";
 pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
@@ -83,7 +83,7 @@ pub fn eval(
     context: &mut Context,
     input: &str,
     precision: u32,
-) -> Result<Option<(Float, String)>, CalcError> {
+) -> Result<Option<KalkNum>, CalcError> {
     let statements = parse(context, input)?;
 
     let mut interpreter =
