@@ -1,9 +1,11 @@
+use crate::ast::Expr;
+use rug::ops::Pow;
 use rug::Float;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct KalkNum {
-    value: Float,
-    unit: String,
+    pub(crate) value: Float,
+    pub(crate) unit: String,
 }
 
 pub struct ScientificNotation {
@@ -62,8 +64,12 @@ impl KalkNum {
         format!("{} {}", self.to_string(), self.unit)
     }
 
-    pub fn get_unit(self) -> String {
-        self.unit
+    pub fn get_unit(&self) -> &str {
+        &self.unit
+    }
+
+    pub fn has_unit(&self) -> bool {
+        self.unit.len() > 0
     }
 
     pub fn to_scientific_notation(&self) -> ScientificNotation {
@@ -80,6 +86,67 @@ impl KalkNum {
                 .to_string(),
             exponent: if let Some(exp) = exp_option { exp } else { 0 },
         }
+    }
+
+    pub fn convert_to_unit(
+        &self,
+        context: &mut crate::interpreter::Context,
+        to_unit: &str,
+    ) -> Option<KalkNum> {
+        let result = crate::interpreter::convert_unit(
+            context,
+            &Expr::Literal(self.value.to_string()), // TODO: Store as f64, jeez...
+            &self.unit,
+            to_unit,
+        );
+
+        if let Ok(num) = result {
+            Some(num)
+        } else {
+            None
+        }
+    }
+
+    pub fn add(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value + right.value, &right.unit)
+    }
+
+    pub fn sub(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value - right.value, &right.unit)
+    }
+
+    pub fn mul(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value * right.value, &right.unit)
+    }
+
+    pub fn div(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value / right.value, &right.unit)
+    }
+
+    pub fn rem(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value % right.value, &right.unit)
+    }
+
+    pub fn pow(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value.pow(right.value), &right.unit)
+    }
+}
+
+fn calculate_unit(
+    context: &mut crate::interpreter::Context,
+    left: &KalkNum,
+    right: KalkNum,
+) -> Option<KalkNum> {
+    if left.has_unit() && right.has_unit() {
+        right.convert_to_unit(context, &left.unit)
+    } else {
+        Some(KalkNum::new(right.value, &left.unit))
     }
 }
 
@@ -98,5 +165,29 @@ impl Into<f64> for KalkNum {
 impl Into<String> for KalkNum {
     fn into(self) -> String {
         self.to_string()
+    }
+}
+
+impl From<f64> for KalkNum {
+    fn from(x: f64) -> Self {
+        KalkNum::new(Float::with_val(63, x), "")
+    }
+}
+
+impl From<f32> for KalkNum {
+    fn from(x: f32) -> Self {
+        KalkNum::new(Float::with_val(63, x), "")
+    }
+}
+
+impl From<i64> for KalkNum {
+    fn from(x: i64) -> Self {
+        KalkNum::new(Float::with_val(63, x), "")
+    }
+}
+
+impl From<i32> for KalkNum {
+    fn from(x: i32) -> Self {
+        KalkNum::new(Float::with_val(63, x), "")
     }
 }
