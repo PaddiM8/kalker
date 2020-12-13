@@ -70,7 +70,7 @@ pub enum CalcError {
     InvalidNumberLiteral(String),
     InvalidOperator,
     InvalidUnit,
-    UnexpectedToken(TokenKind),
+    UnexpectedToken(TokenKind, TokenKind),
     UndefinedFn(String),
     UndefinedVar(String),
     UnableToInvert(String),
@@ -466,7 +466,7 @@ fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, CalcError> 
         return Ok(advance(context));
     }
 
-    Err(CalcError::UnexpectedToken(kind))
+    Err(CalcError::UnexpectedToken(peek(context).kind, kind))
 }
 
 fn is_at_end(context: &Context) -> bool {

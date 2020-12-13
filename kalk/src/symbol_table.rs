@@ -75,7 +75,7 @@ impl SymbolTable {
 
     pub fn contains_fn(&self, identifier: &str) -> bool {
         prelude::UNARY_FUNCS.contains_key(identifier)
-            || prelude::UNARY_FUNCS.contains_key(identifier)
+            || prelude::BINARY_FUNCS.contains_key(identifier)
             || self.hashmap.contains_key(&format!("fn.{}", identifier))
     }
 }
