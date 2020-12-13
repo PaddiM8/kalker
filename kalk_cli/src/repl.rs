@@ -18,7 +18,7 @@ use std::borrow::Cow::Owned;
 use std::collections::HashMap;
 use std::process;
 
-pub fn start(mut parser: &mut parser::Context) {
+pub fn start(mut parser: &mut parser::Context, precision: u32) {
     let mut editor = Editor::<RLHelper>::new();
     editor.set_helper(Some(RLHelper {
         highlighter: LineHighlighter {},
@@ -36,7 +36,7 @@ pub fn start(mut parser: &mut parser::Context) {
         match readline {
             Ok(input) => {
                 editor.add_history_entry(input.as_str());
-                eval_repl(&mut parser, &input);
+                eval_repl(&mut parser, &input, precision);
             }
             Err(ReadlineError::Interrupted) => break,
             _ => break,
@@ -44,12 +44,12 @@ pub fn start(mut parser: &mut parser::Context) {
     }
 }
 
-fn eval_repl(parser: &mut parser::Context, input: &str) {
+fn eval_repl(parser: &mut parser::Context, input: &str, precision: u32) {
     match input {
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
         "exit" => process::exit(0),
-        _ => output::eval(parser, input),
+        _ => output::eval(parser, input, precision),
     }
 }
 

@@ -56,6 +56,10 @@ impl KalkNum {
         }
     }
 
+    pub fn to_string_big(&self) -> String {
+        self.value.to_string()
+    }
+
     pub fn is_too_big(&self) -> bool {
         self.value.is_infinite()
     }
