@@ -156,7 +156,7 @@ fn to_angle_unit(context: &mut interpreter::Context, x: Float, angle_unit: &str)
         _ => {
             interpreter::convert_unit(context, &Expr::Literal(x.to_string()), "rad", angle_unit)
                 .unwrap()
-                .0
+                .value
         }
     }
 }
@@ -167,7 +167,7 @@ fn from_angle_unit(context: &mut interpreter::Context, x: Float, angle_unit: &st
         _ => {
             interpreter::convert_unit(context, &Expr::Literal(x.to_string()), angle_unit, "rad")
                 .unwrap()
-                .0
+                .value
         }
     }
 }
