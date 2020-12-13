@@ -180,6 +180,12 @@ impl From<f32> for KalkNum {
     }
 }
 
+impl From<i128> for KalkNum {
+    fn from(x: i128) -> Self {
+        KalkNum::new(Float::with_val(63, x), "")
+    }
+}
+
 impl From<i64> for KalkNum {
     fn from(x: i64) -> Self {
         KalkNum::new(Float::with_val(63, x), "")
