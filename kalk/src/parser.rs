@@ -215,7 +215,7 @@ fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
     let left = parse_sum(context)?;
 
     if match_token(context, TokenKind::ToKeyword) {
-        let op = advance(context).kind.clone();
+        let op = advance(context).kind;
         let right = Expr::Var(advance(context).value.clone()); // Parse this as a variable for now.
 
         return Ok(Expr::Binary(Box::new(left), op, Box::new(right)));
@@ -228,7 +228,7 @@ fn parse_sum(context: &mut Context) -> Result<Expr, CalcError> {
     let mut left = parse_factor(context)?;
 
     while match_token(context, TokenKind::Plus) || match_token(context, TokenKind::Minus) {
-        let op = peek(context).kind.clone();
+        let op = peek(context).kind;
         advance(context);
         let right = parse_factor(context)?;
 
@@ -261,7 +261,7 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
         // If the token is an identifier, assume it's multiplication. Eg. 3y
         let op = match peek(context).kind {
             TokenKind::Identifier | TokenKind::Literal => TokenKind::Star,
-            _ => advance(context).kind.clone(),
+            _ => advance(context).kind,
         };
 
         let parse_next = parse_unit(context);
@@ -298,14 +298,14 @@ fn parse_unit(context: &mut Context) -> Result<Expr, CalcError> {
 
 fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
     if match_token(context, TokenKind::Minus) {
-        let op = advance(context).kind.clone();
+        let op = advance(context).kind;
         let expr = Box::new(parse_unary(context)?);
         return Ok(Expr::Unary(op, expr));
     }
 
     let expr = parse_exponent(context)?;
     if match_token(context, TokenKind::Percent) {
-        Ok(Expr::Unary(advance(context).kind.clone(), Box::new(expr)))
+        Ok(Expr::Unary(advance(context).kind, Box::new(expr)))
     } else {
         Ok(expr)
     }
@@ -315,7 +315,7 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, CalcError> {
     let left = parse_factorial(context)?;
 
     if match_token(context, TokenKind::Power) {
-        let op = advance(context).kind.clone();
+        let op = advance(context).kind;
         let right = Box::new(parse_exponent(context)?);
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
@@ -447,7 +447,7 @@ fn advance(context: &mut Context) -> &Token {
 }
 
 fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, CalcError> {
-    if match_token(context, kind.clone()) {
+    if match_token(context, kind) {
         return Ok(advance(context));
     }
 
