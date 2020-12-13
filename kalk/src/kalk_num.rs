@@ -25,7 +25,7 @@ impl ScientificNotation {
             digits_and_mul.insert(1usize, '.');
         }
 
-        format!("{}{}10^{}", sign, digits_and_mul, self.exponent.to_string())
+        format!("{}{}10^{}", sign, digits_and_mul, self.exponent - 1)
     }
 }
 
@@ -74,6 +74,7 @@ impl KalkNum {
         ScientificNotation {
             negative: neg,
             digits: digits
+                .trim_start_matches('0')
                 .trim_end_matches('0')
                 .trim_end_matches('.')
                 .to_string(),
