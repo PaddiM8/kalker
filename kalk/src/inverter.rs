@@ -86,7 +86,7 @@ fn invert_binary(
                     symbol_table,
                     left,
                     &TokenKind::Plus,
-                    &multiply_into(&Expr::Literal(String::from("-1")), inside_group)?,
+                    &multiply_into(&Expr::Literal(-1f64), inside_group)?,
                 );
             }
 
@@ -231,7 +231,7 @@ fn invert_fn_call(
                                 Expr::Binary(
                                     Box::new(target_expr),
                                     TokenKind::Power,
-                                    Box::new(Expr::Literal(String::from("2"))),
+                                    Box::new(Expr::Literal(2f64)),
                                 ),
                                 arguments[0].clone(),
                             ));
@@ -361,49 +361,49 @@ mod tests {
 
     #[test]
     fn test_binary() {
-        let ladd = binary(decl_unit(), Plus, literal("1"));
-        let lsub = binary(decl_unit(), Minus, literal("1"));
-        let lmul = binary(decl_unit(), Star, literal("1"));
-        let ldiv = binary(decl_unit(), Slash, literal("1"));
+        let ladd = binary(decl_unit(), Plus, literal(1f64));
+        let lsub = binary(decl_unit(), Minus, literal(1f64));
+        let lmul = binary(decl_unit(), Star, literal(1f64));
+        let ldiv = binary(decl_unit(), Slash, literal(1f64));
 
-        let radd = binary(literal("1"), Plus, decl_unit());
-        let rsub = binary(literal("1"), Minus, decl_unit());
-        let rmul = binary(literal("1"), Star, decl_unit());
-        let rdiv = binary(literal("1"), Slash, decl_unit());
+        let radd = binary(literal(1f64), Plus, decl_unit());
+        let rsub = binary(literal(1f64), Minus, decl_unit());
+        let rmul = binary(literal(1f64), Star, decl_unit());
+        let rdiv = binary(literal(1f64), Slash, decl_unit());
 
         let mut symbol_table = SymbolTable::new();
         assert_eq!(
             ladd.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Minus, literal("1"))
+            *binary(decl_unit(), Minus, literal(1f64))
         );
         assert_eq!(
             lsub.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Plus, literal("1"))
+            *binary(decl_unit(), Plus, literal(1f64))
         );
         assert_eq!(
             lmul.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Slash, literal("1"))
+            *binary(decl_unit(), Slash, literal(1f64))
         );
         assert_eq!(
             ldiv.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Star, literal("1"))
+            *binary(decl_unit(), Star, literal(1f64))
         );
 
         assert_eq!(
             radd.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Minus, literal("1"))
+            *binary(decl_unit(), Minus, literal(1f64))
         );
         assert_eq!(
             rsub.invert(&mut symbol_table).unwrap(),
-            *unary(Minus, binary(decl_unit(), Plus, literal("1")))
+            *unary(Minus, binary(decl_unit(), Plus, literal(1f64)))
         );
         assert_eq!(
             rmul.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Slash, literal("1"))
+            *binary(decl_unit(), Slash, literal(1f64))
         );
         assert_eq!(
             rdiv.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Star, literal("1"))
+            *binary(decl_unit(), Star, literal(1f64))
         );
     }
 
@@ -417,34 +417,34 @@ mod tests {
 
     #[test]
     fn test_fn_call() {
-        let call_with_literal = binary(fn_call("f", vec![*literal("2")]), Plus, decl_unit());
+        let call_with_literal = binary(fn_call("f", vec![*literal(2f64)]), Plus, decl_unit());
         let call_with_decl_unit = fn_call("f", vec![*decl_unit()]);
         let call_with_decl_unit_and_literal =
-            fn_call("f", vec![*binary(decl_unit(), Plus, literal("2"))]);
+            fn_call("f", vec![*binary(decl_unit(), Plus, literal(2f64))]);
         let decl = fn_decl(
             "f",
             vec![String::from("x")],
-            binary(var("x"), Plus, literal("1")),
+            binary(var("x"), Plus, literal(1f64)),
         );
 
         let mut symbol_table = SymbolTable::new();
         symbol_table.insert(decl);
         assert_eq!(
             call_with_literal.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Minus, fn_call("f", vec![*literal("2")])),
+            *binary(decl_unit(), Minus, fn_call("f", vec![*literal(2f64)])),
         );
         assert_eq!(
             call_with_decl_unit.invert(&mut symbol_table).unwrap(),
-            *binary(decl_unit(), Minus, literal("1"))
+            *binary(decl_unit(), Minus, literal(1f64))
         );
         assert_eq!(
             call_with_decl_unit_and_literal
                 .invert(&mut symbol_table)
                 .unwrap(),
             *binary(
-                binary(decl_unit(), Minus, literal("1")),
+                binary(decl_unit(), Minus, literal(1f64)),
                 Minus,
-                literal("2")
+                literal(2f64)
             )
         );
     }
@@ -452,84 +452,100 @@ mod tests {
     #[test]
     fn test_group() {
         let group_x = binary(
-            group(binary(decl_unit(), Plus, literal("3"))),
+            group(binary(decl_unit(), Plus, literal(3f64))),
             Star,
-            literal("2"),
+            literal(2f64),
         );
         let group_unary_minus = binary(
-            literal("2"),
+            literal(2f64),
             Minus,
-            group(binary(decl_unit(), Plus, literal("3"))),
+            group(binary(decl_unit(), Plus, literal(3f64))),
         );
         let x_group_add = binary(
-            literal("2"),
+            literal(2f64),
             Star,
-            group(binary(decl_unit(), Plus, literal("3"))),
+            group(binary(decl_unit(), Plus, literal(3f64))),
         );
         let x_group_sub = binary(
-            literal("2"),
+            literal(2f64),
             Star,
-            group(binary(decl_unit(), Minus, literal("3"))),
+            group(binary(decl_unit(), Minus, literal(3f64))),
         );
         let x_group_mul = binary(
-            literal("2"),
+            literal(2f64),
             Star,
-            group(binary(decl_unit(), Star, literal("3"))),
+            group(binary(decl_unit(), Star, literal(3f64))),
         );
         let x_group_div = binary(
-            literal("2"),
+            literal(2f64),
             Star,
-            group(binary(decl_unit(), Slash, literal("3"))),
+            group(binary(decl_unit(), Slash, literal(3f64))),
         );
 
         let mut symbol_table = SymbolTable::new();
         assert_eq!(
             group_x.invert(&mut symbol_table).unwrap(),
             *binary(
-                binary(decl_unit(), Minus, binary(literal("2"), Star, literal("3"))),
+                binary(
+                    decl_unit(),
+                    Minus,
+                    binary(literal(2f64), Star, literal(3f64))
+                ),
                 Slash,
-                literal("2")
+                literal(2f64)
             )
         );
         assert_eq!(
             group_unary_minus.invert(&mut symbol_table).unwrap(),
             *binary(
                 binary(
-                    binary(decl_unit(), Minus, literal("2")),
+                    binary(decl_unit(), Minus, literal(2f64)),
                     Minus,
-                    binary(literal("-1"), Star, literal("3"))
+                    binary(literal(-1f64), Star, literal(3f64))
                 ),
                 Slash,
-                literal("-1")
+                literal(-1f64)
             )
         );
         assert_eq!(
             x_group_add.invert(&mut symbol_table).unwrap(),
             *binary(
-                binary(decl_unit(), Minus, binary(literal("2"), Star, literal("3"))),
+                binary(
+                    decl_unit(),
+                    Minus,
+                    binary(literal(2f64), Star, literal(3f64))
+                ),
                 Slash,
-                literal("2")
+                literal(2f64)
             )
         );
         assert_eq!(
             x_group_sub.invert(&mut symbol_table).unwrap(),
             *binary(
-                binary(decl_unit(), Plus, binary(literal("2"), Star, literal("3"))),
+                binary(
+                    decl_unit(),
+                    Plus,
+                    binary(literal(2f64), Star, literal(3f64))
+                ),
                 Slash,
-                literal("2")
+                literal(2f64)
             )
         );
         assert_eq!(
             x_group_mul.invert(&mut symbol_table).unwrap(),
             *binary(
-                binary(decl_unit(), Slash, literal("3")),
+                binary(decl_unit(), Slash, literal(3f64)),
                 Slash,
-                literal("2")
+                literal(2f64)
             )
         );
         assert_eq!(
             x_group_div.invert(&mut symbol_table).unwrap(),
-            *binary(binary(decl_unit(), Star, literal("3")), Slash, literal("2"))
+            *binary(
+                binary(decl_unit(), Star, literal(3f64)),
+                Slash,
+                literal(2f64)
+            )
         );
     }
 

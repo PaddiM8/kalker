@@ -95,7 +95,7 @@ impl KalkNum {
     ) -> Option<KalkNum> {
         let result = crate::interpreter::convert_unit(
             context,
-            &Expr::Literal(self.value.to_string()), // TODO: Store as f64, jeez...
+            &Expr::Literal(self.value.to_f64()),
             &self.unit,
             to_unit,
         );

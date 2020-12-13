@@ -19,5 +19,5 @@ pub enum Expr {
     Var(String),
     Group(Box<Expr>),
     FnCall(String, Vec<Expr>),
-    Literal(String),
+    Literal(f64),
 }

@@ -32,13 +32,13 @@ impl<'a> Context<'a> {
                     String::from("ans"),
                     Box::new(Expr::Unit(
                         num.unit.clone(),
-                        Box::new(Expr::Literal(num.value.clone().to_string())),
+                        Box::new(Expr::Literal(num.value.to_f64())),
                     )),
                 )
             } else {
                 Stmt::VarDecl(
                     String::from("ans"),
-                    Box::new(Expr::Literal(num.value.clone().to_string())),
+                    Box::new(Expr::Literal(num.value.to_f64())),
                 )
             });
 
@@ -85,7 +85,7 @@ fn eval_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkNum, 
         Expr::Unary(op, expr) => eval_unary_expr(context, op, expr, unit),
         Expr::Unit(identifier, expr) => eval_unit_expr(context, identifier, expr),
         Expr::Var(identifier) => eval_var_expr(context, identifier, unit),
-        Expr::Literal(value) => eval_literal_expr(context, value, unit),
+        Expr::Literal(value) => eval_literal_expr(context, *value, unit),
         Expr::Group(expr) => eval_group_expr(context, &expr, unit),
         Expr::FnCall(identifier, expressions) => {
             eval_fn_call_expr(context, identifier, expressions, unit)
@@ -200,7 +200,7 @@ fn eval_var_expr(
 ) -> Result<KalkNum, CalcError> {
     // If there is a constant with this name, return a literal expression with its value
     if let Some(value) = prelude::CONSTANTS.get(identifier) {
-        return eval_expr(context, &Expr::Literal((*value).to_string()), unit);
+        return eval_expr(context, &Expr::Literal(*value), unit);
     }
 
     // Look for the variable in the symbol table
@@ -211,14 +211,11 @@ fn eval_var_expr(
     }
 }
 
-fn eval_literal_expr(context: &mut Context, value: &str, unit: &str) -> Result<KalkNum, CalcError> {
-    match Float::parse(value) {
-        Ok(parsed_value) => Ok(KalkNum::new(
-            Float::with_val(context.precision, parsed_value),
-            unit.into(),
-        )),
-        Err(_) => Err(CalcError::InvalidNumberLiteral(value.into())),
-    }
+fn eval_literal_expr(context: &mut Context, value: f64, unit: &str) -> Result<KalkNum, CalcError> {
+    Ok(KalkNum::new(
+        Float::with_val(context.precision, value),
+        unit.into(),
+    ))
 }
 
 fn eval_group_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkNum, CalcError> {
@@ -269,7 +266,7 @@ fn eval_fn_call_expr(
             let mut sum = Float::with_val(context.precision, 0);
 
             for n in start..=end {
-                let n_expr = Expr::Literal(n.to_string());
+                let n_expr = Expr::Literal(n as f64);
 
                 // Update the variable "n" in the symbol table on every iteration,
                 // then calculate the expression and add it to the total sum.
@@ -328,7 +325,7 @@ mod tests {
                 binary(
                     var(crate::parser::DECL_UNIT),
                     TokenKind::Star,
-                    literal("180"),
+                    literal(180f64),
                 ),
                 TokenKind::Slash,
                 var("pi"),
@@ -340,7 +337,7 @@ mod tests {
             binary(
                 binary(var(crate::parser::DECL_UNIT), TokenKind::Star, var("pi")),
                 TokenKind::Slash,
-                literal("180"),
+                literal(180f64),
             ),
         );
     }
@@ -370,18 +367,18 @@ mod tests {
 
     #[test]
     fn test_literal() {
-        let stmt = Stmt::Expr(literal("1"));
+        let stmt = Stmt::Expr(literal(1f64));
 
         assert_eq!(interpret(stmt).unwrap().unwrap().to_f64(), 1f64);
     }
 
     #[test]
     fn test_binary() {
-        let add = Stmt::Expr(binary(literal("2"), Plus, literal("3")));
-        let sub = Stmt::Expr(binary(literal("2"), Minus, literal("3")));
-        let mul = Stmt::Expr(binary(literal("2"), Star, literal("3")));
-        let div = Stmt::Expr(binary(literal("2"), Slash, literal("4")));
-        let pow = Stmt::Expr(binary(literal("2"), Power, literal("3")));
+        let add = Stmt::Expr(binary(literal(2f64), Plus, literal(3f64)));
+        let sub = Stmt::Expr(binary(literal(2f64), Minus, literal(3f64)));
+        let mul = Stmt::Expr(binary(literal(2f64), Star, literal(3f64)));
+        let div = Stmt::Expr(binary(literal(2f64), Slash, literal(4f64)));
+        let pow = Stmt::Expr(binary(literal(2f64), Power, literal(3f64)));
 
         assert_eq!(interpret(add).unwrap().unwrap().to_f64(), 5f64);
         assert_eq!(interpret(sub).unwrap().unwrap().to_f64(), -1f64);
@@ -393,9 +390,9 @@ mod tests {
     #[test]
     fn test_percent() {
         let stmt = Stmt::Expr(binary(
-            literal("5"),
+            literal(5f64),
             Percent,
-            group(binary(literal("3"), Plus, unary(Percent, literal("2")))),
+            group(binary(literal(3f64), Plus, unary(Percent, literal(2f64)))),
         ));
 
         assert!(cmp(interpret(stmt).unwrap().unwrap(), 1.94f64));
@@ -403,8 +400,8 @@ mod tests {
 
     #[test]
     fn test_unary() {
-        let neg = Stmt::Expr(unary(Minus, literal("1")));
-        let fact = Stmt::Expr(unary(Exclamation, literal("5")));
+        let neg = Stmt::Expr(unary(Minus, literal(1f64)));
+        let fact = Stmt::Expr(unary(Exclamation, literal(5f64)));
 
         assert_eq!(interpret(neg).unwrap().unwrap().to_f64(), -1f64);
         assert_eq!(interpret(fact).unwrap().unwrap().to_f64(), 120f64);
@@ -412,9 +409,9 @@ mod tests {
 
     #[test]
     fn test_angle_units() {
-        let rad_explicit = Stmt::Expr(fn_call("sin", vec![*unit("rad", literal("1"))]));
-        let deg_explicit = Stmt::Expr(fn_call("sin", vec![*unit("deg", literal("1"))]));
-        let implicit = Stmt::Expr(fn_call("sin", vec![*literal("1")]));
+        let rad_explicit = Stmt::Expr(fn_call("sin", vec![*unit("rad", literal(1f64))]));
+        let deg_explicit = Stmt::Expr(fn_call("sin", vec![*unit("deg", literal(1f64))]));
+        let implicit = Stmt::Expr(fn_call("sin", vec![*literal(1f64)]));
 
         assert!(cmp(interpret(rad_explicit).unwrap().unwrap(), 0.84147098));
         assert!(cmp(interpret(deg_explicit).unwrap().unwrap(), 0.01745240));
@@ -449,7 +446,7 @@ mod tests {
 
         // Prepare by inserting a variable declaration in the symbol table.
         let mut symbol_table = SymbolTable::new();
-        symbol_table.insert(var_decl("x", literal("1")));
+        symbol_table.insert(var_decl("x", literal(1f64)));
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
         assert_eq!(
@@ -470,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_var_decl() {
-        let stmt = var_decl("x", literal("1"));
+        let stmt = var_decl("x", literal(1f64));
         let mut symbol_table = SymbolTable::new();
         Context::new(&mut symbol_table, "rad", PRECISION)
             .interpret(vec![stmt])
@@ -481,14 +478,14 @@ mod tests {
 
     #[test]
     fn test_fn() {
-        let stmt = Stmt::Expr(fn_call("f", vec![*literal("1")]));
+        let stmt = Stmt::Expr(fn_call("f", vec![*literal(1f64)]));
 
         // Prepare by inserting a variable declaration in the symbol table.
         let mut symbol_table = SymbolTable::new();
         symbol_table.insert(fn_decl(
             "f",
             vec![String::from("x")],
-            binary(var("x"), TokenKind::Plus, literal("2")),
+            binary(var("x"), TokenKind::Plus, literal(2f64)),
         ));
 
         let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
@@ -500,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_undefined_fn() {
-        let stmt = Stmt::Expr(fn_call("f", vec![*literal("1")]));
+        let stmt = Stmt::Expr(fn_call("f", vec![*literal(1f64)]));
 
         assert_eq!(
             interpret(stmt),
@@ -508,15 +505,15 @@ mod tests {
         );
     }
 
-    #[test_case("1", "2", 9f64)]
-    #[test_case("1.2", "2.3", 9f64)]
-    fn test_sum_fn(start: &str, to: &str, result: f64) {
+    #[test_case(1f64, 2f64, 9f64)]
+    #[test_case(1.2f64, 2.3f64, 9f64)]
+    fn test_sum_fn(start: f64, to: f64, result: f64) {
         let stmt = Stmt::Expr(fn_call(
             "sum",
             vec![
                 *literal(start),
                 *literal(to),
-                *binary(var("n"), TokenKind::Plus, literal("3")),
+                *binary(var("n"), TokenKind::Plus, literal(3f64)),
             ],
         ));
 
