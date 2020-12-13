@@ -9,15 +9,15 @@ use FuncType::*;
 pub const INIT: &'static str = "unit deg = (rad*180)/pi";
 
 lazy_static! {
-    pub static ref CONSTANTS: HashMap<&'static str, &'static str> = {
+    pub static ref CONSTANTS: HashMap<&'static str, f64> = {
         let mut m = HashMap::new();
-        m.insert("pi", "3.14159265");
-        m.insert("π", "3.14159265");
-        m.insert("e", "2.71828182");
-        m.insert("tau", "6.28318530");
-        m.insert("τ", "6.28318530");
-        m.insert("phi", "1.61803398");
-        m.insert("ϕ", "1.61803398");
+        m.insert("pi", 3.14159265);
+        m.insert("π", 3.14159265);
+        m.insert("e", 2.71828182);
+        m.insert("tau", 6.28318530);
+        m.insert("τ", 6.28318530);
+        m.insert("phi", 1.61803398);
+        m.insert("ϕ", 1.61803398);
         m
     };
     pub static ref UNARY_FUNCS: HashMap<&'static str, (UnaryFuncInfo, &'static str)> = {
@@ -154,9 +154,14 @@ fn to_angle_unit(context: &mut interpreter::Context, x: Float, angle_unit: &str)
     match angle_unit {
         "rad" => x,
         _ => {
-            interpreter::convert_unit(context, &Expr::Literal(x.to_string()), "rad", angle_unit)
-                .unwrap()
-                .value
+            interpreter::convert_unit(
+                context,
+                &Expr::Literal(x.to_f64_round(rug::float::Round::Nearest)),
+                "rad",
+                angle_unit,
+            )
+            .unwrap()
+            .value
         }
     }
 }
@@ -165,9 +170,14 @@ fn from_angle_unit(context: &mut interpreter::Context, x: Float, angle_unit: &st
     match angle_unit {
         "rad" => x,
         _ => {
-            interpreter::convert_unit(context, &Expr::Literal(x.to_string()), angle_unit, "rad")
-                .unwrap()
-                .value
+            interpreter::convert_unit(
+                context,
+                &Expr::Literal(x.to_f64_round(rug::float::Round::Nearest)),
+                angle_unit,
+                "rad",
+            )
+            .unwrap()
+            .value
         }
     }
 }

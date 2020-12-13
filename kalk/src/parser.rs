@@ -339,7 +339,7 @@ fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
         TokenKind::OpenParenthesis => parse_group(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
-        TokenKind::Literal => Expr::Literal(advance(context).value.clone()),
+        TokenKind::Literal => Expr::Literal(advance(context).value.parse::<f64>().unwrap()),
         _ => return Err(CalcError::UnableToParseExpression),
     };
 
@@ -375,7 +375,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     if match_token(context, TokenKind::Literal) {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
         if context.symbol_table.contains_fn(&identifier.value) {
-            let parameter = Expr::Literal(advance(context).value.clone());
+            let parameter = Expr::Literal(advance(context).value.parse::<f64>().unwrap());
             return Ok(Expr::FnCall(identifier.value, vec![parameter]));
         }
     }
@@ -508,15 +508,15 @@ mod tests {
         assert_eq!(
             parse(tokens).unwrap(),
             Stmt::Expr(binary(
-                literal("1"),
+                literal(1f64),
                 Plus,
                 binary(
-                    literal("2"),
+                    literal(2f64),
                     Star,
                     group(binary(
-                        literal("3"),
+                        literal(3f64),
                         Minus,
-                        binary(literal("4"), Slash, literal("5"))
+                        binary(literal(4f64), Slash, literal(5f64))
                     ))
                 )
             ))
@@ -542,16 +542,16 @@ mod tests {
             parse(tokens).unwrap(),
             Stmt::Expr(binary(
                 binary(
-                    literal("1"),
+                    literal(1f64),
                     Star,
                     binary(
-                        literal("2"),
+                        literal(2f64),
                         Power,
-                        binary(literal("3"), Power, literal("4")),
+                        binary(literal(3f64), Power, literal(4f64)),
                     ),
                 ),
                 Plus,
-                literal("5")
+                literal(5f64)
             )),
         );
     }
@@ -571,9 +571,9 @@ mod tests {
         assert_eq!(
             parse(tokens).unwrap(),
             Stmt::Expr(binary(
-                binary(literal("1"), Percent, literal("1"),),
+                binary(literal(1f64), Percent, literal(1f64)),
                 Plus,
-                unary(Percent, literal("5"))
+                unary(Percent, literal(5f64))
             ))
         );
     }
@@ -589,7 +589,7 @@ mod tests {
 
         assert_eq!(
             parse_with_context(&mut context, tokens).unwrap(),
-            Stmt::Expr(unit("a", literal("1")))
+            Stmt::Expr(unit("a", literal(1f64)))
         );
     }
 
@@ -606,7 +606,10 @@ mod tests {
 
         assert_eq!(
             parse(tokens).unwrap(),
-            Stmt::VarDecl(String::from("x"), binary(literal("1"), Plus, literal("2")))
+            Stmt::VarDecl(
+                String::from("x"),
+                binary(literal(1f64), Plus, literal(2f64))
+            )
         );
     }
 
@@ -629,7 +632,7 @@ mod tests {
             Stmt::FnDecl(
                 String::from("f"),
                 vec![String::from("x")],
-                binary(literal("1"), Plus, literal("2"))
+                binary(literal(1f64), Plus, literal(2f64))
             )
         );
     }
@@ -654,7 +657,7 @@ mod tests {
         context.symbol_table.set(Stmt::FnDecl(
             String::from("f"),
             vec![String::from("x")],
-            literal("1"),
+            literal(1f64),
         ));
 
         assert_eq!(
@@ -662,10 +665,10 @@ mod tests {
             Stmt::Expr(binary(
                 Box::new(Expr::FnCall(
                     String::from("f"),
-                    vec![*binary(literal("1"), Plus, literal("2"))]
+                    vec![*binary(literal(1f64), Plus, literal(2f64))]
                 )),
                 Plus,
-                literal("3")
+                literal(3f64)
             ))
         );
     }

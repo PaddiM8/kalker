@@ -12,8 +12,8 @@ pub fn token(kind: TokenKind, value: &str) -> Token {
     }
 }
 
-pub fn literal(value: &str) -> Box<Expr> {
-    Box::new(Expr::Literal(value.into()))
+pub fn literal(value: f64) -> Box<Expr> {
+    Box::new(Expr::Literal(value))
 }
 
 pub fn var(identifier: &str) -> Box<Expr> {
