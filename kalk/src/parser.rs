@@ -339,7 +339,7 @@ fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
         TokenKind::OpenParenthesis => parse_group(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
-        TokenKind::Literal => Expr::Literal(advance(context).value.parse::<f64>().unwrap()),
+        TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)),
         _ => return Err(CalcError::UnableToParseExpression),
     };
 
@@ -375,7 +375,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     if match_token(context, TokenKind::Literal) {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
         if context.symbol_table.contains_fn(&identifier.value) {
-            let parameter = Expr::Literal(advance(context).value.parse::<f64>().unwrap());
+            let parameter = Expr::Literal(string_to_num(&advance(context).value));
             return Ok(Expr::FnCall(identifier.value, vec![parameter]));
         }
     }
@@ -456,6 +456,10 @@ fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, CalcError> 
 
 fn is_at_end(context: &Context) -> bool {
     context.pos >= context.tokens.len() || peek(context).kind == TokenKind::EOF
+}
+
+fn string_to_num(value: &str) -> f64 {
+    value.replace(" ", "").parse::<f64>().unwrap()
 }
 
 #[cfg(test)]
