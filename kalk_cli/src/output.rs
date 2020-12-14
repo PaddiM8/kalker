@@ -22,11 +22,7 @@ pub fn eval(parser: &mut parser::Context, input: &str, precision: u32) {
 }
 
 pub fn print_err(msg: &str) {
-    let msg = if cfg!(windows) {
-        msg.to_string()
-    } else {
-        Red.paint(msg).to_string()
-    };
+    Red.paint(msg).to_string();
     println!("{}", msg);
 }
 

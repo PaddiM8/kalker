@@ -18,7 +18,7 @@ name = "kalk"
 [dependencies]
 kalk = { path = "../kalk", version = "^1.2.6" }
 rustyline = "7.0.0"
-ansi_term = "0.12"
+ansi_term = "0.12.1"
 regex = "1"
 lazy_static = "1.4.0"
 seahorse = "1.1.1"

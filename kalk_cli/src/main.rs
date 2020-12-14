@@ -36,6 +36,9 @@ fn main() {
 }
 
 fn default_action(context: &Context) {
+    #[cfg(windows)]
+    ansi_term::enable_ansi_support().unwrap_or_default();
+
     let angle_unit = if let Ok(angle_unit) = context.string_flag("angle-unit") {
         match angle_unit.as_ref() {
             "rad" | "deg" => angle_unit,

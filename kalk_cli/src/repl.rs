@@ -24,6 +24,11 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
         highlighter: LineHighlighter {},
         validator: MatchingBracketValidator::new(),
     }));
+    println!("kalk");
+    println!(
+        "{}",
+        ansi_term::Color::Fixed(246).paint("Type 'help' for instructions.")
+    );
 
     loop {
         let prompt = if cfg!(windows) {
@@ -77,7 +82,7 @@ impl Highlighter for LineHighlighter {
                 if let Some(cap) = caps.name("identifier") {
                     match cap.as_str() {
                         "rad" | "deg" | "°" => Colour::Yellow.paint(cap.as_str()).to_string(),
-                        _ => Colour::Blue.paint(cap.as_str()).to_string(),
+                        _ => Colour::Fixed(32).paint(cap.as_str()).to_string(),
                     }
                 } else if let Some(cap) = caps.name("op") {
                     Colour::Fixed(172).paint(cap.as_str()).to_string()
