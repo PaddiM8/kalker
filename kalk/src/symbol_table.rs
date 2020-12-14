@@ -74,10 +74,7 @@ impl SymbolTable {
     }
 
     pub fn contains_fn(&self, identifier: &str) -> bool {
-        identifier == "sum"
-            || identifier == "Σ"
-            || prelude::UNARY_FUNCS.contains_key(identifier)
-            || prelude::BINARY_FUNCS.contains_key(identifier)
+        prelude::is_prelude_func(identifier)
             || self.hashmap.contains_key(&format!("fn.{}", identifier))
     }
 }

@@ -1,7 +1,6 @@
 use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
-use crate::parser::DECL_UNIT;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
 use lazy_static::lazy_static;
@@ -40,11 +39,25 @@ lazy_static! {
 }
 
 impl Expr {
-    pub fn invert(&self, symbol_table: &mut SymbolTable) -> Result<Self, CalcError> {
-        let target_expr = Expr::Var(DECL_UNIT.into());
-        let result = invert(target_expr, symbol_table, self);
+    pub fn invert(
+        &self,
+        symbol_table: &mut SymbolTable,
+        unknown_var: &str,
+    ) -> Result<Self, CalcError> {
+        let target_expr = Expr::Var(unknown_var.into());
+        let result = invert(target_expr, symbol_table, self, unknown_var);
 
         Ok(result?.0)
+    }
+
+    pub fn invert_to_target(
+        &self,
+        symbol_table: &mut SymbolTable,
+        target_expr: Expr,
+        unknown_var: &str,
+    ) -> Result<Self, CalcError> {
+        let x = invert(target_expr, symbol_table, self, unknown_var)?;
+        Ok(x.0)
     }
 }
 
@@ -52,18 +65,25 @@ fn invert(
     target_expr: Expr,
     symbol_table: &mut SymbolTable,
     expr: &Expr,
+    unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
     match expr {
         Expr::Binary(left, op, right) => {
-            invert_binary(target_expr, symbol_table, &left, op, &right)
+            invert_binary(target_expr, symbol_table, &left, op, &right, unknown_var)
         }
         Expr::Unary(op, expr) => invert_unary(target_expr, op, &expr),
-        Expr::Unit(identifier, expr) => invert_unit(target_expr, &identifier, &expr),
-        Expr::Var(identifier) => invert_var(target_expr, symbol_table, identifier),
-        Expr::Group(expr) => Ok((target_expr, *expr.clone())),
-        Expr::FnCall(identifier, arguments) => {
-            invert_fn_call(target_expr, symbol_table, &identifier, arguments)
+        Expr::Unit(identifier, expr) => {
+            invert_unit(target_expr, symbol_table, &identifier, &expr, unknown_var)
         }
+        Expr::Var(identifier) => invert_var(target_expr, symbol_table, identifier, unknown_var),
+        Expr::Group(expr) => Ok((target_expr, *expr.clone())),
+        Expr::FnCall(identifier, arguments) => invert_fn_call(
+            target_expr,
+            symbol_table,
+            &identifier,
+            arguments,
+            unknown_var,
+        ),
         Expr::Literal(_) => Ok((target_expr, expr.clone())),
     }
 }
@@ -74,6 +94,7 @@ fn invert_binary(
     left: &Expr,
     op: &TokenKind,
     right: &Expr,
+    unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
     let op_inv = match op {
         TokenKind::Plus => TokenKind::Minus,
@@ -87,6 +108,7 @@ fn invert_binary(
                     left,
                     &TokenKind::Plus,
                     &multiply_into(&Expr::Literal(-1f64), inside_group)?,
+                    unknown_var,
                 );
             }
 
@@ -100,6 +122,7 @@ fn invert_binary(
                     target_expr,
                     symbol_table,
                     &multiply_into(right, inside_group)?,
+                    unknown_var,
                 );
             }
 
@@ -109,6 +132,7 @@ fn invert_binary(
                     target_expr,
                     symbol_table,
                     &multiply_into(left, inside_group)?,
+                    unknown_var,
                 );
             }
 
@@ -122,6 +146,7 @@ fn invert_binary(
                     target_expr,
                     symbol_table,
                     &Expr::Binary(inside_group.clone(), op.clone(), Box::new(right.clone())),
+                    unknown_var,
                 );
             }
 
@@ -132,20 +157,38 @@ fn invert_binary(
                     target_expr,
                     symbol_table,
                     &Expr::Binary(Box::new(left.clone()), op.clone(), inside_group.clone()),
+                    unknown_var,
                 );
             }
 
             TokenKind::Star
         }
-        _ => unreachable!(),
+        TokenKind::Power => {
+            return if contains_var(symbol_table, left, unknown_var) {
+                invert(
+                    Expr::FnCall("root".into(), vec![target_expr, right.clone()]),
+                    symbol_table,
+                    right,
+                    unknown_var,
+                )
+            } else {
+                invert(
+                    Expr::FnCall("log".into(), vec![target_expr, left.clone()]),
+                    symbol_table,
+                    right,
+                    unknown_var,
+                )
+            };
+        }
+        _ => return Err(CalcError::UnableToInvert(String::new())),
     };
 
     // If the left expression contains the unit, invert the right one instead,
     // since the unit should not be moved.
-    if contains_the_unit(symbol_table, left) {
+    if contains_var(symbol_table, left, unknown_var) {
         // But if the right expression *also* contains the unit,
         // throw an error, since it can't handle this yet.
-        if contains_the_unit(symbol_table, right) {
+        if contains_var(symbol_table, right, unknown_var) {
             return Err(CalcError::UnableToInvert(String::from(
                 "Expressions with several instances of an unknown variable (this might be supported in the future). Try simplifying the expression.",
             )));
@@ -155,6 +198,7 @@ fn invert_binary(
             Expr::Binary(Box::new(target_expr), op_inv, Box::new(right.clone())),
             symbol_table,
             left,
+            unknown_var,
         )?);
     }
 
@@ -171,6 +215,7 @@ fn invert_binary(
         },
         symbol_table,
         right, // Then invert the right expression.
+        unknown_var,
     )?)
 }
 
@@ -181,29 +226,35 @@ fn invert_unary(target_expr: Expr, op: &TokenKind, expr: &Expr) -> Result<(Expr,
             Expr::Unary(TokenKind::Minus, Box::new(target_expr)),
             expr.clone(), // And then continue inverting the inner-expression.
         )),
-        _ => unimplemented!(),
+        _ => return Err(CalcError::UnableToInvert(String::new())),
     }
 }
 
 fn invert_unit(
-    _target_expr: Expr,
-    _identifier: &str,
-    _expr: &Expr,
+    target_expr: Expr,
+    symbol_table: &mut SymbolTable,
+    identifier: &str,
+    expr: &Expr,
+    unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
-    Err(CalcError::UnableToInvert(String::from(
-        "Expressions containing other units (this should be supported in the future).",
-    )))
+    let x = Expr::Binary(
+        Box::new(target_expr),
+        TokenKind::ToKeyword,
+        Box::new(Expr::Var(identifier.into())),
+    );
+    invert(x, symbol_table, expr, unknown_var)
 }
 
 fn invert_var(
     target_expr: Expr,
     symbol_table: &mut SymbolTable,
     identifier: &str,
+    unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
-    if identifier == DECL_UNIT {
+    if identifier == unknown_var {
         Ok((target_expr, Expr::Var(identifier.into())))
     } else if let Some(Stmt::VarDecl(_, var_expr)) = symbol_table.get_var(identifier).cloned() {
-        invert(target_expr, symbol_table, &var_expr)
+        invert(target_expr, symbol_table, &var_expr, unknown_var)
     } else {
         Ok((target_expr, Expr::Var(identifier.into())))
     }
@@ -214,27 +265,32 @@ fn invert_fn_call(
     symbol_table: &mut SymbolTable,
     identifier: &str,
     arguments: &Vec<Expr>,
+    unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
     // If prelude function
     match arguments.len() {
         1 => {
             if prelude::UNARY_FUNCS.contains_key(identifier) {
                 if let Some(fn_inv) = INVERSE_UNARY_FUNCS.get(identifier) {
-                    return Ok((
+                    return invert(
                         Expr::FnCall(fn_inv.to_string(), vec![target_expr]),
-                        arguments[0].clone(),
-                    ));
+                        symbol_table,
+                        &arguments[0],
+                        unknown_var,
+                    );
                 } else {
                     match identifier {
                         "sqrt" => {
-                            return Ok((
+                            return invert(
                                 Expr::Binary(
                                     Box::new(target_expr),
                                     TokenKind::Power,
                                     Box::new(Expr::Literal(2f64)),
                                 ),
-                                arguments[0].clone(),
-                            ));
+                                symbol_table,
+                                &arguments[0],
+                                unknown_var,
+                            );
                         }
                         _ => {
                             return Err(CalcError::UnableToInvert(format!(
@@ -284,29 +340,30 @@ fn invert_fn_call(
     }
 
     // Invert everything in the function body.
-    invert(target_expr, symbol_table, &body)
+    invert(target_expr, symbol_table, &body, unknown_var)
 }
 
-fn contains_the_unit(symbol_table: &SymbolTable, expr: &Expr) -> bool {
-    // Recursively scan the expression for the unit.
+pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> bool {
+    // Recursively scan the expression for the variable.
     match expr {
         Expr::Binary(left, _, right) => {
-            contains_the_unit(symbol_table, left) || contains_the_unit(symbol_table, right)
+            contains_var(symbol_table, left, var_name)
+                || contains_var(symbol_table, right, var_name)
         }
-        Expr::Unary(_, expr) => contains_the_unit(symbol_table, expr),
-        Expr::Unit(_, expr) => contains_the_unit(symbol_table, expr),
+        Expr::Unary(_, expr) => contains_var(symbol_table, expr, var_name),
+        Expr::Unit(_, expr) => contains_var(symbol_table, expr, var_name),
         Expr::Var(identifier) => {
-            identifier == DECL_UNIT
+            identifier == var_name
                 || if let Some(Stmt::VarDecl(_, var_expr)) = symbol_table.get_var(identifier) {
-                    contains_the_unit(symbol_table, var_expr)
+                    contains_var(symbol_table, var_expr, var_name)
                 } else {
                     false
                 }
         }
-        Expr::Group(expr) => contains_the_unit(symbol_table, expr),
+        Expr::Group(expr) => contains_var(symbol_table, expr, var_name),
         Expr::FnCall(_, args) => {
             for arg in args {
-                if contains_the_unit(symbol_table, arg) {
+                if contains_var(symbol_table, arg, var_name) {
                     return true;
                 }
             }
@@ -333,7 +390,7 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
                 op.clone(),
                 right.clone(),
             )),
-            _ => unimplemented!(),
+            _ => return Err(CalcError::UnableToInvert(String::new())),
         },
         // If it's a literal, just multiply them together.
         Expr::Literal(_) | Expr::Var(_) => Ok(Expr::Binary(
@@ -344,7 +401,7 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
         Expr::Group(_) => Err(CalcError::UnableToInvert(String::from(
             "Parenthesis multiplied with parenthesis (this should be possible in the future).",
         ))),
-        _ => unimplemented!(),
+        _ => return Err(CalcError::UnableToInvert(String::new())),
     }
 }
 
@@ -352,6 +409,7 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
 mod tests {
     use crate::ast::Expr;
     use crate::lexer::TokenKind::*;
+    use crate::parser::DECL_UNIT;
     use crate::symbol_table::SymbolTable;
     use crate::test_helpers::*;
 
@@ -373,36 +431,36 @@ mod tests {
 
         let mut symbol_table = SymbolTable::new();
         assert_eq!(
-            ladd.invert(&mut symbol_table).unwrap(),
+            ladd.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(decl_unit(), Minus, literal(1f64))
         );
         assert_eq!(
-            lsub.invert(&mut symbol_table).unwrap(),
+            lsub.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(decl_unit(), Plus, literal(1f64))
         );
         assert_eq!(
-            lmul.invert(&mut symbol_table).unwrap(),
+            lmul.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(decl_unit(), Slash, literal(1f64))
         );
         assert_eq!(
-            ldiv.invert(&mut symbol_table).unwrap(),
+            ldiv.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(decl_unit(), Star, literal(1f64))
         );
 
         assert_eq!(
-            radd.invert(&mut symbol_table).unwrap(),
+            radd.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(decl_unit(), Minus, literal(1f64))
         );
         assert_eq!(
-            rsub.invert(&mut symbol_table).unwrap(),
+            rsub.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *unary(Minus, binary(decl_unit(), Plus, literal(1f64)))
         );
         assert_eq!(
-            rmul.invert(&mut symbol_table).unwrap(),
+            rmul.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(decl_unit(), Slash, literal(1f64))
         );
         assert_eq!(
-            rdiv.invert(&mut symbol_table).unwrap(),
+            rdiv.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(decl_unit(), Star, literal(1f64))
         );
     }
@@ -412,7 +470,7 @@ mod tests {
         let neg = unary(Minus, decl_unit());
 
         let mut symbol_table = SymbolTable::new();
-        assert_eq!(neg.invert(&mut symbol_table).unwrap(), *neg);
+        assert_eq!(neg.invert(&mut symbol_table, DECL_UNIT).unwrap(), *neg);
     }
 
     #[test]
@@ -430,16 +488,20 @@ mod tests {
         let mut symbol_table = SymbolTable::new();
         symbol_table.insert(decl);
         assert_eq!(
-            call_with_literal.invert(&mut symbol_table).unwrap(),
+            call_with_literal
+                .invert(&mut symbol_table, DECL_UNIT)
+                .unwrap(),
             *binary(decl_unit(), Minus, fn_call("f", vec![*literal(2f64)])),
         );
         assert_eq!(
-            call_with_decl_unit.invert(&mut symbol_table).unwrap(),
+            call_with_decl_unit
+                .invert(&mut symbol_table, DECL_UNIT)
+                .unwrap(),
             *binary(decl_unit(), Minus, literal(1f64))
         );
         assert_eq!(
             call_with_decl_unit_and_literal
-                .invert(&mut symbol_table)
+                .invert(&mut symbol_table, DECL_UNIT)
                 .unwrap(),
             *binary(
                 binary(decl_unit(), Minus, literal(1f64)),
@@ -484,7 +546,7 @@ mod tests {
 
         let mut symbol_table = SymbolTable::new();
         assert_eq!(
-            group_x.invert(&mut symbol_table).unwrap(),
+            group_x.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(
                 binary(
                     decl_unit(),
@@ -496,7 +558,9 @@ mod tests {
             )
         );
         assert_eq!(
-            group_unary_minus.invert(&mut symbol_table).unwrap(),
+            group_unary_minus
+                .invert(&mut symbol_table, DECL_UNIT)
+                .unwrap(),
             *binary(
                 binary(
                     binary(decl_unit(), Minus, literal(2f64)),
@@ -508,7 +572,7 @@ mod tests {
             )
         );
         assert_eq!(
-            x_group_add.invert(&mut symbol_table).unwrap(),
+            x_group_add.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(
                 binary(
                     decl_unit(),
@@ -520,7 +584,7 @@ mod tests {
             )
         );
         assert_eq!(
-            x_group_sub.invert(&mut symbol_table).unwrap(),
+            x_group_sub.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(
                 binary(
                     decl_unit(),
@@ -532,7 +596,7 @@ mod tests {
             )
         );
         assert_eq!(
-            x_group_mul.invert(&mut symbol_table).unwrap(),
+            x_group_mul.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(
                 binary(decl_unit(), Slash, literal(3f64)),
                 Slash,
@@ -540,7 +604,7 @@ mod tests {
             )
         );
         assert_eq!(
-            x_group_div.invert(&mut symbol_table).unwrap(),
+            x_group_div.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(
                 binary(decl_unit(), Star, literal(3f64)),
                 Slash,

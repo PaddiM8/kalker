@@ -1,8 +1,9 @@
 use crate::kalk_num::KalkNum;
 use crate::{
     ast::{Expr, Stmt},
-    interpreter,
+    interpreter, inverter,
     lexer::{Lexer, Token, TokenKind},
+    prelude,
     symbol_table::SymbolTable,
 };
 
@@ -31,6 +32,8 @@ pub struct Context {
     /// whenever a unit in the expression is found. Eg. unit a = 3b, it will be set to Some("b")
     unit_decl_base_unit: Option<String>,
     parsing_identifier_stmt: bool,
+    equation_variable: Option<String>,
+    contains_equal_sign: bool,
 }
 
 impl Context {
@@ -43,6 +46,8 @@ impl Context {
             parsing_unit_decl: false,
             unit_decl_base_unit: None,
             parsing_identifier_stmt: false,
+            equation_variable: None,
+            contains_equal_sign: false,
         };
 
         parse(&mut context, crate::prelude::INIT).unwrap();
@@ -74,6 +79,7 @@ pub enum CalcError {
     UndefinedFn(String),
     UndefinedVar(String),
     UnableToInvert(String),
+    UnableToSolveEquation,
     UnableToParseExpression,
     Unknown,
 }
@@ -86,6 +92,7 @@ pub fn eval(
     input: &str,
     precision: u32,
 ) -> Result<Option<KalkNum>, CalcError> {
+    context.contains_equal_sign = input.contains("=");
     let statements = parse(context, input)?;
 
     let mut interpreter =
@@ -134,40 +141,41 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let primary = parse_primary(context)?; // Since function declarations and function calls look the same at first, simply parse a "function call", and re-use the data.
     context.parsing_identifier_stmt = false;
 
-    // If `primary` is followed by an equal sign, it is a function declaration.
+    // If `primary` is followed by an equal sign and is not a prelude function,
+    // treat it as a function declaration
     if let TokenKind::Equals = peek(context).kind {
-        advance(context);
-        let expr = parse_expr(context)?;
-
         // Use the "function call" expression that was parsed, and put its values into a function declaration statement instead.
         if let Expr::FnCall(identifier, parameters) = primary {
-            let mut parameter_identifiers = Vec::new();
+            if !prelude::is_prelude_func(&identifier) {
+                let expr = parse_expr(context)?;
+                advance(context);
+                let mut parameter_identifiers = Vec::new();
 
-            // All the "arguments" are expected to be parsed as variables,
-            // since parameter definitions look the same as variable references.
-            // Extract these.
-            for parameter in parameters {
-                if let Expr::Var(parameter_identifier) = parameter {
-                    parameter_identifiers.push(parameter_identifier);
+                // All the "arguments" are expected to be parsed as variables,
+                // since parameter definitions look the same as variable references.
+                // Extract these.
+                for parameter in parameters {
+                    if let Expr::Var(parameter_identifier) = parameter {
+                        parameter_identifiers.push(parameter_identifier);
+                    }
                 }
+
+                let fn_decl =
+                    Stmt::FnDecl(identifier.clone(), parameter_identifiers, Box::new(expr));
+
+                // Insert the function declaration into the symbol table during parsing
+                // so that the parser can find out if particular functions exist.
+                context.symbol_table.insert(fn_decl.clone());
+
+                return Ok(fn_decl);
             }
-
-            let fn_decl = Stmt::FnDecl(identifier.clone(), parameter_identifiers, Box::new(expr));
-
-            // Insert the function declaration into the symbol table during parsing
-            // so that the parser can find out if particular functions exist.
-            context.symbol_table.insert(fn_decl.clone());
-
-            return Ok(fn_decl);
         }
-
-        Err(CalcError::Unknown)
-    } else {
-        // It is a function call or eg. x(x + 3), not a function declaration.
-        // Redo the parsing for this specific part.
-        context.pos = began_at;
-        Ok(Stmt::Expr(Box::new(parse_expr(context)?)))
     }
+
+    // It is a function call or eg. x(x + 3), not a function declaration.
+    // Redo the parsing for this specific part.
+    context.pos = began_at;
+    Ok(Stmt::Expr(Box::new(parse_expr(context)?)))
 }
 
 fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
@@ -201,7 +209,7 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let stmt_inv = Stmt::UnitDecl(
         base_unit.clone(),
         identifier.value.clone(),
-        Box::new(def.invert(&mut context.symbol_table)?),
+        Box::new(def.invert(&mut context.symbol_table, DECL_UNIT)?),
     );
     let stmt = Stmt::UnitDecl(identifier.value, base_unit, Box::new(def));
 
@@ -212,17 +220,54 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 }
 
 fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
-    Ok(parse_to(context)?)
+    Ok(parse_equation(context)?)
+}
+
+fn parse_equation(context: &mut Context) -> Result<Expr, CalcError> {
+    let left = parse_to(context)?;
+
+    if match_token(context, TokenKind::Equals) {
+        advance(context);
+        let right = parse_to(context)?;
+        let var_name = if let Some(var_name) = &context.equation_variable {
+            var_name
+        } else {
+            return Err(CalcError::UnableToSolveEquation);
+        };
+
+        let inverted = if inverter::contains_var(&mut context.symbol_table, &left, var_name) {
+            left.invert_to_target(&mut context.symbol_table, right, var_name)?
+        } else {
+            right.invert_to_target(&mut context.symbol_table, left, var_name)?
+        };
+
+        // If the inverted expression still contains the variable,
+        // the equation solving failed.
+        if inverter::contains_var(&mut context.symbol_table, &inverted, var_name) {
+            return Err(CalcError::UnableToSolveEquation);
+        }
+
+        context
+            .symbol_table
+            .insert(Stmt::VarDecl(var_name.into(), Box::new(inverted.clone())));
+        return Ok(inverted);
+    }
+
+    Ok(left)
 }
 
 fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
     let left = parse_sum(context)?;
 
     if match_token(context, TokenKind::ToKeyword) {
-        let op = advance(context).kind;
+        advance(context);
         let right = Expr::Var(advance(context).value.clone()); // Parse this as a variable for now.
 
-        return Ok(Expr::Binary(Box::new(left), op, Box::new(right)));
+        return Ok(Expr::Binary(
+            Box::new(left),
+            TokenKind::ToKeyword,
+            Box::new(right),
+        ));
     }
 
     Ok(left)
@@ -367,7 +412,7 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
         TokenKind::Pipe => "abs",
         TokenKind::OpenCeil => "ceil",
         TokenKind::OpenFloor => "floor",
-        _ => panic!("Unexpected parsing error."),
+        _ => unreachable!(),
     };
 
     let expr = parse_expr(context)?;
@@ -419,6 +464,15 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         context.unit_decl_base_unit = Some(identifier.value);
         Ok(Expr::Var(DECL_UNIT.into()))
     } else {
+        if let Some(equation_var) = &context.equation_variable {
+            if &identifier.value == equation_var {
+                return Ok(Expr::Var(identifier.value));
+            }
+        } else if context.contains_equal_sign {
+            context.equation_variable = Some(identifier.value.clone());
+            return Ok(Expr::Var(identifier.value));
+        }
+
         let mut chars = identifier.value.chars();
         let mut left = Expr::Var(chars.next().unwrap().to_string());
 
