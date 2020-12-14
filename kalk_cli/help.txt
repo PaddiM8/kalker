@@ -1,0 +1,71 @@
+Overview of features
+    Operators: +, -, *, /, !, %
+    Groups: (), ⌈⌉, ⌋⌊
+    Pre-defined functions and constants
+    User-defined functions and variables
+    User-defined units (experimental)
+    Understands fairly ambiguous syntax. Eg. 2sin50 + 2xy
+    Syntax highlighting
+    Completion for special symbols on tab
+    Sum functions
+
+Operators
+    +, -, *, /
+    ! Factorial, eg. 5! gives 120
+    % Percent, eg. 5% gives 0.05, 10 + 50% gives 15
+    % Modulus (remainder), eg. 23 % 3 gives 2
+
+Completion for special symbols
+    You can type special symbols (such as √) by typing the normal function or constant name and pressing tab.
+
+    sqrt becomes √
+    deg becomes °
+    pi becomes π
+    sum becomes Σ()
+    tau becomes τ
+    phi becomes ϕ
+    floor becomes ⌊⌋
+    ceil becomes ⌈⌉
+    gamma becomes Γ
+    ( becomes ()
+
+Variables
+Variables are defined with the following syntax: name = value
+Example: x = 3/4
+
+Functions
+Functions are defined with the following syntax: name(param1, param2, etc.) = value
+Examples: f(x) = 2x+3; A(x, y) = (xy)/2
+They are used like this: name(arg1, arg2, etc.)
+Example: f(3) + 3 A(2, 3) 
+
+Predefined functions
+    sin, cos, tan, cot, cosec, sec
+    sinh, cosh, tanh, coth, cosech, sech
+    asin, acos, atan, acot, acosec, asec
+    asinh, acosh, atanh, acoth, acosech, asech
+    abs, ceil or ⌈⌉, floor or ⌊⌋, frac, round, trunc
+    sqrt or √, cbrt, exp, log, ln
+    gamma or Γ
+    asinh, acosh, atanh, acoth, acosech, asech
+    min, max, hyp
+    log Eg. log(1000, 10) is the same as log10(1000)
+    root Eg. root(16, 3) is the same as 3√16
+    sum Eg. sum(1, 4, 2n), example below
+
+Sum function
+    The sum function lets you sum an expression with an incrementing variable.
+    It takes three arguments: start value, end value, and expression.
+    If you press tab after typing out "sum", it will be replaced with a sigma symbol.
+    The expression is what will be summed, and will be able to use the "n" variable,
+    which represents the current value between the start value and the end value.
+    The value of "n" increments.
+    Example: sum(1, 4, 2n) will be the same as 2*1 + 2*2 + 2*3 + 2*4 = 20
+    This can for example be used to calculate e: Σ(0, 10000, 1/n!) = 2.7182818284590455
+    More precision can be gotten by changing the "--precision" flag. Run `kalk --help` for more info.
+
+Constants
+    pi or π = 3.14159265
+    e = 2.71828182
+    tau or τ = 6.2831853
+    phi or ϕ = 1.61803398

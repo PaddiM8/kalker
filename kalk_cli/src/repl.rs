@@ -49,8 +49,14 @@ fn eval_repl(parser: &mut parser::Context, input: &str, precision: u32) {
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
         "exit" => process::exit(0),
+        "help" => print_cli_help(),
         _ => output::eval(parser, input, precision),
     }
+}
+
+fn print_cli_help() {
+    let help_text = include_str!("../help.txt");
+    println!("{}", help_text);
 }
 
 struct LineHighlighter {}
