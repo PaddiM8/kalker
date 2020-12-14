@@ -117,6 +117,13 @@ impl BinaryFuncInfo {
     }
 }
 
+pub fn is_prelude_func(identifier: &str) -> bool {
+    identifier == "sum"
+        || identifier == "Σ"
+        || UNARY_FUNCS.contains_key(identifier)
+        || BINARY_FUNCS.contains_key(identifier)
+}
+
 pub fn call_unary_func(
     context: &mut interpreter::Context,
     name: &str,

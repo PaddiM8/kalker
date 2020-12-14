@@ -42,6 +42,7 @@ fn print_calc_err(err: CalcError) {
         UndefinedFn(name) => format!("Undefined function: '{}'.", name),
         UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
         UnableToParseExpression => format!("Unable to parse expression."),
+        UnableToSolveEquation => format!("Unable to solve equation."),
         Unknown => format!("Unknown error."),
     });
 }
