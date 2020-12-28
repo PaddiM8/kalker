@@ -12,15 +12,24 @@ pub struct Context<'a> {
     angle_unit: String,
     precision: u32,
     sum_n_value: Option<i128>,
+    timeout: Option<u32>,
+    start_time: std::time::SystemTime,
 }
 
 impl<'a> Context<'a> {
-    pub fn new(symbol_table: &'a mut SymbolTable, angle_unit: &str, precision: u32) -> Self {
+    pub fn new(
+        symbol_table: &'a mut SymbolTable,
+        angle_unit: &str,
+        precision: u32,
+        timeout: Option<u32>,
+    ) -> Self {
         Context {
             angle_unit: angle_unit.into(),
             symbol_table,
             precision,
             sum_n_value: None,
+            timeout: timeout,
+            start_time: std::time::SystemTime::now(),
         }
     }
 
@@ -82,6 +91,12 @@ fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<KalkNum, CalcErr
 }
 
 fn eval_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkNum, CalcError> {
+    if let (Ok(elapsed), Some(timeout)) = (context.start_time.elapsed(), context.timeout) {
+        if elapsed.as_secs() >= timeout as u64 {
+            return Err(CalcError::TimedOut);
+        }
+    }
+
     match expr {
         Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right, unit),
         Expr::Unary(op, expr) => eval_unary_expr(context, op, expr, unit),
@@ -352,7 +367,7 @@ mod tests {
             .insert(DEG_RAD_UNIT.clone())
             .insert(RAD_DEG_UNIT.clone());
 
-        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION, None);
         context.interpret(vec![stmt])
     }
 
@@ -428,8 +443,8 @@ mod tests {
         deg_symbol_table
             .insert(DEG_RAD_UNIT.clone())
             .insert(RAD_DEG_UNIT.clone());
-        let mut rad_context = Context::new(&mut rad_symbol_table, "rad", PRECISION);
-        let mut deg_context = Context::new(&mut deg_symbol_table, "deg", PRECISION);
+        let mut rad_context = Context::new(&mut rad_symbol_table, "rad", PRECISION, None);
+        let mut deg_context = Context::new(&mut deg_symbol_table, "deg", PRECISION, None);
 
         assert!(cmp(
             rad_context
@@ -452,7 +467,7 @@ mod tests {
         let mut symbol_table = SymbolTable::new();
         symbol_table.insert(var_decl("x", literal(1f64)));
 
-        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION, None);
         assert_eq!(
             context.interpret(vec![stmt]).unwrap().unwrap().to_f64(),
             1f64
@@ -473,7 +488,7 @@ mod tests {
     fn test_var_decl() {
         let stmt = var_decl("x", literal(1f64));
         let mut symbol_table = SymbolTable::new();
-        Context::new(&mut symbol_table, "rad", PRECISION)
+        Context::new(&mut symbol_table, "rad", PRECISION, None)
             .interpret(vec![stmt])
             .unwrap();
 
@@ -492,7 +507,7 @@ mod tests {
             binary(var("x"), TokenKind::Plus, literal(2f64)),
         ));
 
-        let mut context = Context::new(&mut symbol_table, "rad", PRECISION);
+        let mut context = Context::new(&mut symbol_table, "rad", PRECISION, None);
         assert_eq!(
             context.interpret(vec![stmt]).unwrap().unwrap().to_f64(),
             3f64
