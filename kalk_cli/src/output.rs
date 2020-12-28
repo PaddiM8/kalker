@@ -35,6 +35,7 @@ fn print_calc_err(err: CalcError) {
         InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
         InvalidOperator => format!("Invalid operator."),
         InvalidUnit => format!("Invalid unit."),
+        TimedOut => format!("Operation took too long."),
         UnexpectedToken(got, expected) => {
             format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
         }

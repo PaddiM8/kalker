@@ -24,6 +24,7 @@ pub struct Context {
     pos: usize,
     symbol_table: SymbolTable,
     angle_unit: String,
+    timeout: Option<u32>,
     /// This is true whenever the parser is currently parsing a unit declaration.
     /// It is necessary to keep track of this in order to know when to find (figure out) units that haven't been defined yet.
     /// Unit names are instead treated as variables.
@@ -43,6 +44,7 @@ impl Context {
             pos: 0,
             symbol_table: SymbolTable::new(),
             angle_unit: DEFAULT_ANGLE_UNIT.into(),
+            timeout: None,
             parsing_unit_decl: false,
             unit_decl_base_unit: None,
             parsing_identifier_stmt: false,
@@ -57,6 +59,12 @@ impl Context {
 
     pub fn set_angle_unit(mut self, unit: &str) -> Self {
         self.angle_unit = unit.into();
+
+        self
+    }
+
+    pub fn set_timeout(mut self, timeout: Option<u32>) -> Self {
+        self.timeout = timeout;
 
         self
     }
@@ -75,6 +83,7 @@ pub enum CalcError {
     InvalidNumberLiteral(String),
     InvalidOperator,
     InvalidUnit,
+    TimedOut,
     UnexpectedToken(TokenKind, TokenKind),
     UndefinedFn(String),
     UndefinedVar(String),
@@ -95,8 +104,12 @@ pub fn eval(
     context.contains_equal_sign = input.contains("=");
     let statements = parse(context, input)?;
 
-    let mut interpreter =
-        interpreter::Context::new(&mut context.symbol_table, &context.angle_unit, precision);
+    let mut interpreter = interpreter::Context::new(
+        &mut context.symbol_table,
+        &context.angle_unit,
+        precision,
+        context.timeout,
+    );
     interpreter.interpret(statements)
 }
 
