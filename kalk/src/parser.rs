@@ -84,6 +84,7 @@ pub enum CalcError {
     InvalidOperator,
     InvalidUnit,
     TimedOut,
+    VariableReferencesItself,
     UnexpectedToken(TokenKind, TokenKind),
     UndefinedFn(String),
     UndefinedVar(String),
@@ -195,6 +196,9 @@ fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let identifier = advance(context).clone();
     advance(context); // Equal sign
     let expr = parse_expr(context)?;
+    if inverter::contains_var(&context.symbol_table, &expr, &identifier.value) {
+        return Err(CalcError::VariableReferencesItself);
+    }
 
     Ok(Stmt::VarDecl(identifier.value, Box::new(expr)))
 }

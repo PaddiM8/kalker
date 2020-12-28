@@ -36,6 +36,7 @@ fn print_calc_err(err: CalcError) {
         InvalidOperator => format!("Invalid operator."),
         InvalidUnit => format!("Invalid unit."),
         TimedOut => format!("Operation took too long."),
+        VariableReferencesItself => format!("Variable references itself."),
         UnexpectedToken(got, expected) => {
             format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
         }
