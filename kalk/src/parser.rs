@@ -154,14 +154,14 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let primary = parse_primary(context)?; // Since function declarations and function calls look the same at first, simply parse a "function call", and re-use the data.
     context.parsing_identifier_stmt = false;
 
-    // If `primary` is followed by an equal sign and is not a prelude function,
+    // If `primary` is followed by an equal sign
     // treat it as a function declaration
     if let TokenKind::Equals = peek(context).kind {
         // Use the "function call" expression that was parsed, and put its values into a function declaration statement instead.
         if let Expr::FnCall(identifier, parameters) = primary {
             if !prelude::is_prelude_func(&identifier) {
-                let expr = parse_expr(context)?;
                 advance(context);
+                let expr = parse_expr(context)?;
                 let mut parameter_identifiers = Vec::new();
 
                 // All the "arguments" are expected to be parsed as variables,
