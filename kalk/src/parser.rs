@@ -6,17 +6,19 @@ use crate::{
     prelude,
     symbol_table::SymbolTable,
 };
+use wasm_bindgen::prelude::*;
 
 pub const DECL_UNIT: &'static str = ".u";
 pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
 
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
+#[wasm_bindgen]
 pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
     symbol_table: SymbolTable,
     angle_unit: String,
-    timeout: Option<u32>,
+    timeout: Option<u128>,
     /// This is true whenever the parser is currently parsing a unit declaration.
     /// It is necessary to keep track of this in order to know when to find (figure out) units that haven't been defined yet.
     /// Unit names are instead treated as variables.
@@ -55,7 +57,10 @@ impl Context {
         self
     }
 
-    pub fn set_timeout(mut self, timeout: Option<u32>) -> Self {
+    /// Set the timeout in milliseconds.
+    /// The calculation will stop after this amount of time has passed.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_timeout(mut self, timeout: Option<u128>) -> Self {
         self.timeout = timeout;
 
         self
@@ -86,6 +91,31 @@ pub enum CalcError {
     Unknown,
 }
 
+impl ToString for CalcError {
+    fn to_string(&self) -> String {
+        match err {
+            IncorrectAmountOfArguments(expected, func, got) => format!(
+                "Expected {} arguments for function {}, but got {}.",
+                expected, func, got
+            ),
+            InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
+            InvalidOperator => format!("Invalid operator."),
+            InvalidUnit => format!("Invalid unit."),
+            TimedOut => format!("Operation took too long."),
+            VariableReferencesItself => format!("Variable references itself."),
+            UnexpectedToken(got, expected) => {
+                format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
+            }
+            UnableToInvert(msg) => format!("Unable to invert: {}", msg),
+            UndefinedFn(name) => format!("Undefined function: '{}'.", name),
+            UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
+            UnableToParseExpression => format!("Unable to parse expression."),
+            UnableToSolveEquation => format!("Unable to solve equation."),
+            Unknown => format!("Unknown error."),
+        }
+    }
+}
+
 /// Evaluate expressions/declarations and return the answer.
 ///
 /// `None` will be returned if the last statement is a declaration.
@@ -105,6 +135,19 @@ pub fn eval(
         context.timeout,
     );
     interpreter.interpret(statements)
+}
+
+#[wasm_bindgen]
+#[cfg(not(feature = "rug"))]
+pub fn simple_eval(input: &str) -> Result<JsValue, JsValue> {
+    let mut context = Context::new();
+    let result = eval(&mut context, input);
+
+    match result {
+        Ok(Some(value)) => Ok(value.to_f64().into()),
+        Ok(None) => Ok(JsValue::NULL),
+        Err(err) => Err(err.to_string()),
+    }
 }
 
 /// Parse expressions/declarations and return a syntax tree.
@@ -546,6 +589,7 @@ mod tests {
     use super::*;
     use crate::lexer::{Token, TokenKind::*};
     use crate::test_helpers::*;
+    use wasm_bindgen_test::*;
 
     fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, CalcError> {
         context.tokens = tokens;
@@ -563,6 +607,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_var() {
         // x
         let tokens = vec![token(Identifier, "x"), token(EOF, "")];
@@ -571,6 +616,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_binary() {
         // 1+2*(3-4/5)
         let tokens = vec![
@@ -607,6 +653,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_pow() {
         let tokens = vec![
             token(Literal, "1"),
@@ -640,6 +687,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_percent() {
         let tokens = vec![
             token(Literal, "1"),
@@ -662,6 +710,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_unit() {
         let tokens = vec![token(Literal, "1"), token(Identifier, "a")];
 
@@ -677,6 +726,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_var_decl() {
         let tokens = vec![
             token(Identifier, "x"),
@@ -697,6 +747,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_fn_decl() {
         let tokens = vec![
             token(Identifier, "f"),
@@ -721,6 +772,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_fn_call() {
         let tokens = vec![
             token(Identifier, "f"),

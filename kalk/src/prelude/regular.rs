@@ -96,7 +96,8 @@ fn from_angle_unit(context: &mut interpreter::Context, x: f64, angle_unit: &str)
 
 pub mod special_funcs {
     pub fn factorial(x: f64) -> f64 {
-        special::Gamma::gamma(x + 1f64)
+        //special::Gamma::gamma(x + 1f64)
+        x
     }
 }
 
@@ -198,7 +199,8 @@ pub(super) mod funcs {
     }
 
     pub fn gamma(x: f64) -> f64 {
-        special::Gamma::gamma(x)
+        //special::Gamma::gamma(x)
+        x
     }
 
     pub fn hyp(x: f64, y: f64) -> f64 {

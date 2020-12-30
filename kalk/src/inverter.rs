@@ -406,18 +406,21 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
 }
 
 #[allow(unused_imports, dead_code)] // Getting warnings for some reason
+#[cfg(test)]
 mod tests {
     use crate::ast::Expr;
     use crate::lexer::TokenKind::*;
     use crate::parser::DECL_UNIT;
     use crate::symbol_table::SymbolTable;
     use crate::test_helpers::*;
+    use wasm_bindgen_test::*;
 
     fn decl_unit() -> Box<Expr> {
         Box::new(Expr::Var(crate::parser::DECL_UNIT.into()))
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_binary() {
         let ladd = binary(decl_unit(), Plus, literal(1f64));
         let lsub = binary(decl_unit(), Minus, literal(1f64));
@@ -466,6 +469,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_unary() {
         let neg = unary(Minus, decl_unit());
 
@@ -474,6 +478,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_fn_call() {
         let call_with_literal = binary(fn_call("f", vec![*literal(2f64)]), Plus, decl_unit());
         let call_with_decl_unit = fn_call("f", vec![*decl_unit()]);
@@ -512,6 +517,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_group() {
         let group_x = binary(
             group(binary(decl_unit(), Plus, literal(3f64))),
@@ -614,6 +620,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_multiple_decl_units() {
         /*let add_two = binary(decl_unit(), Plus, decl_unit());
 

@@ -17,34 +17,11 @@ pub fn eval(parser: &mut parser::Context, input: &str, precision: u32) {
             println!("{} {}", result_str, result.get_unit());
         }
         Ok(None) => print!(""),
-        Err(err) => print_calc_err(err),
+        Err(err) => print_err(&err.to_string()),
     }
 }
 
 pub fn print_err(msg: &str) {
     Red.paint(msg).to_string();
     println!("{}", msg);
-}
-
-fn print_calc_err(err: CalcError) {
-    print_err(&match err {
-        IncorrectAmountOfArguments(expected, func, got) => format!(
-            "Expected {} arguments for function {}, but got {}.",
-            expected, func, got
-        ),
-        InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
-        InvalidOperator => format!("Invalid operator."),
-        InvalidUnit => format!("Invalid unit."),
-        TimedOut => format!("Operation took too long."),
-        VariableReferencesItself => format!("Variable references itself."),
-        UnexpectedToken(got, expected) => {
-            format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
-        }
-        UnableToInvert(msg) => format!("Unable to invert: {}", msg),
-        UndefinedFn(name) => format!("Undefined function: '{}'.", name),
-        UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
-        UnableToParseExpression => format!("Unable to parse expression."),
-        UnableToSolveEquation => format!("Unable to solve equation."),
-        Unknown => format!("Unknown error."),
-    });
 }
