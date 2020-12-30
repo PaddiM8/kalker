@@ -11,14 +11,6 @@ pub const DECL_UNIT: &'static str = ".u";
 pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
 
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
-/// # Examples
-/// ```
-/// use kalk::parser;
-/// let mut parser_context = parser::Context::new();
-/// let precision = 53;
-/// let result = parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap();
-/// assert_eq!(result.to_f64(), 15f64);
-/// ```
 pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
@@ -100,7 +92,7 @@ pub enum CalcError {
 pub fn eval(
     context: &mut Context,
     input: &str,
-    precision: u32,
+    #[cfg(feature = "rug")] precision: u32,
 ) -> Result<Option<KalkNum>, CalcError> {
     context.contains_equal_sign = input.contains("=");
     let statements = parse(context, input)?;
@@ -108,6 +100,7 @@ pub fn eval(
     let mut interpreter = interpreter::Context::new(
         &mut context.symbol_table,
         &context.angle_unit,
+        #[cfg(feature = "rug")]
         precision,
         context.timeout,
     );

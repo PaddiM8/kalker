@@ -5,11 +5,11 @@ use crate::parser::CalcError;
 use crate::parser::DECL_UNIT;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
-use rug::Float;
 
 pub struct Context<'a> {
     symbol_table: &'a mut SymbolTable,
     angle_unit: String,
+    #[cfg(feature = "rug")]
     precision: u32,
     sum_n_value: Option<i128>,
     timeout: Option<u32>,
@@ -20,12 +20,13 @@ impl<'a> Context<'a> {
     pub fn new(
         symbol_table: &'a mut SymbolTable,
         angle_unit: &str,
-        precision: u32,
+        #[cfg(feature = "rug")] precision: u32,
         timeout: Option<u32>,
     ) -> Self {
         Context {
             angle_unit: angle_unit.into(),
             symbol_table,
+            #[cfg(feature = "rug")]
             precision,
             sum_n_value: None,
             timeout: timeout,
@@ -43,14 +44,11 @@ impl<'a> Context<'a> {
                     String::from("ans"),
                     Box::new(Expr::Unit(
                         num.unit.clone(),
-                        Box::new(Expr::Literal(num.value.to_f64())),
+                        Box::new(Expr::Literal(num.to_f64())),
                     )),
                 )
             } else {
-                Stmt::VarDecl(
-                    String::from("ans"),
-                    Box::new(Expr::Literal(num.value.to_f64())),
-                )
+                Stmt::VarDecl(String::from("ans"), Box::new(Expr::Literal(num.to_f64())))
             });
 
             if i == statements.len() - 1 {
@@ -165,10 +163,7 @@ fn eval_unary_expr(
         TokenKind::Minus => Ok(KalkNum::new(-num.value, &num.unit)),
         TokenKind::Percent => Ok(KalkNum::new(num.value * 0.01, unit)),
         TokenKind::Exclamation => Ok(KalkNum::new(
-            Float::with_val(
-                context.precision,
-                prelude::special_funcs::factorial(num.value),
-            ),
+            prelude::special_funcs::factorial(num.value),
             unit,
         )),
         _ => Err(CalcError::InvalidOperator),
@@ -234,11 +229,15 @@ fn eval_var_expr(
     }
 }
 
+#[allow(unused_variables)]
 fn eval_literal_expr(context: &mut Context, value: f64, unit: &str) -> Result<KalkNum, CalcError> {
-    Ok(KalkNum::new(
-        Float::with_val(context.precision, value),
-        unit.into(),
-    ))
+    let mut num: KalkNum = value.into();
+    num.unit = unit.into();
+
+    #[cfg(feature = "rug")]
+    num.value.set_prec(context.precision);
+
+    Ok(num)
 }
 
 fn eval_group_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkNum, CalcError> {
@@ -286,16 +285,17 @@ fn eval_fn_call_expr(
 
             let start = eval_expr(context, &expressions[0], "")?.to_f64() as i128;
             let end = eval_expr(context, &expressions[1], "")?.to_f64() as i128;
-            let mut sum = Float::with_val(context.precision, 0);
+            let mut sum = KalkNum::default();
 
             for n in start..=end {
                 context.sum_n_value = Some(n);
-                sum += eval_expr(context, &expressions[2], "")?.value;
+                sum.value += eval_expr(context, &expressions[2], "")?.value;
             }
 
             context.sum_n_value = None;
+            sum.unit = unit.into();
 
-            return Ok(KalkNum::new(sum, unit.into()));
+            return Ok(sum);
         }
         _ => (),
     }
@@ -334,8 +334,6 @@ mod tests {
     use crate::test_helpers::*;
     use test_case::test_case;
 
-    const PRECISION: u32 = 53;
-
     lazy_static::lazy_static! {
         static ref DEG_RAD_UNIT: Stmt = unit_decl(
             "deg",
@@ -367,8 +365,7 @@ mod tests {
             .insert(DEG_RAD_UNIT.clone())
             .insert(RAD_DEG_UNIT.clone());
 
-        let mut context = Context::new(&mut symbol_table, "rad", PRECISION, None);
-        context.interpret(vec![stmt])
+        context(&mut symbol_table, "rad").interpret(vec![stmt])
     }
 
     fn interpret(stmt: Stmt) -> Result<Option<KalkNum>, CalcError> {
@@ -377,6 +374,16 @@ mod tests {
         } else {
             Ok(None)
         }
+    }
+
+    #[cfg(feature = "rug")]
+    fn context<'a>(symbol_table: &'a mut SymbolTable, angle_unit: &str) -> Context<'a> {
+        Context::new(symbol_table, angle_unit, 63, None)
+    }
+
+    #[cfg(not(feature = "rug"))]
+    fn context<'a>(symbol_table: &'a mut SymbolTable, angle_unit: &str) -> Context<'a> {
+        Context::new(symbol_table, angle_unit, None)
     }
 
     fn cmp(x: KalkNum, y: f64) -> bool {
@@ -443,8 +450,8 @@ mod tests {
         deg_symbol_table
             .insert(DEG_RAD_UNIT.clone())
             .insert(RAD_DEG_UNIT.clone());
-        let mut rad_context = Context::new(&mut rad_symbol_table, "rad", PRECISION, None);
-        let mut deg_context = Context::new(&mut deg_symbol_table, "deg", PRECISION, None);
+        let mut rad_context = context(&mut rad_symbol_table, "rad");
+        let mut deg_context = context(&mut deg_symbol_table, "deg");
 
         assert!(cmp(
             rad_context
@@ -467,7 +474,7 @@ mod tests {
         let mut symbol_table = SymbolTable::new();
         symbol_table.insert(var_decl("x", literal(1f64)));
 
-        let mut context = Context::new(&mut symbol_table, "rad", PRECISION, None);
+        let mut context = context(&mut symbol_table, "rad");
         assert_eq!(
             context.interpret(vec![stmt]).unwrap().unwrap().to_f64(),
             1f64
@@ -488,7 +495,7 @@ mod tests {
     fn test_var_decl() {
         let stmt = var_decl("x", literal(1f64));
         let mut symbol_table = SymbolTable::new();
-        Context::new(&mut symbol_table, "rad", PRECISION, None)
+        context(&mut symbol_table, "rad")
             .interpret(vec![stmt])
             .unwrap();
 
@@ -507,7 +514,7 @@ mod tests {
             binary(var("x"), TokenKind::Plus, literal(2f64)),
         ));
 
-        let mut context = Context::new(&mut symbol_table, "rad", PRECISION, None);
+        let mut context = context(&mut symbol_table, "rad");
         assert_eq!(
             context.interpret(vec![stmt]).unwrap().unwrap().to_f64(),
             3f64

@@ -22,8 +22,12 @@ f(a, 2)
 use kalk::parser;
 let mut parser_context = parser::Context::new();
 let precision = 53;
-assert_eq!(parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap(), 15);
+let result = parser::eval(&mut parser_context, "5*3", precision).unwrap().unwrap();
+assert_eq!(result.to_f64(), 15f64);
 ```
+
+## Using f64 instead of rug::Float
+The cargo feature `rug` enables rug, and is used by default. If you disalbe this, kalk will use `f64` instead, making it more portable.
 
 ## Compiling
 Make sure you have `diffutils` `gcc` `make` and `m4` installed.

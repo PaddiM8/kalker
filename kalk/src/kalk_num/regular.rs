@@ -1,10 +1,8 @@
 use crate::ast::Expr;
-use rug::ops::Pow;
-use rug::Float;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub struct KalkNum {
-    pub(crate) value: Float,
+    pub(crate) value: f64,
     pub(crate) unit: String,
 }
 
@@ -32,7 +30,7 @@ impl ScientificNotation {
 }
 
 impl KalkNum {
-    pub fn new(value: Float, unit: &str) -> Self {
+    pub fn new(value: f64, unit: &str) -> Self {
         Self {
             value,
             unit: unit.to_string(),
@@ -40,20 +38,11 @@ impl KalkNum {
     }
 
     pub fn to_f64(&self) -> f64 {
-        self.value.to_f64_round(rug::float::Round::Nearest)
+        self.value
     }
 
     pub fn to_string(&self) -> String {
-        let as_str = self.to_f64().to_string();
-
-        if as_str.contains(".") {
-            as_str
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string()
-        } else {
-            as_str
-        }
+        self.value.to_string()
     }
 
     pub fn to_string_big(&self) -> String {
@@ -77,18 +66,10 @@ impl KalkNum {
     }
 
     pub fn to_scientific_notation(&self) -> ScientificNotation {
-        let (neg, digits, exp_option) =
-            self.value
-                .to_sign_string_exp_round(10, None, rug::float::Round::Up);
-
         ScientificNotation {
-            negative: neg,
-            digits: digits
-                .trim_start_matches('0')
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string(),
-            exponent: if let Some(exp) = exp_option { exp } else { 0 },
+            negative: self.value < 0f64,
+            digits: self.value.to_string().replace(".", ""),
+            exponent: self.value.log(10f64) as i32,
         }
     }
 
@@ -99,7 +80,7 @@ impl KalkNum {
     ) -> Option<KalkNum> {
         let result = crate::interpreter::convert_unit(
             context,
-            &Expr::Literal(self.value.to_f64()),
+            &Expr::Literal(self.value),
             &self.unit,
             to_unit,
         );
@@ -138,7 +119,7 @@ impl KalkNum {
 
     pub fn pow(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value.pow(right.value), &right.unit)
+        KalkNum::new(self.value.powf(right.value), &right.unit)
     }
 }
 
@@ -160,44 +141,44 @@ impl Into<String> for ScientificNotation {
     }
 }
 
-impl Into<f64> for KalkNum {
-    fn into(self) -> f64 {
-        self.to_f64()
-    }
-}
-
 impl Into<String> for KalkNum {
     fn into(self) -> String {
         self.to_string()
     }
 }
 
+impl Into<f64> for KalkNum {
+    fn into(self) -> f64 {
+        self.value
+    }
+}
+
 impl From<f64> for KalkNum {
     fn from(x: f64) -> Self {
-        KalkNum::new(Float::with_val(63, x), "")
+        KalkNum::new(x, "")
     }
 }
 
 impl From<f32> for KalkNum {
     fn from(x: f32) -> Self {
-        KalkNum::new(Float::with_val(63, x), "")
+        KalkNum::new(x as f64, "")
     }
 }
 
 impl From<i128> for KalkNum {
     fn from(x: i128) -> Self {
-        KalkNum::new(Float::with_val(63, x), "")
+        KalkNum::new(x as f64, "")
     }
 }
 
 impl From<i64> for KalkNum {
     fn from(x: i64) -> Self {
-        KalkNum::new(Float::with_val(63, x), "")
+        KalkNum::new(x as f64, "")
     }
 }
 
 impl From<i32> for KalkNum {
     fn from(x: i32) -> Self {
-        KalkNum::new(Float::with_val(63, x), "")
+        KalkNum::new(x as f64, "")
     }
 }
