@@ -10,12 +10,18 @@ license = "MIT"
 keywords = ["math", "calculator", "evaluator"]
 categories = ["mathematics", "parser-implementations"]
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 rug = { version = "1.11.0", features = ["float"], optional = true }
 test-case = "1.0.0"
 regex = "1"
 lazy_static = "1.4.0"
-special = "0.8.1"
+wasm-bindgen = "0.2.69"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.19"
 
 [features]
 default = ["rug"]

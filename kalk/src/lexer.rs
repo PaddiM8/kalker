@@ -221,6 +221,8 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
 mod tests {
     use super::*;
     use test_case::test_case;
+    use wasm_bindgen_test::*;
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     fn match_tokens(tokens: Vec<Token>, expected: Vec<TokenKind>) {
         let mut expected_iter = expected.iter();
@@ -231,6 +233,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_token_kinds() {
         let tokens = Lexer::lex("+-*/%^()|=!,");
         let expected = vec![
@@ -253,6 +256,7 @@ mod tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_empty() {
         // test_case macro doesn't seem to work with spaces.
         let test_cases = vec![" ", "     ", "test ", " test     "];

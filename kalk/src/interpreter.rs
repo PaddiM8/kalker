@@ -12,7 +12,9 @@ pub struct Context<'a> {
     #[cfg(feature = "rug")]
     precision: u32,
     sum_n_value: Option<i128>,
-    timeout: Option<u32>,
+    #[cfg(not(target_arch = "wasm32"))]
+    timeout: Option<u128>,
+    #[cfg(not(target_arch = "wasm32"))]
     start_time: std::time::SystemTime,
 }
 
@@ -21,7 +23,7 @@ impl<'a> Context<'a> {
         symbol_table: &'a mut SymbolTable,
         angle_unit: &str,
         #[cfg(feature = "rug")] precision: u32,
-        timeout: Option<u32>,
+        timeout: Option<u128>,
     ) -> Self {
         Context {
             angle_unit: angle_unit.into(),
@@ -29,7 +31,9 @@ impl<'a> Context<'a> {
             #[cfg(feature = "rug")]
             precision,
             sum_n_value: None,
+            #[cfg(not(target_arch = "wasm32"))]
             timeout: timeout,
+            #[cfg(not(target_arch = "wasm32"))]
             start_time: std::time::SystemTime::now(),
         }
     }
@@ -89,8 +93,9 @@ fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<KalkNum, CalcErr
 }
 
 fn eval_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkNum, CalcError> {
+    #[cfg(not(target_arch = "wasm32"))]
     if let (Ok(elapsed), Some(timeout)) = (context.start_time.elapsed(), context.timeout) {
-        if elapsed.as_secs() >= timeout as u64 {
+        if elapsed.as_millis() >= timeout {
             return Err(CalcError::TimedOut);
         }
     }
