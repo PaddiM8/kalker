@@ -93,25 +93,25 @@ pub enum CalcError {
 
 impl ToString for CalcError {
     fn to_string(&self) -> String {
-        match err {
-            IncorrectAmountOfArguments(expected, func, got) => format!(
+        match self {
+            CalcError::IncorrectAmountOfArguments(expected, func, got) => format!(
                 "Expected {} arguments for function {}, but got {}.",
                 expected, func, got
             ),
-            InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
-            InvalidOperator => format!("Invalid operator."),
-            InvalidUnit => format!("Invalid unit."),
-            TimedOut => format!("Operation took too long."),
-            VariableReferencesItself => format!("Variable references itself."),
-            UnexpectedToken(got, expected) => {
+            CalcError::InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
+            CalcError::InvalidOperator => format!("Invalid operator."),
+            CalcError::InvalidUnit => format!("Invalid unit."),
+            CalcError::TimedOut => format!("Operation took too long."),
+            CalcError::VariableReferencesItself => format!("Variable references itself."),
+            CalcError::UnexpectedToken(got, expected) => {
                 format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
             }
-            UnableToInvert(msg) => format!("Unable to invert: {}", msg),
-            UndefinedFn(name) => format!("Undefined function: '{}'.", name),
-            UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
-            UnableToParseExpression => format!("Unable to parse expression."),
-            UnableToSolveEquation => format!("Unable to solve equation."),
-            Unknown => format!("Unknown error."),
+            CalcError::UnableToInvert(msg) => format!("Unable to invert: {}", msg),
+            CalcError::UndefinedFn(name) => format!("Undefined function: '{}'.", name),
+            CalcError::UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
+            CalcError::UnableToParseExpression => format!("Unable to parse expression."),
+            CalcError::UnableToSolveEquation => format!("Unable to solve equation."),
+            CalcError::Unknown => format!("Unknown error."),
         }
     }
 }
@@ -146,7 +146,7 @@ pub fn simple_eval(input: &str) -> Result<JsValue, JsValue> {
     match result {
         Ok(Some(value)) => Ok(value.to_f64().into()),
         Ok(None) => Ok(JsValue::NULL),
-        Err(err) => Err(err.to_string()),
+        Err(err) => Err(err.to_string().into()),
     }
 }
 
