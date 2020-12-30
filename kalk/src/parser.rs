@@ -139,13 +139,13 @@ pub fn eval(
 
 #[wasm_bindgen(js_name = evaluate)]
 #[cfg(not(feature = "rug"))]
-pub fn js_eval(input: &str) -> Result<KalkNum, JsValue> {
+pub fn js_eval(input: &str) -> Result<Option<KalkNum>, JsValue> {
     let mut context = Context::new();
     let result = eval(&mut context, input);
 
     match result {
-        Ok(Some(value)) => Ok(value),
-        Ok(None) => Ok(KalkNum::default()),
+        Ok(Some(value)) => Ok(Some(value)),
+        Ok(None) => Ok(None),
         Err(err) => Err(err.to_string().into()),
     }
 }
