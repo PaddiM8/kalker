@@ -4,7 +4,7 @@ async function main() {
     const kalk = await import("kalk-rs");
 
     try {
-        console.log(kalk.simple_eval("5+"));
+        console.log(kalk.evaluate("5^3").toScientificNotation().toString());
     } catch(err) {
         console.log(err);
     }

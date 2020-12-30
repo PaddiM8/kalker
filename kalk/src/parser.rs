@@ -137,15 +137,15 @@ pub fn eval(
     interpreter.interpret(statements)
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = evaluate)]
 #[cfg(not(feature = "rug"))]
-pub fn simple_eval(input: &str) -> Result<JsValue, JsValue> {
+pub fn js_eval(input: &str) -> Result<KalkNum, JsValue> {
     let mut context = Context::new();
     let result = eval(&mut context, input);
 
     match result {
-        Ok(Some(value)) => Ok(value.to_f64().into()),
-        Ok(None) => Ok(JsValue::NULL),
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Ok(KalkNum::default()),
         Err(err) => Err(err.to_string().into()),
     }
 }

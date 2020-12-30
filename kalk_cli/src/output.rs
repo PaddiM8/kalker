@@ -1,6 +1,6 @@
 use crate::DEFAULT_PRECISION;
 use ansi_term::Colour::Red;
-use kalk::parser::{self, CalcError, CalcError::*};
+use kalk::parser;
 
 pub fn eval(parser: &mut parser::Context, input: &str, precision: u32) {
     match parser::eval(parser, input, precision) {
