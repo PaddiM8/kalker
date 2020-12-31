@@ -25,3 +25,7 @@ wasm-bindgen-test = "0.3.19"
 
 [features]
 default = ["rug"]
+
+# Breaks when optimizing for some reason.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
