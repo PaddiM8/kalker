@@ -18,7 +18,7 @@ pub struct Context {
     pos: usize,
     symbol_table: SymbolTable,
     angle_unit: String,
-    timeout: Option<u128>,
+    timeout: Option<u32>,
     /// This is true whenever the parser is currently parsing a unit declaration.
     /// It is necessary to keep track of this in order to know when to find (figure out) units that haven't been defined yet.
     /// Unit names are instead treated as variables.
@@ -31,7 +31,9 @@ pub struct Context {
     contains_equal_sign: bool,
 }
 
+#[wasm_bindgen]
 impl Context {
+    #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         let mut context = Self {
             tokens: Vec::new(),
@@ -60,10 +62,22 @@ impl Context {
     /// Set the timeout in milliseconds.
     /// The calculation will stop after this amount of time has passed.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_timeout(mut self, timeout: Option<u128>) -> Self {
+    pub fn set_timeout(mut self, timeout: Option<u32>) -> Self {
         self.timeout = timeout;
 
         self
+    }
+
+    #[wasm_bindgen(js_name = evaluate)]
+    #[cfg(not(feature = "rug"))]
+    pub fn js_eval(&mut self, input: &str) -> Result<Option<KalkNum>, JsValue> {
+        let result = eval(self, input);
+
+        match result {
+            Ok(Some(value)) => Ok(Some(value)),
+            Ok(None) => Ok(None),
+            Err(err) => Err(err.to_string().into()),
+        }
     }
 }
 
@@ -132,22 +146,13 @@ pub fn eval(
         &context.angle_unit,
         #[cfg(feature = "rug")]
         precision,
-        context.timeout,
+        if let Some(timeout) = context.timeout {
+            Some(timeout as u128)
+        } else {
+            None
+        },
     );
     interpreter.interpret(statements)
-}
-
-#[wasm_bindgen(js_name = evaluate)]
-#[cfg(not(feature = "rug"))]
-pub fn js_eval(input: &str) -> Result<Option<KalkNum>, JsValue> {
-    let mut context = Context::new();
-    let result = eval(&mut context, input);
-
-    match result {
-        Ok(Some(value)) => Ok(Some(value)),
-        Ok(None) => Ok(None),
-        Err(err) => Err(err.to_string().into()),
-    }
 }
 
 /// Parse expressions/declarations and return a syntax tree.

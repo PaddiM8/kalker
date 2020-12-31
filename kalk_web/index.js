@@ -1,10 +1,11 @@
 main();
 
 async function main() {
-    const kalk = await import("kalk-rs");
+    const kalk = await import("../kalk/pkg");
 
     try {
-        console.log(kalk.evaluate("5^3").toScientificNotation().toString());
+        const context = new kalk.Context();
+        console.log(context.evaluate("sum(1, 5, n)").toScientificNotation().toString());
     } catch(err) {
         console.log(err);
     }
