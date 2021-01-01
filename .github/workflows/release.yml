@@ -34,18 +34,18 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - name: npm 
-        run: |
-          yarn install
       - name: Build
         run: |
+          yarn install
           cd kalk
           wasm-pack build --scope paddim8 -- --no-default-features
-      - uses: JS-DevTools/npm-publish@v1
-        with:
-          token: ${{ secrets.NPM_REGISTRY_KEY }}
-          access: public
-          package: kalk/pkg/package.json
+      - name: Publish
+        run: |
+          export NPM_AUTH_TOKEN=${{ secrets.NPM_REGISTRY_KEY }}
+          export NPM_EMAIL=bakk@tuta.io
+          echo "_auth = $NPM_AUTH_TOKEN" > ~/.npmrc
+          echo "email = $NPM_EMAIL" >> ~/.npmrc
+          wasm-pack publish -a public
       
   #release_linux:
   #  name: release linux
