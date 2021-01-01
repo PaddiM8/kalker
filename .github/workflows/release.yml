@@ -35,13 +35,13 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-     - name: npm 
-      run: |
-        yarn install
-        export NPM_AUTH_TOKEN=${{ secrets.NPM_REGISTRY_TOKEN }}
-        export NPM_EMAIL=bakk@tuta.io
-        echo "_auth = $NPM_AUTH_TOKEN" > ~/.npmrc
-        echo "email = $NPM_EMAIL" >> ~/.npmrc
+      - name: npm 
+        run: |
+          yarn install
+          export NPM_AUTH_TOKEN=${{ secrets.NPM_REGISTRY_TOKEN }}
+          export NPM_EMAIL=bakk@tuta.io
+          echo "_auth = $NPM_AUTH_TOKEN" > ~/.npmrc
+          echo "email = $NPM_EMAIL" >> ~/.npmrc
 
       - name: Build
         run: |
