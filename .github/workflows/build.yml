@@ -25,4 +25,10 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - uses: Swatinem/rust-cache@v1.0.1
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          default: true
       - run: cd kalk; cargo build --target wasm32-unknown-unknown --no-default-features
