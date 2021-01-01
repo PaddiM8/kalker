@@ -45,7 +45,7 @@ jobs:
         with:
           token: ${{ secrets.NPM_REGISTRY_KEY }}
           access: public
-          package: pkg/package.json
+          package: kalk/pkg/package.json
       
   #release_linux:
   #  name: release linux
