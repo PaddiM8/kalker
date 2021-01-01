@@ -38,6 +38,7 @@ jobs:
       - name: Build & Publish
         run: |
           yarn install
+          cd kalk
           wasm-pack build --scope paddim8 -- --no-default-features
           wasm-pack publish
         env:
