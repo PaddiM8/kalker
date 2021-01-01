@@ -69,12 +69,6 @@ impl KalkNum {
         format!("{} {}", self.to_string(), self.unit)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn get_unit(&self) -> &str {
-        &self.unit
-    }
-
-    #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen(js_name = getUnit)]
     pub fn get_unit(&self) -> String {
         self.unit.clone().into()

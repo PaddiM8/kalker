@@ -10,121 +10,141 @@ env:
 
 jobs:
 
-  publish:
-    name: publish to crates.io
+  #publish:
+  #  name: publish to crates.io
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@master
+  #    - uses: Swatinem/rust-cache@v1.0.1
+  #    - name: Publish crate
+  #      continue-on-error: true
+  #      run: cargo publish --manifest-path kalk/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
+  #    - name: Publish CLI
+  #      run: sleep 20 && cargo publish --manifest-path kalk_cli/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
+
+  publish_npm:
+    name: publish to npm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
       - uses: Swatinem/rust-cache@v1.0.1
-      - name: Publish crate
-        continue-on-error: true
-        run: cargo publish --manifest-path kalk/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
-      - name: Publish CLI
-        run: sleep 20 && cargo publish --manifest-path kalk_cli/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 15
+          registry-url: https://registry.npmjs.org/
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build & Publish
+      - run: yarn install
+      - run: wasm-pack build --scope paddim8 -- --no-default-features
+      - run: wasm-pack publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
       
-  release_linux:
-    name: release linux
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - uses: Swatinem/rust-cache@v1.0.1
-      - name: Compile
-        run: |
-          cargo build --release --verbose
-          cp target/release/kalk target/release/kalk-linux
-      - uses: actions/upload-artifact@v2
-        with:
-          name: binaries
-          path: target/release/kalk-linux
-
-  release_mac:
-    name: release mac
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            target
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-      - name: Compile
-        run: |
-          cargo build --release --verbose
-          zip -r kalk-macOS.zip target/release/kalk
-      - uses: actions/upload-artifact@v2
-        with:
-          name: binaries
-          path: kalk-macOS.zip
-
-  release_windows:
-    name: release windows
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions/cache@v2
-        with:
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-          path: |
-            C:\Users\runneradmin\.cargo\bin\cargo-wix
-            C:\Users\runneradmin\.cargo\registry\index
-            C:\Users\runneradmin\.cargo\registry\cache
-            C:\Users\runneradmin\.cargo\registry\cache
-            D:\a\kalk\kalk\target
-            C:\msys64\home\paddi\kalk\target
-      - uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: >-
-            base-devel
-            pacman-mirrors
-            diffutils
-            m4
-            make
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-rust
-      - shell: msys2 {0}
-        run: |
-          cargo build --release --verbose
-
-      - uses: crazy-max/ghaction-chocolatey@v1
-        with:
-          args: install wixtoolset -y
-      - shell: msys2 {0}
-        run: |
-          [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix
-          cd kalk_cli
-          cargo wix --no-build --nocapture
-          mv target/wix/*.msi target/wix/kalk-windows.msi
-      - uses: actions/upload-artifact@v2
-        with:
-          name: binaries
-          path: kalk_cli/target/wix/kalk-windows.msi
-
-  create_release:
-    name: Create Release
-    needs: [release_linux, release_mac, release_windows]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ github.ref }}
-        draft: false
-        prerelease: false
-    - name: Download Artifact
-      uses: actions/download-artifact@v2
-      with:
-        name: binaries
-    - name: Upload Assets
-      uses: softprops/action-gh-release@v1
-      with:
-        files: ./*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #release_linux:
+  #  name: release linux
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@master
+  #    - uses: Swatinem/rust-cache@v1.0.1
+  #    - name: Compile
+  #      run: |
+  #        cargo build --release --verbose
+  #        cp target/release/kalk target/release/kalk-linux
+  #    - uses: actions/upload-artifact@v2
+  #      with:
+  #        name: binaries
+  #        path: target/release/kalk-linux
+#
+#  release_mac:
+#    name: release mac
+#    runs-on: macos-latest
+#    steps:
+#      - uses: actions/checkout@master
+#      - uses: actions/cache@v2
+#        with:
+#          path: |
+#            ~/.cargo/registry/index
+#            ~/.cargo/registry/cache
+#            target
+#          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+#      - name: Compile
+#        run: |
+#          cargo build --release --verbose
+#          zip -r kalk-macOS.zip target/release/kalk
+#      - uses: actions/upload-artifact@v2
+#        with:
+#          name: binaries
+#          path: kalk-macOS.zip
+#
+#  release_windows:
+#    name: release windows
+#    runs-on: windows-latest
+#
+#    steps:
+#      - uses: actions/checkout@master
+#      - uses: actions/cache@v2
+#        with:
+#          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+#          path: |
+#            C:\Users\runneradmin\.cargo\bin\cargo-wix
+#            C:\Users\runneradmin\.cargo\registry\index
+#            C:\Users\runneradmin\.cargo\registry\cache
+#            C:\Users\runneradmin\.cargo\registry\cache
+#            D:\a\kalk\kalk\target
+#            C:\msys64\home\paddi\kalk\target
+#      - uses: msys2/setup-msys2@v2
+#        with:
+#          update: true
+#          install: >-
+#            base-devel
+#            pacman-mirrors
+#            diffutils
+#            m4
+#            make
+#            mingw-w64-x86_64-gcc
+#            mingw-w64-x86_64-rust
+#      - shell: msys2 {0}
+#        run: |
+#          cargo build --release --verbose
+#
+#      - uses: crazy-max/ghaction-chocolatey@v1
+#        with:
+#          args: install wixtoolset -y
+#      - shell: msys2 {0}
+#        run: |
+#          [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix
+#          cd kalk_cli
+#          cargo wix --no-build --nocapture
+#          mv target/wix/*.msi target/wix/kalk-windows.msi
+#      - uses: actions/upload-artifact@v2
+#        with:
+#          name: binaries
+#          path: kalk_cli/target/wix/kalk-windows.msi
+#
+#  create_release:
+#    name: Create Release
+#    needs: [release_linux, release_mac, release_windows]
+#    runs-on: ubuntu-latest
+#    steps:
+#    - name: Create Release
+#      id: create_release
+#      uses: actions/create-release@v1
+#      env:
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      with:
+#        tag_name: ${{ github.ref }}
+#        release_name: ${{ github.ref }}
+#        draft: false
+#        prerelease: false
+#    - name: Download Artifact
+#      uses: actions/download-artifact@v2
+#      with:
+#        name: binaries
+#    - name: Upload Assets
+#      uses: softprops/action-gh-release@v1
+#      with:
+#        files: ./*
+#      env:
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
