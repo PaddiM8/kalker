@@ -36,9 +36,9 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build & Publish
-      - run: yarn install
-      - run: wasm-pack build --scope paddim8 -- --no-default-features
-      - run: wasm-pack publish
+        run: yarn install
+        run: wasm-pack build --scope paddim8 -- --no-default-features
+        run: wasm-pack publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
       
