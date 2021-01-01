@@ -41,10 +41,14 @@ jobs:
           wasm-pack build --scope paddim8 -- --no-default-features
       - name: Publish
         run: |
-          export NPM_AUTH_TOKEN=${{ secrets.NPM_REGISTRY_KEY }}
+          export NPM_USERNAME=paddim8
+          export NPM_PASSWORD=${{ secrets.NPM_PASSWORD }}
           export NPM_EMAIL=bakk@tuta.io
-          echo "_auth = $NPM_AUTH_TOKEN" > ~/.npmrc
-          echo "email = $NPM_EMAIL" >> ~/.npmrc
+          npm adduser <<!
+          $NPM_USERNAME
+          $NPM_PASSWORD
+          $NPM_EMAIL
+          !
           wasm-pack publish -a public
       
   #release_linux:
