@@ -47,7 +47,7 @@ jobs:
           expect {
             "Username:" {send paddim8\r"; exp_continue}
             "Password:" {send ${{ secrets.NPM_PASSWORD }}\r"; exp_continue}
-            "Email: (this IS public)" {send "bakk@tuta.io\r"; exp_continue}
+            "Email: (this IS public)" {send bakk@tuta.io\r"; exp_continue}
           }
           EOD
           wasm-pack publish -a public
