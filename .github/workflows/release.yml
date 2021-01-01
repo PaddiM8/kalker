@@ -43,7 +43,8 @@ jobs:
           wasm-pack build --scope paddim8 -- --no-default-features
       - uses: JS-DevTools/npm-publish@v1
         with:
-          token: ${{ secrets.NPM_REGISTRY_TOKEN }}
+          token: ${{ secrets.NPM_REGISTRY_KEY }}
+          access: public
       
   #release_linux:
   #  name: release linux
