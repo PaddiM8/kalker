@@ -41,6 +41,7 @@ jobs:
         run: |
           cd kalk
           wasm-pack build --scope paddim8 -- --no-default-features
+          cd pkg
       - uses: JS-DevTools/npm-publish@v1
         with:
           token: ${{ secrets.NPM_REGISTRY_KEY }}
