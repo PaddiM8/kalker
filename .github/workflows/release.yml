@@ -30,19 +30,24 @@ jobs:
       - uses: Swatinem/rust-cache@v1.0.1
       - uses: actions/setup-node@v1
         with:
-          node-version: 15
+          node-version: 14
           registry-url: https://registry.npmjs.org/
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+     - name: npm 
+      run: |
+        yarn install
+        export NPM_AUTH_TOKEN=${{ secrets.NPM_REGISTRY_TOKEN }}
+        export NPM_EMAIL=bakk@tuta.io
+        echo "_auth = $NPM_AUTH_TOKEN" > ~/.npmrc
+        echo "email = $NPM_EMAIL" >> ~/.npmrc
+
       - name: Build
         run: |
-          yarn install
           cd kalk
           wasm-pack build --scope paddim8 -- --no-default-features
       - run: wasm-pack publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
       
   #release_linux:
   #  name: release linux
