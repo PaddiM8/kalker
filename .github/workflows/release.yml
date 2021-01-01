@@ -41,14 +41,15 @@ jobs:
           wasm-pack build --scope paddim8 -- --no-default-features
       - name: Publish
         run: |
-          export NPM_USERNAME=paddim8
-          export NPM_PASSWORD=${{ secrets.NPM_PASSWORD }}
-          export NPM_EMAIL=bakk@tuta.io
-          npm adduser <<!
-          $NPM_USERNAME
-          $NPM_PASSWORD
-          $NPM_EMAIL
-          !
+          sudo apt install expect
+          /usr/bin/expect <<EOD
+          spawn wasm-pack login
+          expect {
+            "Username:" {send paddim8\r"; exp_continue}
+            "Password:" {send ${{ secrets.NPM_PASSWORD }}\r"; exp_continue}
+            "Email: (this IS public)" {send "bakk@tuta.io\r"; exp_continue}
+          }
+          EOD
           wasm-pack publish -a public
       
   #release_linux:
