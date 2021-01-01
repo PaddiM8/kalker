@@ -41,6 +41,7 @@ jobs:
         run: |
           cd kalk
           wasm-pack build --scope paddim8 -- --no-default-features
+      - name: Publish
         run: |
           export NPM_AUTH_TOKEN=${{ secrets.NPM_REGISTRY_TOKEN }}
           export NPM_EMAIL=bakk@tuta.io
