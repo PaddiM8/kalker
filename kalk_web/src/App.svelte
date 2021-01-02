@@ -2,4 +2,4 @@
 	import Calculator from "./Calculator.svelte";
 </script>
 
-<Calculator></Calculator>
+<Calculator />
