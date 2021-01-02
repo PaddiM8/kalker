@@ -1,7 +1,19 @@
 <script lang="ts">
+    import { afterUpdate } from "svelte";
+
     import helpText from "../../kalk_cli/help.txt";
+
     let outputLines: string[] = [];
+    let outputElement: HTMLElement;
     let kalkContext;
+
+    afterUpdate(() => {
+        // Scroll to bottom
+        outputElement.children[
+            outputElement.children.length - 1
+        ].scrollIntoView(false);
+    });
+
     function handleKeyDown(event: KeyboardEvent, kalk) {
         if (event.key == "Enter") {
             const target = event.target as HTMLInputElement;
@@ -11,8 +23,8 @@
             if (input.trim() == "help") {
                 output = helpText;
             } else {
-            // Calculate
-            if (!kalkContext) kalkContext = new kalk.Context();
+                // Calculate
+                if (!kalkContext) kalkContext = new kalk.Context();
                 try {
                     const result = kalkContext.evaluate(input);
                     if (result) output = result.toString();
@@ -25,6 +37,7 @@
             outputLines = output
                 ? [...outputLines, inputHTML, output]
                 : [...outputLines, inputHTML];
+
             target.innerHTML = "";
         }
     }
@@ -147,8 +160,10 @@
     }
 </script>
 
+<style lang="scss">
     $background-color: #424242;
     $font: "Hack", monospace, Consolas, sans-serif; /* TODO: import font */
+
     .calculator {
         width: 600px;
         height: 350px;
@@ -157,8 +172,6 @@
     .output {
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
-        width: 100%;
         height: 100%;
         background-color: #424242;
         padding: 10px;
@@ -167,6 +180,11 @@
         font-size: 1.4em;
         font-family: $font;
         color: white;
+        overflow: auto;
+    }
+
+    .output > :first-child {
+        margin-top: auto;
     }
 
     .consoleLine {
@@ -196,13 +214,13 @@
 </style>
 
 <div class="calculator">
+    <div class="output" bind:this={outputElement}>
         <p class="consoleLine">kalk</p>
         <p class="consoleLine">
             <span class="hint">Type 'help' for instructions.</span>
         </p>
         {#each outputLines as line}
             <p class="consoleLine">
-                <span class="prompt">&gt;&gt;</span>
                 {@html line}
             </p>
         {/each}
