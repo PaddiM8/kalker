@@ -174,6 +174,7 @@
     .calculator {
         width: 100%;
         height: 100%;
+        font-family: $font;
     }
 
     .output {
@@ -220,6 +221,7 @@
     }
 </style>
 
+<svelte:options tag="kalk-calculator" />
 <div class="calculator" style="background-color: {backgroundColor}">
     <div class="output" bind:this={outputElement}>
         <p class="consoleLine">kalk</p>
@@ -234,13 +236,17 @@
     </div>
     <div class="input-area">
         <span class="prompt" style="color: {promptColor}">&gt;&gt;&nbsp;</span>
-        {#await import('@paddim8/kalk') then kalk}
+        {#await import('@paddim8/kalk')}
+            Loading...
+        {:then kalk}
             <div
                 contenteditable="true"
                 class="input"
                 on:keydown={(event) => handleKeyDown(event, kalk)}
                 on:input={handleInput}
                 role="textbox" />
+        {:catch error}
+            <span style="color: {errorColor}">{error}</span>
         {/await}
     </div>
 </div>
