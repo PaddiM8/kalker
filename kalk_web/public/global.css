@@ -1,7 +1,17 @@
+body {
+	margin: 0;
+	padding: 0;
+	background-color: #212121;
+}
+
 span.identifier {
 	color: cornflowerblue;
 }
 
 span.operator {
 	color: darkorange;
+}
+
+span.prompt {
+	color: mediumseagreen;
 }
