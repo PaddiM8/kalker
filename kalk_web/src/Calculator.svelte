@@ -3,7 +3,7 @@
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key == "Enter") {
             const target = event.target as HTMLInputElement;
-            outputLines = [...outputLines, target.innerText];
+            outputLines = [...outputLines, target.innerHTML];
             target.innerHTML = "";
         }
     }
@@ -11,8 +11,10 @@
     function handleInput(event: Event) {
         const target = event.target as HTMLInputElement;
         const cursorPos = getCursorPos(target);
-        target.innerHTML = highlight(target.textContent);
-        setCursorPos(target, cursorPos);
+        const [highlighted, offset] = highlight(target.textContent);
+        console.log(highlighted);
+        target.innerHTML = highlighted;
+        setCursorPos(target, cursorPos - offset);
     }
 
     function getCursorPos(element: HTMLInputElement): number {
@@ -71,12 +73,46 @@
         return textNodes;
     }
 
-    function highlight(input: string): string {
+    function highlight(input: string): [string, number] {
         let result = input;
+        let offset = 0;
         result = result.replaceAll(
             /(?<identifier>[^!-@\s_|^⌊⌋⌈⌉]+(_\d+)?)|(?<op>[+\-/*%^!])/g,
             (substring, identifier, _, op) => {
                 if (identifier) {
+                    switch (substring) {
+                        case "sqrt": {
+                            substring = "√";
+                            offset += 3;
+                            break;
+                        }
+                        case "sum": {
+                            substring = "Σ";
+                            offset += 2;
+                            break;
+                        }
+                        case "pi": {
+                            substring = "π";
+                            offset += 1;
+                            break;
+                        }
+                        case "gamma": {
+                            substring = "Γ";
+                            offset += 4;
+                            break;
+                        }
+                        case "floor": {
+                            substring = "⌊⌋";
+                            offset += 3;
+                            break;
+                        }
+                        case "ceil": {
+                            substring = "⌈⌉";
+                            offset += 3;
+                            break;
+                        }
+                    }
+
                     return `<span class="identifier">${substring}</span>`;
                 }
 
@@ -90,7 +126,7 @@
 
         if (result.endsWith(" ")) result = result.slice(0, -1) + "&nbsp";
 
-        return result;
+        return [result, offset];
     }
 </script>
 
@@ -146,7 +182,7 @@
         {#each outputLines as line}
             <p class="consoleLine">
                 <span class="prompt">&gt;&gt;</span>
-                {@html highlight(line)}
+                {@html line}
             </p>
         {/each}
     </div>
