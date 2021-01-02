@@ -1,8 +1,6 @@
 <script lang="ts">
     import { afterUpdate } from "svelte";
 
-    import helpText from "../../kalk_cli/help.txt";
-
     let outputLines: string[] = [];
     let outputElement: HTMLElement;
     let kalkContext;
@@ -21,7 +19,8 @@
             let output: string;
 
             if (input.trim() == "help") {
-                output = helpText;
+                output =
+                    "<a href='https://kalk.netlify.app/#usage' target='blank'>Link to usage guide</a>";
             } else {
                 // Calculate
                 if (!kalkContext) kalkContext = new kalk.Context();

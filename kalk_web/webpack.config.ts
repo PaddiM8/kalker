@@ -121,10 +121,6 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 				use: 'ts-loader',
 				exclude: /node_modules/,
 			},
-			{
-				test: /\.txt$/i,
-				loader: 'raw-loader',
-			},
 		],
 	},
 	devServer: {
