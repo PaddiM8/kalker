@@ -33,7 +33,8 @@ jobs:
           node-version: 14
           registry-url: https://registry.npmjs.org/
       - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        run: cargo install --git https://github.com/rustwasm/wasm-pack.git --rev d46d1c69b788956160deed5e4e603f4f2780ffcf
+        #run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Build
         run: |
           yarn install
@@ -43,7 +44,7 @@ jobs:
         run: |
           sudo apt install expect
           /usr/bin/expect <<EOD
-          spawn wasm-pack login
+          spawn npm adduser
           expect {
             "Username:" {send "paddim8\r"; exp_continue}
             "Password:" {send "${{ secrets.NPM_PASSWORD }}\r"; exp_continue}
