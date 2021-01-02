@@ -1,6 +1,14 @@
 <script lang="ts">
     import { afterUpdate } from "svelte";
 
+    export let identifierColor = "cornflowerblue";
+    export let operatorColor = "darkorange";
+    export let promptColor = "mediumseagreen";
+    export let errorColor = "tomato";
+    export let hintColor = "#9c9c9c";
+    export let linkColor = "cornflowerblue";
+    export let backgroundColor = "#424242";
+
     let outputLines: string[] = [];
     let outputElement: HTMLElement;
     let kalkContext;
@@ -19,8 +27,9 @@
             let output: string;
 
             if (input.trim() == "help") {
-                output =
-                    "<a href='https://kalk.netlify.app/#usage' target='blank'>Link to usage guide</a>";
+                output = `<a style="color: ${linkColor}"
+                             href="https://kalk.netlify.app/#usage"
+                             target="blank">Link to usage guide</a>`;
             } else {
                 // Calculate
                 if (!kalkContext) kalkContext = new kalk.Context();
@@ -28,11 +37,11 @@
                     const result = kalkContext.evaluate(input);
                     if (result) output = result.toString();
                 } catch (err) {
-                    output = `<span class="error">${err}</span>`;
+                    output = `<span style="color: ${errorColor}">${err}</span>`;
                 }
             }
 
-            const inputHTML = `<span class="prompt">&gt;&gt;&nbsp;</span>${target.innerHTML}`;
+            const inputHTML = `<span style="color: ${promptColor}">&gt;&gt;&nbsp;</span>${target.innerHTML}`;
             outputLines = output
                 ? [...outputLines, inputHTML, output]
                 : [...outputLines, inputHTML];
@@ -112,7 +121,7 @@
             /(?<identifier>[^!-@\s_|^⌊⌋⌈⌉]+(_\d+)?)|(?<op>[+\-/*%^!])/g,
             (substring, identifier, _, op) => {
                 if (identifier) {
-                    let newSubstring: string;
+                    let newSubstring: string = substring;
                     switch (substring) {
                         case "sqrt": {
                             newSubstring = "√";
@@ -142,11 +151,11 @@
 
                     offset += substring.length - newSubstring.length;
 
-                    return `<span class="identifier">${substring}</span>`;
+                    return `<span style="color: ${identifierColor}">${newSubstring}</span>`;
                 }
 
                 if (op) {
-                    return `<span class="operator">${substring}</span>`;
+                    return `<span style="color: ${operatorColor}">${substring}</span>`;
                 }
 
                 return substring;
@@ -160,19 +169,18 @@
 </script>
 
 <style lang="scss">
-    $background-color: #424242;
     $font: "Hack", monospace, Consolas, sans-serif; /* TODO: import font */
 
     .calculator {
-        width: 600px;
-        height: 350px;
+        width: 100%;
+        height: 100%;
     }
 
     .output {
         display: flex;
         flex-direction: column;
         height: 100%;
-        background-color: #424242;
+        background-color: inherit;
         padding: 10px;
         padding-bottom: 0;
         box-sizing: border-box;
@@ -192,7 +200,7 @@
     }
 
     .input-area {
-        background-color: $background-color;
+        background-color: inherit;
         display: flex;
         padding-left: 10px;
         font-size: 1.4em;
@@ -201,7 +209,7 @@
 
     .prompt,
     .input {
-        background-color: $background-color;
+        background-color: inherit;
         font-family: $font;
     }
 
@@ -212,11 +220,11 @@
     }
 </style>
 
-<div class="calculator">
+<div class="calculator" style="background-color: {backgroundColor}">
     <div class="output" bind:this={outputElement}>
         <p class="consoleLine">kalk</p>
         <p class="consoleLine">
-            <span class="hint">Type 'help' for instructions.</span>
+            <span style="color: {hintColor}">Type 'help' for instructions.</span>
         </p>
         {#each outputLines as line}
             <p class="consoleLine">
@@ -225,7 +233,7 @@
         {/each}
     </div>
     <div class="input-area">
-        <span class="prompt">&gt;&gt;&nbsp;</span>
+        <span class="prompt" style="color: {promptColor}">&gt;&gt;&nbsp;</span>
         {#await import('@paddim8/kalk') then kalk}
             <div
                 contenteditable="true"

@@ -2,4 +2,13 @@
 	import Calculator from "./Calculator.svelte";
 </script>
 
-<Calculator />
+<style>
+	#calculator {
+		width: 800px;
+		height: 600px;
+	}
+</style>
+
+<div id="calculator">
+	<Calculator />
+</div>
