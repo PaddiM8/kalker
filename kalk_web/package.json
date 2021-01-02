@@ -25,6 +25,7 @@
 		"mini-css-extract-plugin": "^0.9.0",
 		"optimize-css-assets-webpack-plugin": "^5.0.3",
 		"postcss-loader": "^3.0.0",
+		"raw-loader": "^4.0.2",
 		"sass": "^1.26.10",
 		"sass-loader": "^10.0.1",
 		"svelte": "^3.29.7",

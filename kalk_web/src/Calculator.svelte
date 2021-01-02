@@ -1,16 +1,30 @@
 <script lang="ts">
+    import helpText from "../../kalk_cli/help.txt";
     let outputLines: string[] = [];
     let kalkContext;
     function handleKeyDown(event: KeyboardEvent, kalk) {
         if (event.key == "Enter") {
             const target = event.target as HTMLInputElement;
             const input = target.textContent;
+            let output: string;
 
+            if (input.trim() == "help") {
+                output = helpText;
+            } else {
             // Calculate
             if (!kalkContext) kalkContext = new kalk.Context();
-            const output = kalkContext.evaluate(input).toString();
+                try {
+                    const result = kalkContext.evaluate(input);
+                    if (result) output = result.toString();
+                } catch (err) {
+                    output = `<span class="error">${err}</span>`;
+                }
+            }
 
-            outputLines = [...outputLines, input, output];
+            const inputHTML = `<span class="prompt">&gt;&gt;&nbsp;</span>${target.innerHTML}`;
+            outputLines = output
+                ? [...outputLines, inputHTML, output]
+                : [...outputLines, inputHTML];
             target.innerHTML = "";
         }
     }
@@ -181,7 +195,10 @@
 </style>
 
 <div class="calculator">
-    <div class="output">
+        <p class="consoleLine">kalk</p>
+        <p class="consoleLine">
+            <span class="hint">Type 'help' for instructions.</span>
+        </p>
         {#each outputLines as line}
             <p class="consoleLine">
                 <span class="prompt">&gt;&gt;</span>
