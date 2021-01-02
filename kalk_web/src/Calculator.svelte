@@ -147,7 +147,8 @@
     }
 </script>
 
-<style>
+    $background-color: #424242;
+    $font: "Hack", monospace, Consolas, sans-serif; /* TODO: import font */
     .calculator {
         width: 600px;
         height: 350px;
@@ -164,7 +165,7 @@
         padding-bottom: 0;
         box-sizing: border-box;
         font-size: 1.4em;
-        font-family: "Hack", monospace, Consolas, sans-serif; /* TODO: import font */
+        font-family: $font;
         color: white;
     }
 
@@ -174,7 +175,7 @@
     }
 
     .input-area {
-        background-color: #424242;
+        background-color: $background-color;
         display: flex;
         padding-left: 10px;
         font-size: 1.4em;
@@ -183,8 +184,8 @@
 
     .prompt,
     .input {
-        background-color: #424242;
-        font-family: "Hack", monospace, Consolas, sans-serif; /* TODO: import font */
+        background-color: $background-color;
+        font-family: $font;
     }
 
     .input {
