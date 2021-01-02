@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { SvelteComponent } from "svelte";
-
     let outputLines: string[] = [];
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key == "Enter") {
@@ -98,15 +96,19 @@
 
 <style>
     .calculator {
-        width: 400px;
-        height: 800px;
+        width: 600px;
+        height: 350px;
     }
 
-    .calculator .output {
+    .output {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
         width: 100%;
         height: 100%;
         background-color: #424242;
         padding: 10px;
+        padding-bottom: 0;
         box-sizing: border-box;
         font-size: 1.4em;
         font-family: "Hack", monospace, Consolas, sans-serif; /* TODO: import font */
@@ -115,16 +117,26 @@
 
     .consoleLine {
         margin-top: 0;
-        margin-bottom: 3px;
+        margin-bottom: 0;
     }
 
-    .calculator .input {
-        width: 100%;
+    .input-area {
         background-color: #424242;
-        border: 0;
-        border-top: 1px solid gray;
+        display: flex;
+        padding-left: 10px;
         font-size: 1.4em;
+        padding-bottom: 10px;
+    }
+
+    .prompt,
+    .input {
+        background-color: #424242;
         font-family: "Hack", monospace, Consolas, sans-serif; /* TODO: import font */
+    }
+
+    .input {
+        display: inline-block;
+        width: 100%;
         color: white;
     }
 </style>
@@ -133,13 +145,18 @@
     <div class="output">
         {#each outputLines as line}
             <p class="consoleLine">
+                <span class="prompt">&gt;&gt;</span>
                 {@html highlight(line)}
             </p>
         {/each}
     </div>
-    <div
-        contenteditable="true"
-        class="input"
-        on:keydown={handleKeyDown}
-        on:input={handleInput} />
+    <div class="input-area">
+        <span class="prompt">&gt;&gt;&nbsp;</span>
+        <div
+            contenteditable="true"
+            class="input"
+            on:keydown={handleKeyDown}
+            on:input={handleInput}
+            role="textbox" />
+    </div>
 </div>
