@@ -149,7 +149,6 @@ impl<'a> Lexer<'a> {
     fn next_identifier(&mut self) -> Token {
         let start = self.index;
         let mut end = start;
-        let letter_reg = regex::Regex::new(r"[A-z'_]").unwrap();
         let mut value = String::new();
 
         while is_valid_identifier(self.peek()) {
@@ -167,7 +166,7 @@ impl<'a> Lexer<'a> {
 
             // Only allow identifiers with a special character to have *one* character. No more.
             // Break the loop if it isn't the first run and the current character is a special character.
-            if end - start > 0 && !letter_reg.is_match(&c.to_string()) {
+            if end - start > 0 && !(c.is_ascii_alphabetic() || c == '\'' || c == '_') {
                 break;
             }
 
@@ -209,9 +208,11 @@ fn build(kind: TokenKind, value: &str, span: (usize, usize)) -> Token {
 
 fn is_valid_identifier(c: Option<&char>) -> bool {
     if let Some(c) = c {
-        regex::Regex::new(r"[^\s\n\r0-9\+-/%\*\^!\(\)=\.,;|⌊⌋⌈⌉]")
-            .unwrap()
-            .is_match(&c.to_string())
+        match c {
+            '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
+            | '⌊' | '⌋' | '⌈' | '⌉' | ']' => false,
+            _ => !c.is_digit(10),
+        }
     } else {
         false
     }
