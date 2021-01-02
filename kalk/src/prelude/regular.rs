@@ -96,7 +96,7 @@ fn from_angle_unit(context: &mut interpreter::Context, x: f64, angle_unit: &str)
 
 pub mod special_funcs {
     pub fn factorial(x: f64) -> f64 {
-        funcs::gamma(x) - 1
+        super::funcs::gamma(x) - 1f64
     }
 }
 
@@ -200,24 +200,24 @@ pub(super) mod funcs {
     // Matthias Eiholzer - https://gitlab.com/matthiaseiholzer/mathru/-/tree/master
     pub fn gamma(x: f64) -> f64 {
         let pi = 3.1415926535897932384626433832795028841971693993751058209749445923f64;
-        if x == 0.0 {
+        if x == 0f64 {
             return f64::NAN;
         }
 
-        if x < 0.5 {
-            return pi / ((pi * x).sin() * (1.0 - x).gamma());
+        if x < 0.5f64 {
+            return pi / gamma((pi * x).sin() * (1f64 - x));
         }
 
         let t = x + 6.5;
-        let x = 0.99999999999980993 + 676.5203681218851 / x - 1259.1392167224028 / (x + 1.0)
-            + 771.32342877765313 / (x + 2.0)
-            - 176.61502916214059 / (x + 3.0)
-            + 12.507343278686905 / (x + 4.0)
-            - 0.13857109526572012 / (x + 5.0)
-            + 9.9843695780195716e-6 / (x + 6.0)
-            + 1.5056327351493116e-7 / (x + 7.0);
+        let x = 0.99999999999980993 + 676.5203681218851 / x - 1259.1392167224028 / (x + 1f64)
+            + 771.32342877765313 / (x + 2f64)
+            - 176.61502916214059 / (x + 3f64)
+            + 12.507343278686905 / (x + 4f64)
+            - 0.13857109526572012 / (x + 5f64)
+            + 9.9843695780195716e-6 / (x + 6f64)
+            + 1.5056327351493116e-7 / (x + 7f64);
 
-        2.0.sqrt() * pi.sqrt() * t.pow((x - 0.5)) * (-t).exp() * x
+        2f64.sqrt() * pi.sqrt() * t.powf(x - 0.5f64) * (-t).exp() * x
     }
 
     pub fn hyp(x: f64, y: f64) -> f64 {
