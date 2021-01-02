@@ -86,38 +86,35 @@
             /(?<identifier>[^!-@\s_|^⌊⌋⌈⌉]+(_\d+)?)|(?<op>[+\-/*%^!])/g,
             (substring, identifier, _, op) => {
                 if (identifier) {
+                    let newSubstring: string;
                     switch (substring) {
                         case "sqrt": {
-                            substring = "√";
-                            offset += 3;
+                            newSubstring = "√";
                             break;
                         }
                         case "sum": {
-                            substring = "Σ";
-                            offset += 2;
+                            newSubstring = "Σ";
                             break;
                         }
                         case "pi": {
-                            substring = "π";
-                            offset += 1;
+                            newSubstring = "π";
                             break;
                         }
                         case "gamma": {
-                            substring = "Γ";
-                            offset += 4;
+                            newSubstring = "Γ";
                             break;
                         }
                         case "floor": {
-                            substring = "⌊⌋";
-                            offset += 3;
+                            newSubstring = "⌊⌋";
                             break;
                         }
                         case "ceil": {
-                            substring = "⌈⌉";
-                            offset += 3;
+                            newSubstring = "⌈⌉";
                             break;
                         }
                     }
+
+                    offset += substring.length - newSubstring.length;
 
                     return `<span class="identifier">${substring}</span>`;
                 }
