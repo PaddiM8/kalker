@@ -1,9 +1,16 @@
 <script lang="ts">
     let outputLines: string[] = [];
-    function handleKeyDown(event: KeyboardEvent) {
+    let kalkContext;
+    function handleKeyDown(event: KeyboardEvent, kalk) {
         if (event.key == "Enter") {
             const target = event.target as HTMLInputElement;
-            outputLines = [...outputLines, target.innerHTML];
+            const input = target.textContent;
+
+            // Calculate
+            if (!kalkContext) kalkContext = new kalk.Context();
+            const output = kalkContext.evaluate(input).toString();
+
+            outputLines = [...outputLines, input, output];
             target.innerHTML = "";
         }
     }
@@ -12,7 +19,6 @@
         const target = event.target as HTMLInputElement;
         const cursorPos = getCursorPos(target);
         const [highlighted, offset] = highlight(target.textContent);
-        console.log(highlighted);
         target.innerHTML = highlighted;
         setCursorPos(target, cursorPos - offset);
     }
@@ -188,11 +194,13 @@
     </div>
     <div class="input-area">
         <span class="prompt">&gt;&gt;&nbsp;</span>
-        <div
-            contenteditable="true"
-            class="input"
-            on:keydown={handleKeyDown}
-            on:input={handleInput}
-            role="textbox" />
+        {#await import('@paddim8/kalk') then kalk}
+            <div
+                contenteditable="true"
+                class="input"
+                on:keydown={(event) => handleKeyDown(event, kalk)}
+                on:input={handleInput}
+                role="textbox" />
+        {/await}
     </div>
 </div>
