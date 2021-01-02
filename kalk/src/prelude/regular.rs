@@ -96,7 +96,7 @@ fn from_angle_unit(context: &mut interpreter::Context, x: f64, angle_unit: &str)
 
 pub mod special_funcs {
     pub fn factorial(x: f64) -> f64 {
-        unimplemented!()
+        funcs::gamma(x) - 1
     }
 }
 
@@ -197,8 +197,27 @@ pub(super) mod funcs {
         x.fract()
     }
 
+    // Matthias Eiholzer - https://gitlab.com/matthiaseiholzer/mathru/-/tree/master
     pub fn gamma(x: f64) -> f64 {
-        unimplemented!()
+        let pi = 3.1415926535897932384626433832795028841971693993751058209749445923f64;
+        if x == 0.0 {
+            return f64::NAN;
+        }
+
+        if x < 0.5 {
+            return pi / ((pi * x).sin() * (1.0 - x).gamma());
+        }
+
+        let t = x + 6.5;
+        let x = 0.99999999999980993 + 676.5203681218851 / x - 1259.1392167224028 / (x + 1.0)
+            + 771.32342877765313 / (x + 2.0)
+            - 176.61502916214059 / (x + 3.0)
+            + 12.507343278686905 / (x + 4.0)
+            - 0.13857109526572012 / (x + 5.0)
+            + 9.9843695780195716e-6 / (x + 6.0)
+            + 1.5056327351493116e-7 / (x + 7.0);
+
+        2.0.sqrt() * pi.sqrt() * t.pow((x - 0.5)) * (-t).exp() * x
     }
 
     pub fn hyp(x: f64, y: f64) -> f64 {
