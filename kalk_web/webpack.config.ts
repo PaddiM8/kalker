@@ -36,7 +36,7 @@ const useBabelInDevelopment = false;
  * supported. The order of this array is important, as the order of outputted styles will match. Svelte component
  * styles will always appear last in the bundle.
  */
-let stylesheets = ['./src/styles/index.scss'];
+//let stylesheets = ['./src/styles/index.scss'];
 
 const config: webpack.Configuration & WebpackDevServer.Configuration = {
 	entry: {
@@ -66,11 +66,13 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 				use: {
 					loader: 'svelte-loader-hot',
 					options: {
+						customElement: true,
 						dev: !prod,
 						emitCss: prod,
 						hotReload: !prod,
 						hotOptions: {
 							// List of options and defaults: https://www.npmjs.com/package/svelte-loader-hot#usage
+							customElement: true,
 							noPreserveState: false,
 							optimistic: true,
 						},
@@ -140,29 +142,6 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 	},
 	devtool: prod && !sourceMapsInProduction ? false : 'source-map',
 };
-
-// Add stylesheets to the build
-if (Array.isArray(stylesheets) || typeof stylesheets === 'string') {
-	if (!Array.isArray(stylesheets)) {
-		stylesheets = [stylesheets];
-	}
-
-	// Make sure our entry bundle is in the correct format
-	if (typeof config.entry === 'object' && !Array.isArray(config.entry)) {
-		if (typeof config.entry.bundle !== 'undefined') {
-			// Convert the bundle to an array if necessary
-			if (!Array.isArray(config.entry.bundle)) {
-				config.entry.bundle = [config.entry.bundle];
-			}
-
-			// Add to the beginning of the bundle using unshift
-			config.entry.bundle.unshift.apply(
-				config.entry.bundle,
-				stylesheets
-			);
-		}
-	}
-}
 
 // Load path mapping from tsconfig
 const tsconfigPath = path.resolve(__dirname, 'tsconfig.json');
