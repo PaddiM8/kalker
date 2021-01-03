@@ -8,13 +8,23 @@
 	<title>Svelte app</title>
 
 	<link rel="icon" type="image/png" href="/favicon.png">
-
-	<link rel="stylesheet" href="/build/bundle.css">
 	<script defer src="/build/bundle.js"></script>
+
+	<style>
+		.calculator {
+			width: 800px;
+			height: 350px;
+			font-family: "Hack", monospace, Consolas;
+			font-size: 14px;
+		}
+	</style>
 </head>
 
 <body>
 	<noscript>Please enable JavaScript to view this application.</noscript>
+	<div class="calculator">
+		<kalk-calculator />
+	</div>
 </body>
 
 </html>

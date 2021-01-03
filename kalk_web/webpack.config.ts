@@ -22,7 +22,7 @@ const sourceMapsInProduction = false;
  * Should we run Babel on builds? This will transpile your bundle in order to work on your target browsers (see the
  * `browserslist` property in your package.json), but will impact bundle size and build speed.
  */
-const useBabel = true;
+const useBabel = false;
 
 /**
  * Should we run Babel on development builds? If set to `false`, only production builds will be transpiled. If you're
@@ -60,13 +60,12 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 				use: {
 					loader: 'svelte-loader-hot',
 					options: {
-						customElement: true,
+						customElement: prod,
 						dev: !prod,
 						emitCss: prod,
 						hotReload: !prod,
 						hotOptions: {
 							// List of options and defaults: https://www.npmjs.com/package/svelte-loader-hot#usage
-							customElement: true,
 							noPreserveState: false,
 							optimistic: true,
 						},
