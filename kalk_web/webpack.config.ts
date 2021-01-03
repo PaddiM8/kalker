@@ -46,10 +46,12 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 		mainFields: ['svelte', 'browser', 'module', 'main'],
 	},
 	output: {
-		publicPath: './build/',
-		path: __dirname + './public/build',
+		path: __dirname + '/public/build',
 		filename: '[name].js',
 		chunkFilename: '[name].[id].js',
+		library: "kalkComponent",
+		libraryTarget: 'window',
+		libraryExport: 'default'
 	},
 	module: {
 		rules: [
