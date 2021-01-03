@@ -1,9 +1,10 @@
 {
-	"name": "kalk-component",
+	"name": "@paddim8/kalk-component",
 	"version": "1.0.0",
 	"description": "A Svelte component for kalk, a calculator that supports user-defined functions and variables.",
 	"svelte": "src/index.ts",
 	"main": "public/build/bundle.js",
+	"module": "public/build/bundle.js",
 	"author": "PaddiM8",
 	"license": "MIT",
 	"repository": {
@@ -17,7 +18,8 @@
 	"scripts": {
 		"build": "cross-env NODE_ENV=production webpack",
 		"dev": "webpack-dev-server --content-base public --hot",
-		"validate": "svelte-check"
+		"validate": "svelte-check",
+		"prepublishOnly": "cross-env NODE_ENV=production webpack"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.11.5",
@@ -53,7 +55,7 @@
 		"webpack-dev-server": "^3.11.0"
 	},
 	"dependencies": {
-		"@paddim8/kalk": "^1.4.0"
+		"@paddim8/kalk": "^1.4.1"
 	},
 	"browserslist": [
 		"defaults"

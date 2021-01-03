@@ -31,17 +31,9 @@ const useBabel = true;
  */
 const useBabelInDevelopment = false;
 
-/**
- * One or more stylesheets to compile and add to the beginning of the bundle. By default, SASS, SCSS and CSS files are
- * supported. The order of this array is important, as the order of outputted styles will match. Svelte component
- * styles will always appear last in the bundle.
- */
-//let stylesheets = ['./src/styles/index.scss'];
-
 const config: webpack.Configuration & WebpackDevServer.Configuration = {
 	entry: {
 		bundle: [
-			// Note: Paths in the `stylesheets` variable will be added here automatically
 			'./src/main.ts',
 		],
 	},
@@ -54,8 +46,8 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 		mainFields: ['svelte', 'browser', 'module', 'main'],
 	},
 	output: {
-		publicPath: '/build/',
-		path: __dirname + '/public/build',
+		publicPath: './build/',
+		path: __dirname + './public/build',
 		filename: '[name].js',
 		chunkFilename: '[name].[id].js',
 	},
