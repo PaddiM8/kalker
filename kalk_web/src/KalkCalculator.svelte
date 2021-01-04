@@ -1,12 +1,12 @@
 <script lang="ts">
     import { afterUpdate } from "svelte";
+    import ConsoleLine from "./ConsoleLine.svelte";
     import type { Context } from "@paddim8/kalk";
 
     export let identifierColor = "cornflowerblue";
     export let operatorColor = "darkorange";
     export let promptColor = "mediumseagreen";
     export let errorColor = "tomato";
-    export let hintColor = "#9c9c9c";
     export let linkColor = "cornflowerblue";
 
     type Kalk = typeof import("@paddim8/kalk");
@@ -258,16 +258,6 @@
         margin-top: auto;
     }
 
-    .consoleLine {
-        margin-top: 0;
-        margin-bottom: 5px;
-        word-wrap: break-word;
-    }
-
-    .result {
-        margin-bottom: 10px;
-    }
-
     .input-area {
         background-color: inherit;
         display: flex;
@@ -296,17 +286,14 @@
 <svelte:options tag="kalk-calculator" />
 <div class="calculator">
     <div class="output" bind:this={outputElement}>
-        <p class="consoleLine">kalk</p>
-        <p class="consoleLine">
-            <span style="color: {hintColor}">Type 'help' for instructions.</span>
-        </p>
+        <slot />
         {#each outputLines as line}
-            <p class="consoleLine" class:result={!line[1]}>
+            <console-line byUser={line[1]}>
                 {#if line[1]}
                     <span style="color: {promptColor}">&gt;&gt;</span>
                 {/if}
                 {@html line[0]}
-            </p>
+            </console-line>
         {/each}
     </div>
     <div class="input-area">
