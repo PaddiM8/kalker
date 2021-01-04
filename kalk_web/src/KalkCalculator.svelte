@@ -26,20 +26,20 @@
     function calculate(
         kalk: Kalk,
         input: string
-    ): [result: string, error: string] {
+    ): [result: string, success: boolean] {
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
             const result = kalkContext.evaluate(input) ?? "";
             if (result) {
                 const sciNot = result.toScientificNotation();
                 if (sciNot.exponent > 7 || sciNot.exponent < -6) {
-                    return [sciNot.toString(), null];
+                    return [sciNot.toString(), true];
                 }
             }
 
-            return [result.toString(), null];
+            return [result?.toString(), true];
         } catch (err) {
-            return [undefined, err];
+            return [err, false];
         }
     }
 
@@ -55,10 +55,10 @@
                              href="https://kalk.netlify.app/#usage"
                              target="blank">Link to usage guide</a>`;
             } else {
-                const [result, err] = calculate(kalk, input);
-                output =
-                    highlight(result)[0] ??
-                    `<span style="color: ${errorColor}">${err}</span>`;
+                const [result, success] = calculate(kalk, input);
+                output = success
+                    ? highlight(result)[0]
+                    : `<span style="color: ${errorColor}">${result}</span>`;
             }
 
             outputLines = output
@@ -178,6 +178,7 @@
     }
 
     function highlight(input: string): [string, number] {
+        if (!input) return ["", 0];
         let result = input;
         let offset = 0;
         result = result.replaceAll(
