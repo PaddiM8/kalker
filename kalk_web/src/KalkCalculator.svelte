@@ -216,14 +216,17 @@
 
 <style lang="scss">
     .calculator {
+        display: flex;
+        flex-direction: column;
         width: 100%;
         height: 100%;
+        box-sizing: border-box;
     }
 
     .output {
         display: flex;
+        flex-grow: 1;
         flex-direction: column;
-        height: 100%;
         background-color: inherit;
         padding: 10px;
         padding-bottom: 0;
@@ -238,8 +241,12 @@
 
     .consoleLine {
         margin-top: 0;
-        margin-bottom: 0;
+        margin-bottom: 5px;
         word-wrap: break-word;
+    }
+
+    .result {
+        margin-bottom: 10px;
     }
 
     .input-area {
@@ -275,7 +282,7 @@
             <span style="color: {hintColor}">Type 'help' for instructions.</span>
         </p>
         {#each outputLines as line}
-            <p class="consoleLine">
+            <p class="consoleLine" class:result={!line[1]}>
                 {#if line[1]}
                     <span style="color: {promptColor}">&gt;&gt;</span>
                 {/if}

@@ -55,7 +55,7 @@
 		"webpack-dev-server": "^3.11.0"
 	},
 	"dependencies": {
-		"@paddim8/kalk": "^1.4.1"
+		"@paddim8/kalk": "^1.4.2"
 	},
 	"browserslist": [
 		"defaults"
