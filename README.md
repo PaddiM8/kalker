@@ -1,14 +1,14 @@
 # kalk
 [![Crates.io](https://img.shields.io/crates/v/kalk_cli)](https://crates.io/crates/kalk_cli)
+![npm](https://img.shields.io/npm/v/@paddim8/kalk)
 [![GitHub](https://img.shields.io/github/license/PaddiM8/kalk)](https://github.com/PaddiM8/kalk/blob/master/LICENSE)
 [![Docs.rs](https://docs.rs/kalk/badge.svg)](https://docs.rs/kalk/latest/kalk/)
 ![Build status](https://img.shields.io/github/workflow/status/PaddiM8/kalk/Rust?event=push&label=build%20%26%20test)
 
 
-Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental).  
-[Project kanban board (Kolan)](https://kolan.strct.net/Board/4RAdMjLDz)  
+Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental, limited). It runs on Windows, macOS, Linux, and in web browsers (with WebAssembly).  
 
-Website: [kalk.strct.net](https://kalk.strct.net)
+[Kanban](https://kolan.strct.net/Board/4RAdMjLDz) | [Website](https://kalk.strct.net)
 
 ![](example.png)
 
@@ -25,7 +25,14 @@ Website: [kalk.strct.net](https://kalk.strct.net)
 * Load a file including predefined functions and constants. For example, if you're going to use Kalk for physics, you load up your file with physics functions/constants when starting Kalk. `-i file`
 * Misc: separate expressions by a semicolon to write them on the same line, use the `ans` variable to get the value of the previously calculated expression.
 
-## Installing
+## Libraries
+
+There are currently three different libraries related to kalk.
+* [kalk](https://crates.io/crates/kalk): The Rust crate that powers it all.
+* [@paddim8/kalk](https://www.npmjs.com/package/@paddim8/kalk): JavaScript bindings to `kalk`. This lets you use it in the browser, thanks to WebAssembly.
+* [@paddim8/kalk-component](https://www.npmjs.com/package/@paddim8/kalk-component): A web component that acts as a frontend to `@paddim8/kalk`, which lets you use kalk in the browser with a command line-like interface.
+
+## Installation
 ### Binaries
 Pre-compiled binaries for Linux, Windows, and macOS (64-bit) are available in the [releases page](https://github.com/PaddiM8/kalk/releases).
 ### Compiling
