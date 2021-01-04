@@ -11,20 +11,30 @@
 	<script defer src="/build/bundle.js"></script>
 
 	<style>
+		#wrapper {
+			padding: 40px;
+			background-color: #212121;
+		}
+
 		.calculator {
-			width: 800px;
-			height: 350px;
+			width: 600px;
+			height: 200px;
 			font-family: "Hack", monospace, Consolas;
 			font-size: 14px;
+			padding: 5px 10px 0 10px;
+			background-color: #424242;
+			border-radius: 7px;
 		}
 	</style>
 </head>
 
 <body>
 	<noscript>Please enable JavaScript to view this application.</noscript>
-	<div class="calculator">
-		<kalk-calculator />
-	</div>
+	<section id="wrapper">
+		<div class="calculator">
+			<kalk-calculator />
+		</div>
+	</section>
 </body>
 
 </html>
