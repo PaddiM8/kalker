@@ -16,6 +16,10 @@
 			background-color: #212121;
 		}
 
+		.hint {
+			color: #9c9c9c;
+		}
+
 		.calculator {
 			width: 850px;
 			height: 350px;
@@ -33,7 +37,12 @@
 <body>
 	<section id="wrapper">
 		<div class="calculator">
-			<kalk-calculator backgroundColor="#2e2e2e" />
+			<kalk-calculator>
+				<console-line>kalk</console-line>
+				<console-line>
+					<span class="hint">Type 'help' for instructions.</span>
+				</console-line>
+			</kalk-calculator>
 		</div>
 	</section>
 </body>
