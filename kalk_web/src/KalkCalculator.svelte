@@ -239,6 +239,7 @@
     .consoleLine {
         margin-top: 0;
         margin-bottom: 0;
+        word-wrap: break-word;
     }
 
     .input-area {
@@ -258,6 +259,11 @@
         display: inline-block;
         width: 100%;
         color: white;
+        word-wrap: anywhere;
+
+        &:focus {
+            outline: none;
+        }
     }
 </style>
 
