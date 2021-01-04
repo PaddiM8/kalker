@@ -1,5 +1,6 @@
 <script lang="ts">
     import { afterUpdate } from "svelte";
+    import type { Context } from "@paddim8/kalk";
 
     export let identifierColor = "cornflowerblue";
     export let operatorColor = "darkorange";
@@ -8,9 +9,11 @@
     export let hintColor = "#9c9c9c";
     export let linkColor = "cornflowerblue";
 
+    type Kalk = typeof import("@paddim8/kalk");
+
     let outputLines: [value: string, byUser: boolean][] = [];
     let outputElement: HTMLElement;
-    let kalkContext;
+    let kalkContext: Context;
     let selectedLineOffset: number = 0;
 
     afterUpdate(() => {
@@ -20,7 +23,27 @@
         ].scrollIntoView(false);
     });
 
-    function handleKeyDown(event: KeyboardEvent, kalk) {
+    function calculate(
+        kalk: Kalk,
+        input: string
+    ): [result: string, error: string] {
+        try {
+            if (!kalkContext) kalkContext = new kalk.Context();
+            const result = kalkContext.evaluate(input) ?? "";
+            if (result) {
+                const sciNot = result.toScientificNotation();
+                if (sciNot.exponent > 7 || sciNot.exponent < -6) {
+                    return [sciNot.toString(), null];
+                }
+            }
+
+            return [result.toString(), null];
+        } catch (err) {
+            return [undefined, err];
+        }
+    }
+
+    function handleKeyDown(event: KeyboardEvent, kalk: Kalk) {
         if (event.key == "Enter") {
             selectedLineOffset = 0;
             const target = event.target as HTMLInputElement;
@@ -32,14 +55,10 @@
                              href="https://kalk.netlify.app/#usage"
                              target="blank">Link to usage guide</a>`;
             } else {
-                // Calculate
-                if (!kalkContext) kalkContext = new kalk.Context();
-                try {
-                    const result = kalkContext.evaluate(input);
-                    if (result) output = result.toString();
-                } catch (err) {
-                    output = `<span style="color: ${errorColor}">${err}</span>`;
-                }
+                const [result, err] = calculate(kalk, input);
+                output =
+                    result ??
+                    `<span style="color: ${errorColor}">${err}</span>`;
             }
 
             outputLines = output
