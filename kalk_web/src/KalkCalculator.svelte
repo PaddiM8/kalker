@@ -10,9 +10,10 @@
     export let backgroundColor = "#424242";
     export let textColor = "white";
 
-    let outputLines: string[] = [];
+    let outputLines: [value: string, byUser: boolean][] = [];
     let outputElement: HTMLElement;
     let kalkContext;
+    let selectedLineOffset: number = 0;
 
     afterUpdate(() => {
         // Scroll to bottom
@@ -23,6 +24,7 @@
 
     function handleKeyDown(event: KeyboardEvent, kalk) {
         if (event.key == "Enter") {
+            selectedLineOffset = 0;
             const target = event.target as HTMLInputElement;
             const input = target.textContent;
             let output: string;
@@ -42,12 +44,46 @@
                 }
             }
 
-            const inputHTML = `<span style="color: ${promptColor}">&gt;&gt;&nbsp;</span>${target.innerHTML}`;
             outputLines = output
-                ? [...outputLines, inputHTML, output]
-                : [...outputLines, inputHTML];
+                ? [...outputLines, [target.innerHTML, true], [output, false]]
+                : [...outputLines, [target.innerHTML, true]];
 
             target.innerHTML = "";
+        }
+    }
+
+    function handleKeyUp(event: KeyboardEvent) {
+        // on keyup, since pressing the arrow up key makes the cursor go to the start
+        // of the input field. This piece of code will put the cursor at the end,
+        // which therefore will need to be done afterwards, so that it doesn't just get moved back again.
+        if (event.key == "ArrowUp" || event.key == "ArrowDown") {
+            const target = event.target as HTMLInputElement;
+            const change = event.key == "ArrowUp" ? 1 : -1;
+            selectedLineOffset += change;
+
+            if (selectedLineOffset < 0) {
+                target.innerHTML = "";
+                selectedLineOffset = 0;
+                return;
+            }
+
+            const index = outputLines.length - selectedLineOffset - 1;
+            let line = outputLines[index];
+
+            // If it was just a response, get the one above that instead
+            while (line && !line[1]) {
+                line = outputLines[index - change];
+                selectedLineOffset += change;
+            }
+
+            if (line) {
+                target.innerHTML = line[0];
+                setCursorPosEnd(target);
+            }
+
+            if (selectedLineOffset >= outputLines.length) {
+                selectedLineOffset = outputLines.length - 1;
+            }
         }
     }
 
@@ -95,6 +131,15 @@
         }
 
         const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    function setCursorPosEnd(element: HTMLElement) {
+        const range = document.createRange();
+        const selection = window.getSelection();
+        range.selectNodeContents(element);
+        range.setStart(element, range.endOffset);
         selection.removeAllRanges();
         selection.addRange(range);
     }
@@ -225,7 +270,10 @@
         </p>
         {#each outputLines as line}
             <p class="consoleLine">
-                {@html line}
+                {#if line[1]}
+                    <span style="color: {promptColor}">&gt;&gt;</span>
+                {/if}
+                {@html line[0]}
             </p>
         {/each}
     </div>
@@ -238,6 +286,7 @@
                 contenteditable="true"
                 class="input"
                 on:keydown={(event) => handleKeyDown(event, kalk)}
+                on:keyup={handleKeyUp}
                 on:input={handleInput}
                 role="textbox" />
         {:catch error}
