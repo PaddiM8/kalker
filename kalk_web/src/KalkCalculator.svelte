@@ -7,8 +7,6 @@
     export let errorColor = "tomato";
     export let hintColor = "#9c9c9c";
     export let linkColor = "cornflowerblue";
-    export let backgroundColor = "#424242";
-    export let textColor = "white";
 
     let outputLines: [value: string, byUser: boolean][] = [];
     let outputElement: HTMLElement;
@@ -221,6 +219,8 @@
         width: 100%;
         height: 100%;
         box-sizing: border-box;
+        background-color: inherit;
+        color: inherit;
     }
 
     .output {
@@ -275,8 +275,8 @@
 </style>
 
 <svelte:options tag="kalk-calculator" />
-<div class="calculator" style="background-color: {backgroundColor}">
-    <div class="output" style="color: {textColor}" bind:this={outputElement}>
+<div class="calculator">
+    <div class="output" bind:this={outputElement}>
         <p class="consoleLine">kalk</p>
         <p class="consoleLine">
             <span style="color: {hintColor}">Type 'help' for instructions.</span>
@@ -293,7 +293,7 @@
     <div class="input-area">
         <span class="prompt" style="color: {promptColor}">&gt;&gt;&nbsp;</span>
         {#await import('@paddim8/kalk')}
-            <span style="color: {textColor}">Loading...</span>
+            <span>Loading...</span>
         {:then kalk}
             <div
                 contenteditable="true"
