@@ -57,7 +57,7 @@
             } else {
                 const [result, err] = calculate(kalk, input);
                 output =
-                    result ??
+                    highlight(result)[0] ??
                     `<span style="color: ${errorColor}">${err}</span>`;
             }
 
