@@ -46,6 +46,7 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 		mainFields: ['svelte', 'browser', 'module', 'main'],
 	},
 	output: {
+		publicPath: prod ? '' : '/build/',
 		path: __dirname + '/public/build',
 		filename: '[name].js',
 		chunkFilename: '[name].[id].js',
@@ -60,7 +61,7 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 				use: {
 					loader: 'svelte-loader-hot',
 					options: {
-						customElement: prod,
+						customElement: true,
 						dev: !prod,
 						emitCss: prod,
 						hotReload: !prod,
