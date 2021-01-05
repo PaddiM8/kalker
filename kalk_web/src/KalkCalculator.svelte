@@ -279,6 +279,7 @@
         width: 100%;
         color: white;
         word-wrap: anywhere;
+        cursor: text;
 
         &:focus {
             outline: none;
