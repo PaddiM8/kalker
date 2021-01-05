@@ -1,20 +1,19 @@
 <script lang="ts">
-    export let byUser = false;
+    export let byuser = false;
 </script>
 
-<style>
-    p {
+<style lang="scss">
+    .console-line-tg638d3 {
         margin-top: 0;
         margin-bottom: 5px;
         word-wrap: break-word;
     }
 
-    .result {
+    .console-line-tg638d3.result {
         margin-bottom: 10px;
     }
 </style>
 
-<svelte:options tag="console-line" />
-<p class:result={!byUser}>
+<p class="console-line-tg638d3" class:result={!byuser}>
     <slot />
 </p>
