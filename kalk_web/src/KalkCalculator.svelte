@@ -1,6 +1,5 @@
 <script lang="ts">
     import { afterUpdate } from "svelte";
-    import ConsoleLine from "./ConsoleLine.svelte";
     import type { Context } from "@paddim8/kalk";
 
     // Props, HTML doesn't recognise them if they're not like this
@@ -10,6 +9,7 @@
     export let errorcolor = "tomato";
     export let linkcolor = "cornflowerblue";
     export let hinttext = "";
+    export let autofocus = false;
 
     type Kalk = typeof import("@paddim8/kalk");
 
@@ -112,6 +112,10 @@
         const [highlighted, offset] = highlight(target.textContent);
         target.innerHTML = highlighted;
         setCursorPos(target, cursorPos - offset);
+    }
+
+    function focus(element: HTMLInputElement) {
+        if (autofocus) element.focus();
     }
 
     function getCursorPos(element: HTMLInputElement): number {
@@ -316,6 +320,7 @@
                 contenteditable="true"
                 class="input"
                 placeholder={hinttext}
+                use:focus
                 on:keydown={(event) => handleKeyDown(event, kalk)}
                 on:keyup={handleKeyUp}
                 on:input={handleInput}
