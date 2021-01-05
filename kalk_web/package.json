@@ -1,6 +1,6 @@
 {
 	"name": "@paddim8/kalk-component",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"description": "A Svelte component for kalk, a calculator that supports user-defined functions and variables.",
 	"svelte": "src/main.ts",
 	"main": "public/build/bundle.js",
@@ -46,6 +46,7 @@
 		"svelte-check": "^1.1.15",
 		"svelte-loader-hot": "^0.3.1",
 		"svelte-preprocess": "^4.6.1",
+		"svelte-tag": "^1.0.1",
 		"terser-webpack-plugin": "^4.2.3",
 		"ts-loader": "^8.0.2",
 		"ts-node": "^9.0.0",

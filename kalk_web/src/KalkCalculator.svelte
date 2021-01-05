@@ -1,6 +1,7 @@
 <script lang="ts">
     import { afterUpdate } from "svelte";
     import type { Context } from "@paddim8/kalk";
+    import ConsoleLine from "./ConsoleLine.svelte";
 
     // Props, HTML doesn't recognise them if they're not like this
     export let identifiercolor = "cornflowerblue";
@@ -57,7 +58,10 @@
                              href="https://kalk.netlify.app/#usage"
                              target="blank">Link to usage guide</a>`;
             } else {
-                const [result, success] = calculate(kalk, input);
+                const [result, success] = calculate(
+                    kalk,
+                    input.replace(/\s+/g, "") // Temporary fix, since it for some reason complains about spaces on chrome
+                );
                 output = success
                     ? highlight(result)[0]
                     : `<span style="color: ${errorcolor}">${result}</span>`;
@@ -119,16 +123,13 @@
     }
 
     function getCursorPos(element: HTMLInputElement): number {
-        const selection = window.getSelection();
-        if (selection.rangeCount !== 0) {
-            const range = selection.getRangeAt(0);
-            const preCaretRange = range.cloneRange();
-            preCaretRange.selectNodeContents(element);
-            preCaretRange.setEnd(range.endContainer, range.endOffset);
-            return preCaretRange.toString().length;
-        }
+        const selection = document.getSelection();
+        const range = selection.getRangeAt(0);
+        const preCaretRange = range.cloneRange();
+        preCaretRange.selectNodeContents(element);
+        preCaretRange.setEnd(range.endContainer, range.endOffset);
 
-        return 0;
+        return preCaretRange.toString().length;
     }
 
     function setCursorPos(element: HTMLElement, indexToSelect: number) {
@@ -187,7 +188,7 @@
         if (!input) return ["", 0];
         let result = input;
         let offset = 0;
-        result = result.replaceAll(
+        result = result.replace(
             /(?<identifier>[^!-@\s_|^⌊⌋⌈⌉]+(_\d+)?)|(?<op>[+\-/*%^!])/g,
             (substring, identifier, _, op) => {
                 if (identifier) {
@@ -239,7 +240,7 @@
 </script>
 
 <style lang="scss">
-    .calculator {
+    .calculator-tg638d3 {
         display: flex;
         flex-direction: column;
         width: 100%;
@@ -247,68 +248,67 @@
         box-sizing: border-box;
         background-color: inherit;
         color: inherit;
-    }
 
-    .output {
-        display: flex;
-        flex-grow: 1;
-        flex-direction: column;
-        background-color: inherit;
-        padding: 10px;
-        padding-bottom: 0;
-        box-sizing: border-box;
-        font-size: 1.4em;
-        overflow: auto;
-    }
-
-    .output > :first-child {
-        margin-top: auto;
-    }
-
-    .input-area {
-        background-color: inherit;
-        display: flex;
-        padding-left: 10px;
-        font-size: 1.4em;
-        padding-bottom: 10px;
-    }
-
-    .prompt,
-    .input {
-        background-color: inherit;
-    }
-
-    .input {
-        display: inline-block;
-        width: 100%;
-        color: white;
-        word-wrap: anywhere;
-        cursor: text;
-
-        &:focus {
-            outline: none;
+        .output {
+            display: flex;
+            flex-grow: 1;
+            flex-direction: column;
+            background-color: inherit;
+            padding: 10px;
+            padding-bottom: 0;
+            box-sizing: border-box;
+            font-size: 1.4em;
+            overflow: auto;
         }
-    }
 
-    [contenteditable][placeholder]:empty:before {
-        content: attr(placeholder);
-        position: absolute;
-        color: gray;
-        background-color: transparent;
+        .output > :first-child {
+            margin-top: auto;
+        }
+
+        .input-area {
+            background-color: inherit;
+            display: flex;
+            padding-left: 10px;
+            font-size: 1.4em;
+            padding-bottom: 10px;
+        }
+
+        .prompt,
+        .input {
+            background-color: inherit;
+        }
+
+        .input {
+            display: inline-block;
+            width: 100%;
+            color: white;
+            word-wrap: anywhere;
+            cursor: text;
+
+            &:focus {
+                outline: none;
+            }
+        }
+
+        [contenteditable][placeholder]:empty:before {
+            content: attr(placeholder);
+            position: absolute;
+            color: gray;
+            background-color: transparent;
+        }
     }
 </style>
 
-<svelte:options tag="kalk-calculator" />
-<div class="calculator">
+<div class="calculator-tg638d3">
     <div class="output" bind:this={outputElement}>
         <slot />
         {#each outputLines as line}
-            <console-line byUser={line[1]}>
+            <ConsoleLine byuser={line[1]}>
                 {#if line[1]}
                     <span style="color: {promptcolor}">&gt;&gt;</span>
                 {/if}
                 {@html line[0]}
-            </console-line>
+            </ConsoleLine>
         {/each}
     </div>
     <div class="input-area">
