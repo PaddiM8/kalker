@@ -3,12 +3,13 @@
     import ConsoleLine from "./ConsoleLine.svelte";
     import type { Context } from "@paddim8/kalk";
 
-    export let identifierColor = "cornflowerblue";
-    export let operatorColor = "darkorange";
-    export let promptColor = "mediumseagreen";
-    export let errorColor = "tomato";
-    export let linkColor = "cornflowerblue";
-    export let hintText = "";
+    // Props, HTML doesn't recognise them if they're not like this
+    export let identifiercolor = "cornflowerblue";
+    export let operatorcolor = "darkorange";
+    export let promptcolor = "mediumseagreen";
+    export let errorcolor = "tomato";
+    export let linkcolor = "cornflowerblue";
+    export let hinttext = "";
 
     type Kalk = typeof import("@paddim8/kalk");
 
@@ -52,14 +53,14 @@
             let output: string;
 
             if (input.trim() == "help") {
-                output = `<a style="color: ${linkColor}"
+                output = `<a style="color: ${linkcolor}"
                              href="https://kalk.netlify.app/#usage"
                              target="blank">Link to usage guide</a>`;
             } else {
                 const [result, success] = calculate(kalk, input);
                 output = success
                     ? highlight(result)[0]
-                    : `<span style="color: ${errorColor}">${result}</span>`;
+                    : `<span style="color: ${errorcolor}">${result}</span>`;
             }
 
             outputLines = output
@@ -216,11 +217,11 @@
 
                     offset += substring.length - newSubstring.length;
 
-                    return `<span style="color: ${identifierColor}">${newSubstring}</span>`;
+                    return `<span style="color: ${identifiercolor}">${newSubstring}</span>`;
                 }
 
                 if (op) {
-                    return `<span style="color: ${operatorColor}">${substring}</span>`;
+                    return `<span style="color: ${operatorcolor}">${substring}</span>`;
                 }
 
                 return substring;
@@ -299,27 +300,27 @@
         {#each outputLines as line}
             <console-line byUser={line[1]}>
                 {#if line[1]}
-                    <span style="color: {promptColor}">&gt;&gt;</span>
+                    <span style="color: {promptcolor}">&gt;&gt;</span>
                 {/if}
                 {@html line[0]}
             </console-line>
         {/each}
     </div>
     <div class="input-area">
-        <span class="prompt" style="color: {promptColor}">&gt;&gt;&nbsp;</span>
+        <span class="prompt" style="color: {promptcolor}">&gt;&gt;&nbsp;</span>
         {#await import('@paddim8/kalk')}
             <span>Loading...</span>
         {:then kalk}
             <div
                 contenteditable="true"
                 class="input"
-                placeholder={hintText}
+                placeholder={hinttext}
                 on:keydown={(event) => handleKeyDown(event, kalk)}
                 on:keyup={handleKeyUp}
                 on:input={handleInput}
                 role="textbox" />
         {:catch error}
-            <span style="color: {errorColor}">{error}</span>
+            <span style="color: {errorcolor}">{error}</span>
         {/await}
     </div>
 </div>
