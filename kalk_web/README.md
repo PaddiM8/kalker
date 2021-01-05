@@ -38,6 +38,7 @@ I am not aware of a better way.
 The colours in the component can be changed by using these attributes.
 ```html
 <kalk-calculator
+    hintText="Type something..." 
     identifierColor="cornflowerblue"
     operatorColor="darkorange"
     promptColor="mediumseagreen"

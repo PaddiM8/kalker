@@ -8,6 +8,7 @@
     export let promptColor = "mediumseagreen";
     export let errorColor = "tomato";
     export let linkColor = "cornflowerblue";
+    export let hintText = "";
 
     type Kalk = typeof import("@paddim8/kalk");
 
@@ -282,6 +283,13 @@
             outline: none;
         }
     }
+
+    [contenteditable][placeholder]:empty:before {
+        content: attr(placeholder);
+        position: absolute;
+        color: gray;
+        background-color: transparent;
+    }
 </style>
 
 <svelte:options tag="kalk-calculator" />
@@ -305,6 +313,7 @@
             <div
                 contenteditable="true"
                 class="input"
+                placeholder={hintText}
                 on:keydown={(event) => handleKeyDown(event, kalk)}
                 on:keyup={handleKeyUp}
                 on:input={handleInput}
