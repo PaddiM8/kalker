@@ -2,6 +2,7 @@
     import { afterUpdate } from "svelte";
     import type { Context } from "@paddim8/kalk";
     import ConsoleLine from "./ConsoleLine.svelte";
+    import * as shadow from "shadow-selection-polyfill";
 
     // Props, HTML doesn't recognise them if they're not like this
     export let identifiercolor = "cornflowerblue";
@@ -18,6 +19,7 @@
     let outputElement: HTMLElement;
     let kalkContext: Context;
     let selectedLineOffset: number = 0;
+    let calculatorElement: HTMLElement;
 
     afterUpdate(() => {
         // Scroll to bottom
@@ -123,8 +125,10 @@
     }
 
     function getCursorPos(element: HTMLInputElement): number {
-        const selection = document.getSelection();
-        const range = selection.getRangeAt(0);
+        const shadowRoot = calculatorElement.getRootNode() as ShadowRoot;
+        const range = shadow.getRange(shadowRoot);
+        //const selection = shadowRoot.getSelection();
+        //const range = selection.getRangeAt(0);
         const preCaretRange = range.cloneRange();
         preCaretRange.selectNodeContents(element);
         preCaretRange.setEnd(range.endContainer, range.endOffset);
@@ -240,7 +244,7 @@
 </script>
 
 <style lang="scss">
-    .calculator-tg638d3 {
+    .calculator {
         display: flex;
         flex-direction: column;
         width: 100%;
@@ -299,16 +303,17 @@
     }
 </style>
 
-<div class="calculator-tg638d3">
+<svelte:options tag="kalk-calculator" />
+<div class="calculator" bind:this={calculatorElement}>
     <div class="output" bind:this={outputElement}>
         <slot />
         {#each outputLines as line}
-            <ConsoleLine byuser={line[1]}>
+            <console-line byuser={line[1]}>
                 {#if line[1]}
                     <span style="color: {promptcolor}">&gt;&gt;</span>
                 {/if}
                 {@html line[0]}
-            </ConsoleLine>
+            </console-line>
         {/each}
     </div>
     <div class="input-area">
