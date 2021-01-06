@@ -3,17 +3,18 @@
 </script>
 
 <style lang="scss">
-    .console-line-tg638d3 {
+    p {
         margin-top: 0;
         margin-bottom: 5px;
         word-wrap: break-word;
     }
 
-    .console-line-tg638d3.result {
+    .result {
         margin-bottom: 10px;
     }
 </style>
 
-<p class="console-line-tg638d3" class:result={!byuser}>
+<svelte:options tag="console-line" />
+<p class:result={!byuser}>
     <slot />
 </p>

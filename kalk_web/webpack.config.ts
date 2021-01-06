@@ -61,7 +61,7 @@ const config: webpack.Configuration & WebpackDevServer.Configuration = {
 				use: {
 					loader: 'svelte-loader-hot',
 					options: {
-						//customElement: true,
+						customElement: true,
 						dev: !prod,
 						emitCss: prod,
 						hotReload: !prod,
