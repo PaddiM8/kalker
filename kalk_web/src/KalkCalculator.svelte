@@ -12,14 +12,36 @@
     export let linkcolor = "cornflowerblue";
     export let hinttext = "";
     export let autofocus = false;
+    export let buttonpanel = false;
+    export let numberrow = false;
 
     type Kalk = typeof import("@paddim8/kalk");
 
     let outputLines: [value: string, byUser: boolean][] = [];
+    let buttonRowValues = [
+        "+",
+        "-",
+        "*",
+        "/",
+        "^",
+        "=",
+        ".",
+        "(",
+        "√",
+        "π",
+        ",",
+        "%",
+        "Σ",
+        "⌊",
+        "⌈",
+        "ϕ",
+    ];
+    let numberRowValues = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
     let outputElement: HTMLElement;
     let kalkContext: Context;
     let selectedLineOffset: number = 0;
     let calculatorElement: HTMLElement;
+    let inputElement: HTMLInputElement;
 
     afterUpdate(() => {
         // Scroll to bottom
@@ -120,6 +142,52 @@
         setCursorPos(target, cursorPos - offset);
     }
 
+    function handleButtonClick(event: Event) {
+        const target = event.target as HTMLElement;
+        target.blur();
+        insertText(target.textContent);
+    }
+
+    function handleArrowClick(event: Event, left: boolean) {
+        const target = event.target as HTMLElement;
+        const cursorPos = getCursorPos(inputElement);
+        target.blur();
+        setCursorPos(inputElement, cursorPos + (left ? -1 : 1));
+    }
+
+    function insertText(input: string) {
+        let cursorPos = getCursorPos(inputElement);
+        const textContent = inputElement.textContent;
+        let movementOffset = input.length;
+
+        if (input == "(") {
+            input += ")";
+        } else if (input == "=") {
+            input = " = ";
+            movementOffset = 3;
+        } else if (input == "Σ") {
+            input += "()";
+            movementOffset = 2;
+        } else if (input == "⌊") {
+            input += "⌋";
+        } else if (input == "⌈") {
+            input += "⌉";
+        } else if (input == ",") {
+            input = ", ";
+            movementOffset = 2;
+        }
+
+        const newString =
+            textContent.slice(0, cursorPos) +
+            input +
+            textContent.slice(cursorPos);
+        const [highlighted, offset] = highlight(newString);
+
+        inputElement.innerHTML = highlighted;
+        inputElement.focus();
+        setCursorPos(inputElement, cursorPos - offset + movementOffset);
+    }
+
     function focus(element: HTMLInputElement) {
         if (autofocus) element.focus();
     }
@@ -208,6 +276,10 @@
                         }
                         case "pi": {
                             newSubstring = "π";
+                            break;
+                        }
+                        case "phi": {
+                            newSubstring = "ϕ";
                             break;
                         }
                         case "gamma": {
@@ -300,6 +372,59 @@
             color: gray;
             background-color: transparent;
         }
+
+        .button-panel {
+            display: grid;
+            grid-template-columns: repeat(4, auto);
+            padding-right: 1.82vw;
+        }
+
+        .arrow {
+            .left {
+                grid-area: left-arrow;
+            }
+
+            .right {
+                grid-area: right-arrow;
+            }
+        }
+
+        .number-row,
+        .button-panel {
+            button {
+                $margin: 2px;
+                margin-bottom: $margin;
+                position: relative;
+                border: 0;
+                border-right: $margin solid transparent;
+                $padding: 2.5vw;
+                $font-size: 8vw;
+                padding: calc(#{$padding} - #{$margin} / 2);
+                font-size: $font-size;
+                line-height: 1.2;
+                background-color: inherit;
+                font-family: inherit;
+                color: inherit;
+                cursor: pointer;
+            }
+
+            @media screen and (min-width: 768px) {
+                button {
+                    padding: 12px;
+                    font-size: 1.4em;
+                }
+            }
+
+            button:after {
+                content: "";
+                position: absolute;
+                left: 0px;
+                top: 0px;
+                right: 0px;
+                bottom: 0px;
+                background-color: rgba(0, 0, 0, 0.2);
+            }
+        }
     }
 </style>
 
@@ -331,6 +456,7 @@
                 autocapitalize="off"
                 spellcheck="false"
                 use:focus
+                bind:this={inputElement}
                 on:keydown={(event) => handleKeyDown(event, kalk)}
                 on:keyup={handleKeyUp}
                 on:input={handleInput}
@@ -339,12 +465,26 @@
             <span style="color: {errorcolor}">{error}</span>
         {/await}
     </section>
-    <section class="input-buttons">
-        <button>+</button>
-        <button>-</button>
-        <button>*</button>
-        <button>/</button>
-        <button>^</button>
-        <button>(</button>
-    </section>
+    {#if buttonpanel}
+        <section class="button-panel">
+            <button
+                class="arrow left"
+                on:click={(e) => handleArrowClick(e, true)}>←</button>
+            <div class="text-input-buttons">
+                {#each buttonRowValues as value}
+                    <button on:click={handleButtonClick}>{value}</button>
+                {/each}
+            </div>
+            <button
+                class="arrow right"
+                on:click={(e) => handleArrowClick(e, false)}>→</button>
+        </section>
+    {/if}
+    {#if numberrow}
+        <section class="number-row">
+            {#each numberRowValues as value}
+                <button on:click={handleButtonClick}>{value}</button>
+            {/each}
+        </section>
+    {/if}
 </div>
