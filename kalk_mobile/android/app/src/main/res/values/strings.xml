@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kalk</string>
+    <string name="title_activity_main">Kalk</string>
+    <string name="package_name">net.strct.kalk</string>
+    <string name="custom_url_scheme">net.strct.kalk</string>
+</resources>

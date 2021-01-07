@@ -1,0 +1,12 @@
+{
+  "appId": "net.strct.kalk",
+  "appName": "Kalk",
+  "bundledWebRuntime": true,
+  "npmClient": "npm",
+  "webDir": "www",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}
