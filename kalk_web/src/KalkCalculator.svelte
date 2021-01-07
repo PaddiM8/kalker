@@ -305,7 +305,7 @@
 
 <svelte:options tag="kalk-calculator" />
 <div class="calculator" bind:this={calculatorElement}>
-    <div class="output" bind:this={outputElement}>
+    <section class="output" bind:this={outputElement}>
         <slot />
         {#each outputLines as line}
             <console-line byuser={line[1]}>
@@ -315,16 +315,21 @@
                 {@html line[0]}
             </console-line>
         {/each}
-    </div>
-    <div class="input-area">
+    </section>
+    <section class="input-area">
         <span class="prompt" style="color: {promptcolor}">&gt;&gt;&nbsp;</span>
         {#await import('@paddim8/kalk')}
             <span>Loading...</span>
         {:then kalk}
             <div
+                type="text"
                 contenteditable="true"
                 class="input"
                 placeholder={hinttext}
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
                 use:focus
                 on:keydown={(event) => handleKeyDown(event, kalk)}
                 on:keyup={handleKeyUp}
@@ -333,5 +338,13 @@
         {:catch error}
             <span style="color: {errorcolor}">{error}</span>
         {/await}
-    </div>
+    </section>
+    <section class="input-buttons">
+        <button>+</button>
+        <button>-</button>
+        <button>*</button>
+        <button>/</button>
+        <button>^</button>
+        <button>(</button>
+    </section>
 </div>
