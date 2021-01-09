@@ -6,7 +6,7 @@
 ![Build status](https://img.shields.io/github/workflow/status/PaddiM8/kalk/Rust?event=push&label=build%20%26%20test)
 
 
-Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental, limited). It runs on Windows, macOS, Linux, and in web browsers (with WebAssembly).  
+Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental, limited). It runs on Windows, macOS, Linux, Android, and in web browsers (with WebAssembly).  
 
 [Kanban](https://kolan.strct.net/Board/4RAdMjLDz) | [Website](https://kalk.strct.net)
 
