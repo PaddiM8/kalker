@@ -375,32 +375,21 @@
 
         .button-panel {
             display: grid;
-            grid-template-columns: repeat(4, auto);
-            padding-right: 1.82vw;
+            grid-template-columns: repeat(10, auto);
+            grid-template-rows: repeat(3, auto);
         }
 
-        .arrow {
-            .left {
-                grid-area: left-arrow;
-            }
-
-            .right {
-                grid-area: right-arrow;
-            }
-        }
-
-        .number-row,
         .button-panel {
+            width: 100%;
+
             button {
-                $margin: 2px;
+                $margin: 4px;
+                margin-right: $margin;
                 margin-bottom: $margin;
                 position: relative;
                 border: 0;
-                border-right: $margin solid transparent;
-                $padding: 2.5vw;
-                $font-size: 8vw;
-                padding: calc(#{$padding} - #{$margin} / 2);
-                font-size: $font-size;
+                padding: 2.5vw;
+                font-size: 6.5vw;
                 line-height: 1.2;
                 background-color: inherit;
                 font-family: inherit;
@@ -424,6 +413,19 @@
                 bottom: 0px;
                 background-color: rgba(0, 0, 0, 0.2);
             }
+
+            button:last-child {
+                margin-right: 0;
+            }
+        }
+
+        .arrow.left {
+            grid-area: 1 / 1 / span 2 / 1;
+        }
+
+        .arrow.right {
+            margin-right: 0;
+            grid-area: 1 / 10 / span 2 / 10;
         }
     }
 </style>
@@ -470,21 +472,17 @@
             <button
                 class="arrow left"
                 on:click={(e) => handleArrowClick(e, true)}>←</button>
-            <div class="text-input-buttons">
-                {#each buttonRowValues as value}
-                    <button on:click={handleButtonClick}>{value}</button>
-                {/each}
-            </div>
+            {#each buttonRowValues as value}
+                <button on:click={handleButtonClick}>{value}</button>
+            {/each}
             <button
                 class="arrow right"
                 on:click={(e) => handleArrowClick(e, false)}>→</button>
-        </section>
-    {/if}
-    {#if numberrow}
-        <section class="number-row">
-            {#each numberRowValues as value}
-                <button on:click={handleButtonClick}>{value}</button>
-            {/each}
+            {#if numberrow}
+                {#each numberRowValues as value}
+                    <button on:click={handleButtonClick}>{value}</button>
+                {/each}
+            {/if}
         </section>
     {/if}
 </div>
