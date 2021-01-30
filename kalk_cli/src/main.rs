@@ -52,7 +52,7 @@ fn default_action(context: &Context) {
     };
     let mut parser_context = parser::Context::new()
         .set_angle_unit(&angle_unit)
-        .set_timeout(Some(5));
+        .set_timeout(None);
     let precision = context.int_flag("precision").unwrap_or(53isize) as u32;
 
     if let Ok(input_file_path) = context.string_flag("input-file") {
