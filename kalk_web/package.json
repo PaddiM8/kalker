@@ -55,7 +55,7 @@
 		"webpack-dev-server": "^3.11.0"
 	},
 	"dependencies": {
-		"@paddim8/kalk": "^1.4.2",
+		"@paddim8/kalk": "^1.4.3",
 		"shadow-selection-polyfill": "^1.1.0"
 	},
 	"browserslist": [

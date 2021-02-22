@@ -127,7 +127,7 @@ dependencies = [
 
 [[package]]
 name = "kalk"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "lazy_static",
  "regex",
@@ -139,7 +139,7 @@ dependencies = [
 
 [[package]]
 name = "kalk_cli"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "ansi_term",
  "kalk",
