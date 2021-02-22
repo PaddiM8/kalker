@@ -375,18 +375,7 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
             _ => advance(context).kind,
         };
 
-        let parse_next = parse_unit(context);
-        let right = if let Ok(right) = parse_next {
-            right
-        /*} else if let Err(CalcError::UnableToParseExpression) = parse_next {
-        // If it failed to parse further,
-        // try to parse it as something else.
-        // Eg. percent unary
-        break;*/
-        } else {
-            return parse_next;
-        };
-
+        let right = parse_unit(context)?;
         left = Expr::Binary(Box::new(left), op, Box::new(right));
     }
 
@@ -536,12 +525,23 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
 
         // Turn each individual character into its own variable reference.
         // This parses eg `xy` as `x*y` instead of *one* variable.
-        for c in chars {
-            left = Expr::Binary(
-                Box::new(left),
-                TokenKind::Star,
-                Box::new(Expr::Var(c.to_string())),
-            );
+        let mut right_chars = chars.peekable();
+        while let Some(c) = right_chars.next() {
+            // If last iteration
+            let right = if right_chars.peek().is_none() {
+                context.pos -= 1;
+                context.tokens[context.pos] = Token {
+                    kind: TokenKind::Identifier,
+                    value: c.to_string(),
+                    span: (0, 0),
+                };
+
+                parse_exponent(context)?
+            } else {
+                Expr::Var(c.to_string())
+            };
+
+            left = Expr::Binary(Box::new(left), TokenKind::Star, Box::new(right));
         }
 
         Ok(left)
