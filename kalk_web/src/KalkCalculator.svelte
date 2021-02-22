@@ -144,6 +144,13 @@
         setCursorPos(target, cursorPos - offset);
     }
 
+    function handleTouchLine(event: Event) {
+        if (!inputElement.innerHTML) {
+            const target = event.currentTarget as HTMLElement;
+            inputElement.innerHTML = target.querySelector(".value").innerHTML;
+        }
+    }
+
     function handleButtonClick(event: Event) {
         const target = event.target as HTMLElement;
         target.blur();
@@ -321,11 +328,13 @@
     <section class="output" bind:this={outputElement}>
         <slot />
         {#each outputLines as line}
-            <console-line byuser={line[1]}>
+            <console-line byuser={line[1]} on:touchstart={handleTouchLine}>
                 {#if line[1]}
                     <span style="color: {promptcolor}">&gt;&gt;</span>
                 {/if}
-                {@html line[0]}
+                <span class="value">
+                    {@html line[0]}
+                </span>
             </console-line>
         {/each}
     </section>
