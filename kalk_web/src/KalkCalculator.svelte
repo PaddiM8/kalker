@@ -1,3 +1,5 @@
+<svelte:options tag="kalk-calculator" />
+
 <script lang="ts">
     import { afterUpdate } from "svelte";
     import type { Context } from "@paddim8/kalk";
@@ -57,7 +59,7 @@
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
             const result = kalkContext.evaluate(input) ?? "";
-            if (result) {
+            if (result && result.getValue() != 0) {
                 const sciNot = result.toScientificNotation();
                 if (sciNot.exponent > 7 || sciNot.exponent < -6) {
                     return [sciNot.toString(), true];
@@ -315,6 +317,65 @@
     }
 </script>
 
+<div class="calculator" bind:this={calculatorElement}>
+    <section class="output" bind:this={outputElement}>
+        <slot />
+        {#each outputLines as line}
+            <console-line byuser={line[1]}>
+                {#if line[1]}
+                    <span style="color: {promptcolor}">&gt;&gt;</span>
+                {/if}
+                {@html line[0]}
+            </console-line>
+        {/each}
+    </section>
+    <section class="input-area">
+        <span class="prompt" style="color: {promptcolor}">&gt;&gt;&nbsp;</span>
+        {#await import("@paddim8/kalk")}
+            <span>Loading...</span>
+        {:then kalk}
+            <div
+                type="text"
+                contenteditable="true"
+                class="input"
+                placeholder={hinttext}
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                use:focus
+                bind:this={inputElement}
+                on:keydown={(event) => handleKeyDown(event, kalk)}
+                on:keyup={handleKeyUp}
+                on:input={handleInput}
+                role="textbox"
+            />
+        {:catch error}
+            <span style="color: {errorcolor}">{error}</span>
+        {/await}
+    </section>
+    {#if buttonpanel}
+        <section class="button-panel">
+            <button
+                class="arrow left"
+                on:click={(e) => handleArrowClick(e, true)}>←</button
+            >
+            {#each buttonRowValues as value}
+                <button on:click={handleButtonClick}>{value}</button>
+            {/each}
+            <button
+                class="arrow right"
+                on:click={(e) => handleArrowClick(e, false)}>→</button
+            >
+            {#if numberrow}
+                {#each numberRowValues as value}
+                    <button on:click={handleButtonClick}>{value}</button>
+                {/each}
+            {/if}
+        </section>
+    {/if}
+</div>
+
 <style lang="scss">
     .calculator {
         display: flex;
@@ -429,60 +490,3 @@
         }
     }
 </style>
-
-<svelte:options tag="kalk-calculator" />
-<div class="calculator" bind:this={calculatorElement}>
-    <section class="output" bind:this={outputElement}>
-        <slot />
-        {#each outputLines as line}
-            <console-line byuser={line[1]}>
-                {#if line[1]}
-                    <span style="color: {promptcolor}">&gt;&gt;</span>
-                {/if}
-                {@html line[0]}
-            </console-line>
-        {/each}
-    </section>
-    <section class="input-area">
-        <span class="prompt" style="color: {promptcolor}">&gt;&gt;&nbsp;</span>
-        {#await import('@paddim8/kalk')}
-            <span>Loading...</span>
-        {:then kalk}
-            <div
-                type="text"
-                contenteditable="true"
-                class="input"
-                placeholder={hinttext}
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                use:focus
-                bind:this={inputElement}
-                on:keydown={(event) => handleKeyDown(event, kalk)}
-                on:keyup={handleKeyUp}
-                on:input={handleInput}
-                role="textbox" />
-        {:catch error}
-            <span style="color: {errorcolor}">{error}</span>
-        {/await}
-    </section>
-    {#if buttonpanel}
-        <section class="button-panel">
-            <button
-                class="arrow left"
-                on:click={(e) => handleArrowClick(e, true)}>←</button>
-            {#each buttonRowValues as value}
-                <button on:click={handleButtonClick}>{value}</button>
-            {/each}
-            <button
-                class="arrow right"
-                on:click={(e) => handleArrowClick(e, false)}>→</button>
-            {#if numberrow}
-                {#each numberRowValues as value}
-                    <button on:click={handleButtonClick}>{value}</button>
-                {/each}
-            {/if}
-        </section>
-    {/if}
-</div>
