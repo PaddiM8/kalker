@@ -51,11 +51,15 @@ impl KalkNum {
 
     #[wasm_bindgen(js_name = toString)]
     pub fn to_string(&self) -> String {
-        self.value
-            .to_string()
-            .trim_end_matches('0')
-            .trim_end_matches('.')
-            .to_string()
+        let string_value = self.value.to_string();
+        if string_value.contains(".") {
+            string_value
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string()
+        } else {
+            string_value
+        }
     }
 
     #[wasm_bindgen(js_name = toStringBig)]
