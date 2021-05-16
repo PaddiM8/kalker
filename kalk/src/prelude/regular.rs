@@ -35,6 +35,8 @@ impl BinaryFuncInfo {
 pub fn is_prelude_func(identifier: &str) -> bool {
     identifier == "sum"
         || identifier == "Σ"
+        || identifier == "integrate"
+        || identifier == "∫"
         || UNARY_FUNCS.contains_key(identifier)
         || BINARY_FUNCS.contains_key(identifier)
 }

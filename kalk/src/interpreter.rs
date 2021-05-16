@@ -302,6 +302,79 @@ fn eval_fn_call_expr(
 
             return Ok(sum);
         }
+        "integrate" | "∫" => {
+            // Make sure exactly 3 arguments were supplied.
+            if expressions.len() != 3 {
+                return Err(CalcError::IncorrectAmountOfArguments(
+                    3,
+                    "integrate".into(),
+                    expressions.len(),
+                ));
+            }
+
+            let mut result = KalkNum::default();
+            let mut integration_variable: Option<&str> = None;
+
+            // integral(a, b, expr dx)
+            if let Expr::Binary(_, TokenKind::Star, right) = &expressions[2] {
+                if let Expr::Var(right_name) = &**right {
+                    if right_name.starts_with("d") {
+                        // Take the value, but remove the d, so that only eg. x is left from dx
+                        integration_variable = Some(&right_name[1..]);
+                    }
+                }
+            }
+
+            if integration_variable.is_none() {
+                unimplemented!(); // TODO: Error message
+            }
+
+            // delta_x/2[f(a) + 2f(x_1) + 2f(x_2) + ...2f(x_n) + f(b)]
+            // where delta_x = (b - a) / n
+            // and x_n = a + i * delta_x
+
+            // f(a)
+            context.symbol_table.set(Stmt::VarDecl(
+                integration_variable.unwrap().into(),
+                Box::new(expressions[0].clone()),
+            ));
+
+            // "dx" is still in the expression. Set dx = 1, so that it doesn't affect the expression value.
+            context.symbol_table.set(Stmt::VarDecl(
+                String::from("dx"),
+                Box::new(Expr::Literal(1f64)),
+            ));
+
+            result.value += eval_expr(context, &expressions[2], "")?.value;
+
+            // 2f(x_n)
+            // where x_n = a + i * delta_x
+            const N: i32 = 100;
+            let a = eval_expr(context, &expressions[0], "")?.value.to_f64();
+            let b = eval_expr(context, &expressions[1], "")?.value.to_f64();
+            let delta_x = (b - a) / N as f64;
+            for i in 1..N {
+                context.symbol_table.set(Stmt::VarDecl(
+                    integration_variable.unwrap().into(),
+                    Box::new(Expr::Literal(a + i as f64 * delta_x)),
+                ));
+
+                // 2f(x_n)
+                result.value += 2 * eval_expr(context, &expressions[2], "")?.value;
+            }
+
+            // f(b)
+            context.symbol_table.set(Stmt::VarDecl(
+                integration_variable.unwrap().into(),
+                Box::new(expressions[1].clone()),
+            ));
+            result.value += eval_expr(context, &expressions[2], "")?.value;
+
+            // Finally, delta_x/2 for all of it
+            result.value *= delta_x / 2f64;
+
+            return Ok(result);
+        }
         _ => (),
     }
 
@@ -549,5 +622,23 @@ mod tests {
         ));
 
         assert_eq!(interpret(stmt).unwrap().unwrap().to_f64(), result);
+    }
+
+    #[test]
+    fn test_integrate_fn() {
+        let stmt = Stmt::Expr(fn_call(
+            "integrate",
+            vec![
+                *literal(2f64),
+                *literal(4f64),
+                *binary(
+                    binary(var("x"), TokenKind::Power, literal(3f64)),
+                    TokenKind::Star,
+                    binary(var("d"), TokenKind::Star, var("x")),
+                ),
+            ],
+        ));
+
+        assert!((interpret(stmt).unwrap().unwrap().to_f64() - 60f64).abs() < 1f64);
     }
 }
