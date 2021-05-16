@@ -29,6 +29,7 @@ pub struct Context {
     parsing_identifier_stmt: bool,
     equation_variable: Option<String>,
     contains_equal_sign: bool,
+    is_in_integral: bool,
 }
 
 #[wasm_bindgen]
@@ -46,6 +47,7 @@ impl Context {
             parsing_identifier_stmt: false,
             equation_variable: None,
             contains_equal_sign: false,
+            is_in_integral: false,
         };
 
         parse(&mut context, crate::prelude::INIT).unwrap();
@@ -491,6 +493,10 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     if !parse_as_var_instead && match_token(context, TokenKind::OpenParenthesis) {
         advance(context);
 
+        if identifier.value == "integrate" || identifier.value == "∫" {
+            context.is_in_integral = true;
+        }
+
         let mut parameters = Vec::new();
         parameters.push(parse_expr(context)?);
 
@@ -500,8 +506,14 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         }
 
         consume(context, TokenKind::ClosedParenthesis)?;
+        context.is_in_integral = false;
 
         return Ok(Expr::FnCall(identifier.value, parameters));
+    }
+
+    // Eg. dx inside an integral, should be parsed as *one* identifier
+    if context.is_in_integral && identifier.value.starts_with("d") {
+        return Ok(Expr::Var(identifier.value));
     }
 
     // Eg. x

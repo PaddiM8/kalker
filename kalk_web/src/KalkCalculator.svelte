@@ -177,6 +177,9 @@
         } else if (input == "Σ") {
             input += "()";
             movementOffset = 2;
+        } else if (input == "∫") {
+            input += "()";
+            movementOffset = 2;
         } else if (input == "⌊") {
             input += "⌋";
         } else if (input == "⌈") {
@@ -281,6 +284,10 @@
                         }
                         case "sum": {
                             newSubstring = "Σ";
+                            break;
+                        }
+                        case "integrate": {
+                            newSubstring = "∫";
                             break;
                         }
                         case "pi": {
