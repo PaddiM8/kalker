@@ -1,22 +1,51 @@
 use crate::ast::Expr;
+use crate::ast::Identifier;
 use crate::ast::Stmt;
 use crate::interpreter;
 use crate::kalk_num::KalkNum;
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
 
+pub fn derive_func(
+    context: &mut interpreter::Context,
+    name: &Identifier,
+    argument: KalkNum,
+) -> Result<KalkNum, CalcError> {
+    const H: f64 = 0.000001;
+    let unit = &argument.unit.to_string();
+    let argument_with_h = Expr::Literal(argument.clone().add(context, H.into()).to_f64());
+    let argument_without_h = Expr::Literal(argument.to_f64());
+
+    let f_x_h = interpreter::eval_fn_call_expr(
+        context,
+        &Identifier::from_full_name(&name.pure_name),
+        &[argument_with_h],
+        unit,
+    )?;
+    let f_x = interpreter::eval_fn_call_expr(
+        context,
+        &Identifier::from_full_name(&name.pure_name),
+        &[argument_without_h],
+        unit,
+    )?;
+
+    Ok(f_x_h.sub(context, f_x).div(context, H.into()))
+}
+
 pub fn integrate(
     context: &mut interpreter::Context,
-    expressions: &[Expr],
+    a: &Expr,
+    b: &Expr,
+    expr: &Expr,
 ) -> Result<KalkNum, CalcError> {
     let mut integration_variable: Option<&str> = None;
 
     // integral(a, b, expr dx)
-    if let Expr::Binary(_, TokenKind::Star, right) = &expressions[2] {
+    if let Expr::Binary(_, TokenKind::Star, right) = expr {
         if let Expr::Var(right_name) = &**right {
-            if right_name.starts_with("d") {
+            if right_name.full_name.starts_with("d") {
                 // Take the value, but remove the d, so that only eg. x is left from dx
-                integration_variable = Some(&right_name[1..]);
+                integration_variable = Some(&right_name.full_name[1..]);
             }
         }
     }
@@ -27,17 +56,11 @@ pub fn integrate(
 
     // "dx" is still in the expression. Set dx = 1, so that it doesn't affect the expression value.
     context.symbol_table.set(Stmt::VarDecl(
-        format!("d{}", integration_variable.unwrap()),
+        Identifier::from_full_name(&format!("d{}", integration_variable.unwrap())),
         Box::new(Expr::Literal(1f64)),
     ));
 
-    simpsons_rule(
-        context,
-        &expressions[0],
-        &expressions[1],
-        &expressions[2],
-        integration_variable.unwrap(),
-    )
+    simpsons_rule(context, a, b, expr, integration_variable.unwrap())
 }
 
 /// Composite Simpson's 3/8 rule
@@ -56,16 +79,14 @@ fn simpsons_rule(
     let h = (b - a) / N as f64;
     for i in 0..=N {
         context.symbol_table.set(Stmt::VarDecl(
-            integration_variable.into(),
+            Identifier::from_full_name(integration_variable),
             Box::new(Expr::Literal(a + i as f64 * h)),
         ));
 
-        let factor = if i == 0 || i == N {
-            1
-        } else if i % 3 == 0 {
-            2
-        } else {
-            3
+        let factor = match i {
+            0 | N => 1,
+            _ if i % 3 == 0 => 2,
+            _ => 3,
         };
 
         // factor * f(x_n)

@@ -259,13 +259,13 @@ fn invert_var(
     unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
     if identifier.full_name == unknown_var {
-        Ok((target_expr, Expr::Var(*identifier)))
+        Ok((target_expr, Expr::Var(identifier.clone())))
     } else if let Some(Stmt::VarDecl(_, var_expr)) =
         symbol_table.get_var(&identifier.full_name).cloned()
     {
         invert(target_expr, symbol_table, &var_expr, unknown_var)
     } else {
-        Ok((target_expr, Expr::Var(*identifier)))
+        Ok((target_expr, Expr::Var(identifier.clone())))
     }
 }
 
@@ -329,14 +329,14 @@ fn invert_fn_call(
     {
         (parameters, body)
     } else {
-        return Err(CalcError::UndefinedFn(identifier.full_name));
+        return Err(CalcError::UndefinedFn(identifier.full_name.clone()));
     };
 
     // Make sure the input is valid.
     if parameters.len() != arguments.len() {
         return Err(CalcError::IncorrectAmountOfArguments(
             parameters.len(),
-            identifier.full_name,
+            identifier.full_name.clone(),
             arguments.len(),
         ));
     }

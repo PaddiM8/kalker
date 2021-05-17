@@ -478,23 +478,20 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
 }
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
-    let identifier = advance(context).clone();
+    let identifier = Identifier::from_full_name(&advance(context).value);
 
     // Eg. sqrt64
     if match_token(context, TokenKind::Literal) {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
-        if context.symbol_table.contains_fn(&identifier.value) {
+        if context.symbol_table.contains_fn(&identifier.pure_name) {
             let parameter = Expr::Literal(string_to_num(&advance(context).value));
-            return Ok(Expr::FnCall(
-                Identifier::from_full_name(&identifier.value),
-                vec![parameter],
-            ));
+            return Ok(Expr::FnCall(identifier, vec![parameter]));
         }
     }
 
     let parse_as_var_instead = match_token(context, TokenKind::OpenParenthesis)
         && !context.parsing_identifier_stmt
-        && !context.symbol_table.contains_fn(&identifier.value);
+        && !context.symbol_table.contains_fn(&identifier.pure_name);
 
     // Eg. sqrt(64)
     // If the function doesn't exist, parse it as a variable and multiplication instead.
@@ -503,7 +500,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     if !parse_as_var_instead && match_token(context, TokenKind::OpenParenthesis) {
         advance(context);
 
-        let is_integral = identifier.value == "integrate" || identifier.value == "∫";
+        let is_integral = identifier.full_name == "integrate" || identifier.full_name == "∫";
         if is_integral {
             context.is_in_integral = true;
         }
@@ -522,34 +519,31 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
             context.is_in_integral = false;
         }
 
-        return Ok(Expr::FnCall(
-            Identifier::from_full_name(&identifier.value),
-            parameters,
-        ));
+        return Ok(Expr::FnCall(identifier, parameters));
     }
 
     // Eg. dx inside an integral, should be parsed as *one* identifier
-    if context.is_in_integral && identifier.value.starts_with("d") {
-        return Ok(Expr::Var(Identifier::from_full_name(&identifier.value)));
+    if context.is_in_integral && identifier.full_name.starts_with("d") {
+        return Ok(Expr::Var(identifier));
     }
 
     // Eg. x
-    if parse_as_var_instead || context.symbol_table.contains_var(&identifier.value) {
-        Ok(Expr::Var(Identifier::from_full_name(&identifier.value)))
+    if parse_as_var_instead || context.symbol_table.contains_var(&identifier.pure_name) {
+        Ok(Expr::Var(identifier))
     } else if context.parsing_unit_decl {
-        context.unit_decl_base_unit = Some(identifier.value);
+        context.unit_decl_base_unit = Some(identifier.full_name);
         Ok(Expr::Var(Identifier::from_full_name(DECL_UNIT)))
     } else {
         if let Some(equation_var) = &context.equation_variable {
-            if &identifier.value == equation_var {
-                return Ok(Expr::Var(Identifier::from_full_name(&identifier.value)));
+            if &identifier.full_name == equation_var {
+                return Ok(Expr::Var(identifier));
             }
         } else if context.contains_equal_sign {
-            context.equation_variable = Some(identifier.value.clone());
-            return Ok(Expr::Var(Identifier::from_full_name(&identifier.value)));
+            context.equation_variable = Some(identifier.full_name.clone());
+            return Ok(Expr::Var(identifier));
         }
 
-        let mut chars = identifier.value.chars();
+        let mut chars = identifier.pure_name.chars();
         let mut left = Expr::Var(Identifier::from_full_name(
             &chars.next().unwrap().to_string(),
         ));
@@ -575,6 +569,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
             left = Expr::Binary(Box::new(left), TokenKind::Star, Box::new(right));
         }
 
+        // TODO: When implementing derivation for variables, make sure to add the derivation here.
         Ok(left)
     }
 }

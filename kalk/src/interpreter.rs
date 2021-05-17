@@ -244,7 +244,7 @@ fn eval_var_expr(
         .cloned();
     match var_decl {
         Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr, unit),
-        _ => Err(CalcError::UndefinedVar(identifier.full_name)),
+        _ => Err(CalcError::UndefinedVar(identifier.full_name.clone())),
     }
 }
 
@@ -272,13 +272,28 @@ pub(crate) fn eval_fn_call_expr(
     // Prelude
     let prelude_func = match expressions.len() {
         1 => {
-            let x = eval_expr(context, &expressions[0], "")?.value;
-            prelude::call_unary_func(context, identifier, x, &context.angle_unit.clone())
+            let x = eval_expr(context, &expressions[0], "")?;
+            if identifier.prime_count > 0 {
+                return calculus::derive_func(context, &identifier, x);
+            } else {
+                prelude::call_unary_func(
+                    context,
+                    &identifier.full_name,
+                    x.value,
+                    &context.angle_unit.clone(),
+                )
+            }
         }
         2 => {
             let x = eval_expr(context, &expressions[0], "")?.value;
             let y = eval_expr(context, &expressions[1], "")?.value;
-            prelude::call_binary_func(context, identifier, x, y, &context.angle_unit.clone())
+            prelude::call_binary_func(
+                context,
+                &identifier.full_name,
+                x,
+                y,
+                &context.angle_unit.clone(),
+            )
         }
         _ => None,
     };
@@ -339,7 +354,7 @@ pub(crate) fn eval_fn_call_expr(
             if arguments.len() != expressions.len() {
                 return Err(CalcError::IncorrectAmountOfArguments(
                     arguments.len(),
-                    identifier.full_name,
+                    identifier.full_name.clone(),
                     expressions.len(),
                 ));
             }
@@ -357,7 +372,7 @@ pub(crate) fn eval_fn_call_expr(
 
             eval_expr(context, &fn_body, unit)
         }
-        _ => Err(CalcError::UndefinedFn(identifier.full_name)),
+        _ => Err(CalcError::UndefinedFn(identifier.full_name.clone())),
     }
 }
 
