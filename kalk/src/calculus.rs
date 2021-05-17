@@ -13,21 +13,14 @@ pub fn derive_func(
 ) -> Result<KalkNum, CalcError> {
     const H: f64 = 0.000001;
     let unit = &argument.unit.to_string();
+
     let argument_with_h = Expr::Literal(argument.clone().add(context, H.into()).to_f64());
     let argument_without_h = Expr::Literal(argument.sub(context, H.into()).to_f64());
+    let new_identifier = Identifier::from_name_and_primes(&name.pure_name, name.prime_count - 1);
 
-    let f_x_h = interpreter::eval_fn_call_expr(
-        context,
-        &Identifier::from_full_name(&name.pure_name),
-        &[argument_with_h],
-        unit,
-    )?;
-    let f_x = interpreter::eval_fn_call_expr(
-        context,
-        &Identifier::from_full_name(&name.pure_name),
-        &[argument_without_h],
-        unit,
-    )?;
+    let f_x_h = interpreter::eval_fn_call_expr(context, &new_identifier, &[argument_with_h], unit)?;
+    let f_x =
+        interpreter::eval_fn_call_expr(context, &new_identifier, &[argument_without_h], unit)?;
 
     Ok(f_x_h.sub(context, f_x).div(context, (2f64 * H).into()))
 }
