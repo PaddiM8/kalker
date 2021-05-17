@@ -119,6 +119,15 @@ impl<'a> Lexer<'a> {
 
         self.advance();
 
+        // Handle **
+        if let (TokenKind::Star, Some(c)) = (token.kind, self.peek()) {
+            if *c == '*' {
+                self.advance();
+
+                return build(TokenKind::Power, "", span);
+            }
+        }
+
         token
     }
 
