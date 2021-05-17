@@ -1,3 +1,4 @@
+use crate::ast::Identifier;
 use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
@@ -44,7 +45,7 @@ impl Expr {
         symbol_table: &mut SymbolTable,
         unknown_var: &str,
     ) -> Result<Self, CalcError> {
-        let target_expr = Expr::Var(unknown_var.into());
+        let target_expr = Expr::Var(Identifier::from_full_name(unknown_var));
         let result = invert(target_expr, symbol_table, self, unknown_var);
 
         Ok(result?.0)
@@ -80,7 +81,7 @@ fn invert(
         Expr::FnCall(identifier, arguments) => invert_fn_call(
             target_expr,
             symbol_table,
-            &identifier,
+            identifier,
             arguments,
             unknown_var,
         ),
@@ -166,14 +167,20 @@ fn invert_binary(
         TokenKind::Power => {
             return if contains_var(symbol_table, left, unknown_var) {
                 invert(
-                    Expr::FnCall("root".into(), vec![target_expr, right.clone()]),
+                    Expr::FnCall(
+                        Identifier::from_full_name("root"),
+                        vec![target_expr, right.clone()],
+                    ),
                     symbol_table,
                     right,
                     unknown_var,
                 )
             } else {
                 invert(
-                    Expr::FnCall("log".into(), vec![target_expr, left.clone()]),
+                    Expr::FnCall(
+                        Identifier::from_full_name("log"),
+                        vec![target_expr, left.clone()],
+                    ),
                     symbol_table,
                     right,
                     unknown_var,
@@ -240,7 +247,7 @@ fn invert_unit(
     let x = Expr::Binary(
         Box::new(target_expr),
         TokenKind::ToKeyword,
-        Box::new(Expr::Var(identifier.into())),
+        Box::new(Expr::Var(Identifier::from_full_name(identifier))),
     );
     invert(x, symbol_table, expr, unknown_var)
 }
@@ -248,38 +255,41 @@ fn invert_unit(
 fn invert_var(
     target_expr: Expr,
     symbol_table: &mut SymbolTable,
-    identifier: &str,
+    identifier: &Identifier,
     unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
-    if identifier == unknown_var {
-        Ok((target_expr, Expr::Var(identifier.into())))
-    } else if let Some(Stmt::VarDecl(_, var_expr)) = symbol_table.get_var(identifier).cloned() {
+    if identifier.full_name == unknown_var {
+        Ok((target_expr, Expr::Var(*identifier)))
+    } else if let Some(Stmt::VarDecl(_, var_expr)) =
+        symbol_table.get_var(&identifier.full_name).cloned()
+    {
         invert(target_expr, symbol_table, &var_expr, unknown_var)
     } else {
-        Ok((target_expr, Expr::Var(identifier.into())))
+        Ok((target_expr, Expr::Var(*identifier)))
     }
 }
 
 fn invert_fn_call(
     target_expr: Expr,
     symbol_table: &mut SymbolTable,
-    identifier: &str,
+    identifier: &Identifier,
     arguments: &Vec<Expr>,
     unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
     // If prelude function
     match arguments.len() {
         1 => {
-            if prelude::UNARY_FUNCS.contains_key(identifier) {
-                if let Some(fn_inv) = INVERSE_UNARY_FUNCS.get(identifier) {
+            if prelude::UNARY_FUNCS.contains_key(identifier.full_name.as_ref() as &str) {
+                if let Some(fn_inv) = INVERSE_UNARY_FUNCS.get(identifier.full_name.as_ref() as &str)
+                {
                     return invert(
-                        Expr::FnCall(fn_inv.to_string(), vec![target_expr]),
+                        Expr::FnCall(Identifier::from_full_name(fn_inv), vec![target_expr]),
                         symbol_table,
                         &arguments[0],
                         unknown_var,
                     );
                 } else {
-                    match identifier {
+                    match identifier.full_name.as_ref() {
                         "sqrt" => {
                             return invert(
                                 Expr::Binary(
@@ -295,7 +305,7 @@ fn invert_fn_call(
                         _ => {
                             return Err(CalcError::UnableToInvert(format!(
                                 "Function '{}'",
-                                identifier
+                                identifier.full_name
                             )));
                         }
                     }
@@ -303,10 +313,10 @@ fn invert_fn_call(
             }
         }
         2 => {
-            if prelude::BINARY_FUNCS.contains_key(identifier) {
+            if prelude::BINARY_FUNCS.contains_key(identifier.full_name.as_ref() as &str) {
                 return Err(CalcError::UnableToInvert(format!(
                     "Function '{}'",
-                    identifier
+                    identifier.full_name
                 )));
             }
         }
@@ -314,18 +324,19 @@ fn invert_fn_call(
     }
 
     // Get the function definition from the symbol table.
-    let (parameters, body) =
-        if let Some(Stmt::FnDecl(_, parameters, body)) = symbol_table.get_fn(identifier).cloned() {
-            (parameters, body)
-        } else {
-            return Err(CalcError::UndefinedFn(identifier.into()));
-        };
+    let (parameters, body) = if let Some(Stmt::FnDecl(_, parameters, body)) =
+        symbol_table.get_fn(&identifier.full_name).cloned()
+    {
+        (parameters, body)
+    } else {
+        return Err(CalcError::UndefinedFn(identifier.full_name));
+    };
 
     // Make sure the input is valid.
     if parameters.len() != arguments.len() {
         return Err(CalcError::IncorrectAmountOfArguments(
             parameters.len(),
-            identifier.into(),
+            identifier.full_name,
             arguments.len(),
         ));
     }
@@ -334,7 +345,7 @@ fn invert_fn_call(
     let mut parameters_iter = parameters.iter();
     for argument in arguments {
         symbol_table.insert(Stmt::VarDecl(
-            parameters_iter.next().unwrap().to_string(),
+            Identifier::from_full_name(&parameters_iter.next().unwrap().to_string()),
             Box::new(argument.clone()),
         ));
     }
@@ -353,8 +364,10 @@ pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> 
         Expr::Unary(_, expr) => contains_var(symbol_table, expr, var_name),
         Expr::Unit(_, expr) => contains_var(symbol_table, expr, var_name),
         Expr::Var(identifier) => {
-            identifier == var_name
-                || if let Some(Stmt::VarDecl(_, var_expr)) = symbol_table.get_var(identifier) {
+            identifier.full_name == var_name
+                || if let Some(Stmt::VarDecl(_, var_expr)) =
+                    symbol_table.get_var(&identifier.full_name)
+                {
                     contains_var(symbol_table, var_expr, var_name)
                 } else {
                     false
@@ -409,6 +422,7 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
 #[cfg(test)]
 mod tests {
     use crate::ast::Expr;
+    use crate::ast::Identifier;
     use crate::lexer::TokenKind::*;
     use crate::parser::DECL_UNIT;
     use crate::symbol_table::SymbolTable;
@@ -416,7 +430,9 @@ mod tests {
     use wasm_bindgen_test::*;
 
     fn decl_unit() -> Box<Expr> {
-        Box::new(Expr::Var(crate::parser::DECL_UNIT.into()))
+        Box::new(Expr::Var(Identifier::from_full_name(
+            crate::parser::DECL_UNIT,
+        )))
     }
 
     #[test]

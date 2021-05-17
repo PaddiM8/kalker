@@ -1,3 +1,4 @@
+use crate::ast::Identifier;
 use crate::ast::{Expr, Stmt};
 use crate::calculus;
 use crate::kalk_num::KalkNum;
@@ -46,14 +47,17 @@ impl<'a> Context<'a> {
             // Insert the last value into the `ans` variable.
             self.symbol_table.set(if (&num.unit).len() > 0 {
                 Stmt::VarDecl(
-                    String::from("ans"),
+                    Identifier::from_full_name("ans"),
                     Box::new(Expr::Unit(
                         num.unit.clone(),
                         Box::new(Expr::Literal(num.to_f64())),
                     )),
                 )
             } else {
-                Stmt::VarDecl(String::from("ans"), Box::new(Expr::Literal(num.to_f64())))
+                Stmt::VarDecl(
+                    Identifier::from_full_name("ans"),
+                    Box::new(Expr::Literal(num.to_f64())),
+                )
             });
 
             if i == statements.len() - 1 {
@@ -130,7 +134,8 @@ fn eval_binary_expr(
         // move this to the match statement further down.
         if let Expr::Var(right_unit) = right_expr {
             let left_unit = eval_expr(context, left_expr, "")?.unit;
-            return convert_unit(context, left_expr, &left_unit, &right_unit); // TODO: Avoid evaluating this twice.
+            return convert_unit(context, left_expr, &left_unit, &right_unit.full_name);
+            // TODO: Avoid evaluating this twice.
         }
     }
 
@@ -202,9 +207,10 @@ pub fn convert_unit(
     if let Some(Stmt::UnitDecl(_, _, unit_def)) =
         context.symbol_table.get_unit(to_unit, from_unit).cloned()
     {
-        context
-            .symbol_table
-            .insert(Stmt::VarDecl(DECL_UNIT.into(), Box::new(expr.clone())));
+        context.symbol_table.insert(Stmt::VarDecl(
+            Identifier::from_full_name(DECL_UNIT),
+            Box::new(expr.clone()),
+        ));
 
         Ok(KalkNum::new(
             eval_expr(context, &unit_def, "")?.value,
@@ -217,25 +223,28 @@ pub fn convert_unit(
 
 fn eval_var_expr(
     context: &mut Context,
-    identifier: &str,
+    identifier: &Identifier,
     unit: &str,
 ) -> Result<KalkNum, CalcError> {
     // If there is a constant with this name, return a literal expression with its value
-    if let Some(value) = prelude::CONSTANTS.get(identifier) {
+    if let Some(value) = prelude::CONSTANTS.get(identifier.full_name.as_ref() as &str) {
         return eval_expr(context, &Expr::Literal(*value), unit);
     }
 
-    if identifier == "n" {
+    if identifier.full_name == "n" {
         if let Some(value) = context.sum_n_value {
             return Ok(KalkNum::from(value));
         }
     }
 
     // Look for the variable in the symbol table
-    let var_decl = context.symbol_table.get_var(identifier).cloned();
+    let var_decl = context
+        .symbol_table
+        .get_var(identifier.full_name.as_ref() as &str)
+        .cloned();
     match var_decl {
         Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr, unit),
-        _ => Err(CalcError::UndefinedVar(identifier.into())),
+        _ => Err(CalcError::UndefinedVar(identifier.full_name)),
     }
 }
 
@@ -254,9 +263,9 @@ fn eval_group_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<Kal
     eval_expr(context, expr, unit)
 }
 
-fn eval_fn_call_expr(
+pub(crate) fn eval_fn_call_expr(
     context: &mut Context,
-    identifier: &str,
+    identifier: &Identifier,
     expressions: &[Expr],
     unit: &str,
 ) -> Result<KalkNum, CalcError> {
@@ -282,7 +291,7 @@ fn eval_fn_call_expr(
     }
 
     // Special functions
-    match identifier {
+    match identifier.full_name.as_ref() {
         "sum" | "Σ" => {
             // Make sure exactly 3 arguments were supplied.
             if expressions.len() != 3 {
@@ -317,20 +326,20 @@ fn eval_fn_call_expr(
                 ));
             }
 
-            return calculus::integrate(context, expressions);
+            return calculus::integrate(context, &expressions[0], &expressions[1], &expressions[2]);
         }
         _ => (),
     }
 
     // Symbol Table
-    let stmt_definition = context.symbol_table.get_fn(identifier).cloned();
+    let stmt_definition = context.symbol_table.get_fn(&identifier.full_name).cloned();
 
     match stmt_definition {
         Some(Stmt::FnDecl(_, arguments, fn_body)) => {
             if arguments.len() != expressions.len() {
                 return Err(CalcError::IncorrectAmountOfArguments(
                     arguments.len(),
-                    identifier.into(),
+                    identifier.full_name,
                     expressions.len(),
                 ));
             }
@@ -339,13 +348,16 @@ fn eval_fn_call_expr(
             for (i, argument) in arguments.iter().enumerate() {
                 eval_stmt(
                     context,
-                    &Stmt::VarDecl(argument.clone(), Box::new(expressions[i].clone())),
+                    &Stmt::VarDecl(
+                        Identifier::from_full_name(argument),
+                        Box::new(expressions[i].clone()),
+                    ),
                 )?;
             }
 
             eval_expr(context, &fn_body, unit)
         }
-        _ => Err(CalcError::UndefinedFn(identifier.into())),
+        _ => Err(CalcError::UndefinedFn(identifier.full_name)),
     }
 }
 
