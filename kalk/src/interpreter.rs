@@ -1,4 +1,5 @@
 use crate::ast::{Expr, Stmt};
+use crate::calculus;
 use crate::kalk_num::KalkNum;
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
@@ -7,7 +8,7 @@ use crate::prelude;
 use crate::symbol_table::SymbolTable;
 
 pub struct Context<'a> {
-    symbol_table: &'a mut SymbolTable,
+    pub symbol_table: &'a mut SymbolTable,
     angle_unit: String,
     #[cfg(feature = "rug")]
     precision: u32,
@@ -92,7 +93,11 @@ fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<KalkNum, CalcErr
     eval_expr(context, &expr, "")
 }
 
-fn eval_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkNum, CalcError> {
+pub(crate) fn eval_expr(
+    context: &mut Context,
+    expr: &Expr,
+    unit: &str,
+) -> Result<KalkNum, CalcError> {
     #[cfg(not(target_arch = "wasm32"))]
     if let (Ok(elapsed), Some(timeout)) = (context.start_time.elapsed(), context.timeout) {
         if elapsed.as_millis() >= timeout {
@@ -312,68 +317,7 @@ fn eval_fn_call_expr(
                 ));
             }
 
-            let mut result = KalkNum::default();
-            let mut integration_variable: Option<&str> = None;
-
-            // integral(a, b, expr dx)
-            if let Expr::Binary(_, TokenKind::Star, right) = &expressions[2] {
-                if let Expr::Var(right_name) = &**right {
-                    if right_name.starts_with("d") {
-                        // Take the value, but remove the d, so that only eg. x is left from dx
-                        integration_variable = Some(&right_name[1..]);
-                    }
-                }
-            }
-
-            if integration_variable.is_none() {
-                unimplemented!(); // TODO: Error message
-            }
-
-            // delta_x/2[f(a) + 2f(x_1) + 2f(x_2) + ...2f(x_n) + f(b)]
-            // where delta_x = (b - a) / n
-            // and x_n = a + i * delta_x
-
-            // f(a)
-            context.symbol_table.set(Stmt::VarDecl(
-                integration_variable.unwrap().into(),
-                Box::new(expressions[0].clone()),
-            ));
-
-            // "dx" is still in the expression. Set dx = 1, so that it doesn't affect the expression value.
-            context.symbol_table.set(Stmt::VarDecl(
-                String::from("dx"),
-                Box::new(Expr::Literal(1f64)),
-            ));
-
-            result.value += eval_expr(context, &expressions[2], "")?.value;
-
-            // 2f(x_n)
-            // where x_n = a + i * delta_x
-            const N: i32 = 100;
-            let a = eval_expr(context, &expressions[0], "")?.value.to_f64();
-            let b = eval_expr(context, &expressions[1], "")?.value.to_f64();
-            let delta_x = (b - a) / N as f64;
-            for i in 1..N {
-                context.symbol_table.set(Stmt::VarDecl(
-                    integration_variable.unwrap().into(),
-                    Box::new(Expr::Literal(a + i as f64 * delta_x)),
-                ));
-
-                // 2f(x_n)
-                result.value += 2 * eval_expr(context, &expressions[2], "")?.value;
-            }
-
-            // f(b)
-            context.symbol_table.set(Stmt::VarDecl(
-                integration_variable.unwrap().into(),
-                Box::new(expressions[1].clone()),
-            ));
-            result.value += eval_expr(context, &expressions[2], "")?.value;
-
-            // Finally, delta_x/2 for all of it
-            result.value *= delta_x / 2f64;
-
-            return Ok(result);
+            return calculus::integrate(context, expressions);
         }
         _ => (),
     }

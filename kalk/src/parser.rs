@@ -92,6 +92,7 @@ impl Default for Context {
 /// Error that occured during parsing or evaluation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalcError {
+    ExpectedDx,
     IncorrectAmountOfArguments(usize, String, usize),
     InvalidNumberLiteral(String),
     InvalidOperator,
@@ -110,6 +111,7 @@ pub enum CalcError {
 impl ToString for CalcError {
     fn to_string(&self) -> String {
         match self {
+            CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx)."),
             CalcError::IncorrectAmountOfArguments(expected, func, got) => format!(
                 "Expected {} arguments for function {}, but got {}.",
                 expected, func, got
@@ -493,7 +495,8 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     if !parse_as_var_instead && match_token(context, TokenKind::OpenParenthesis) {
         advance(context);
 
-        if identifier.value == "integrate" || identifier.value == "∫" {
+        let is_integral = identifier.value == "integrate" || identifier.value == "∫";
+        if is_integral {
             context.is_in_integral = true;
         }
 
@@ -506,7 +509,10 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         }
 
         consume(context, TokenKind::ClosedParenthesis)?;
-        context.is_in_integral = false;
+
+        if is_integral {
+            context.is_in_integral = false;
+        }
 
         return Ok(Expr::FnCall(identifier.value, parameters));
     }
