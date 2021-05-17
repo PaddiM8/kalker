@@ -22,7 +22,9 @@ pub fn derive_func(
     let f_x =
         interpreter::eval_fn_call_expr(context, &new_identifier, &[argument_without_h], unit)?;
 
-    Ok(f_x_h.sub(context, f_x).div(context, (2f64 * H).into()))
+    Ok(round(
+        f_x_h.sub(context, f_x).div(context, (2f64 * H).into()),
+    ))
 }
 
 pub fn integrate(
@@ -53,7 +55,13 @@ pub fn integrate(
         Box::new(Expr::Literal(1f64)),
     ));
 
-    simpsons_rule(context, a, b, expr, integration_variable.unwrap())
+    Ok(round(simpsons_rule(
+        context,
+        a,
+        b,
+        expr,
+        integration_variable.unwrap(),
+    )?))
 }
 
 /// Composite Simpson's 3/8 rule
@@ -89,4 +97,27 @@ fn simpsons_rule(
     result.value *= (3f64 * h) / 8f64;
 
     Ok(result)
+}
+
+/// Basic up/down rounding from 0.00xxx or 0.999xxx or xx.000xxx, etc.
+fn round(num: KalkNum) -> KalkNum {
+    let fract = num.value.clone().fract();
+    let floored = num.value.clone().floor();
+
+    // If it's zero something, don't do the rounding as aggressively.
+    let (limit_floor, limit_ceil) = if floored.clone() == 0 {
+        (-15, -5)
+    } else {
+        (-4, -6)
+    };
+
+    if fract.clone().log10() < limit_floor {
+        // If eg. 0.00xxx
+        return KalkNum::new(floored, &num.unit);
+    } else if (1f64 - fract).log10() < limit_ceil {
+        // If eg. 0.999
+        return KalkNum::new(num.value.clone().ceil(), &num.unit);
+    } else {
+        return num;
+    }
 }
