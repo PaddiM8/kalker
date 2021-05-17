@@ -1,4 +1,5 @@
 pub mod ast;
+mod calculus;
 mod interpreter;
 mod inverter;
 pub mod kalk_num;
