@@ -9,7 +9,6 @@ pub fn integrate(
     context: &mut interpreter::Context,
     expressions: &[Expr],
 ) -> Result<KalkNum, CalcError> {
-    let mut result = KalkNum::default();
     let mut integration_variable: Option<&str> = None;
 
     // integral(a, b, expr dx)
@@ -26,53 +25,54 @@ pub fn integrate(
         return Err(CalcError::ExpectedDx);
     }
 
-    // delta_x/2[f(a) + 2f(x_1) + 2f(x_2) + ...2f(x_n) + f(b)]
-    // where delta_x = (b - a) / n
-    // and x_n = a + i * delta_x
-
-    // f(a)
-    context.symbol_table.set(Stmt::VarDecl(
-        integration_variable.unwrap().into(),
-        Box::new(expressions[0].clone()),
-    ));
-
     // "dx" is still in the expression. Set dx = 1, so that it doesn't affect the expression value.
     context.symbol_table.set(Stmt::VarDecl(
         format!("d{}", integration_variable.unwrap()),
         Box::new(Expr::Literal(1f64)),
     ));
 
-    result.value += interpreter::eval_expr(context, &expressions[2], "")?.value;
+    simpsons_rule(
+        context,
+        &expressions[0],
+        &expressions[1],
+        &expressions[2],
+        integration_variable.unwrap(),
+    )
+}
 
-    // 2f(x_n)
-    // where x_n = a + i * delta_x
-    const N: i32 = 100;
-    let a = interpreter::eval_expr(context, &expressions[0], "")?
-        .value
-        .to_f64();
-    let b = interpreter::eval_expr(context, &expressions[1], "")?
-        .value
-        .to_f64();
-    let delta_x = (b - a) / N as f64;
-    for i in 1..N {
+/// Composite Simpson's 3/8 rule
+fn simpsons_rule(
+    context: &mut interpreter::Context,
+    a_expr: &Expr,
+    b_expr: &Expr,
+    expr: &Expr,
+    integration_variable: &str,
+) -> Result<KalkNum, CalcError> {
+    let mut result = KalkNum::default();
+
+    const N: i32 = 900;
+    let a = interpreter::eval_expr(context, a_expr, "")?.value.to_f64();
+    let b = interpreter::eval_expr(context, b_expr, "")?.value.to_f64();
+    let h = (b - a) / N as f64;
+    for i in 0..=N {
         context.symbol_table.set(Stmt::VarDecl(
-            integration_variable.unwrap().into(),
-            Box::new(Expr::Literal(a + i as f64 * delta_x)),
+            integration_variable.into(),
+            Box::new(Expr::Literal(a + i as f64 * h)),
         ));
 
-        // 2f(x_n)
-        result.value += 2 * interpreter::eval_expr(context, &expressions[2], "")?.value;
+        let factor = if i == 0 || i == N {
+            1
+        } else if i % 3 == 0 {
+            2
+        } else {
+            3
+        };
+
+        // factor * f(x_n)
+        result.value += factor * interpreter::eval_expr(context, expr, "")?.value;
     }
 
-    // f(b)
-    context.symbol_table.set(Stmt::VarDecl(
-        integration_variable.unwrap().into(),
-        Box::new(expressions[1].clone()),
-    ));
-    result.value += interpreter::eval_expr(context, &expressions[2], "")?.value;
+    result.value *= (3f64 * h) / 8f64;
 
-    // Finally, delta_x/2 for all of it
-    result.value *= delta_x / 2f64;
-
-    return Ok(result);
+    Ok(result)
 }
