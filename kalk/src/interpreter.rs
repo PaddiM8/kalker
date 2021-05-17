@@ -578,11 +578,11 @@ mod tests {
                 *binary(
                     binary(var("x"), TokenKind::Power, literal(3f64)),
                     TokenKind::Star,
-                    binary(var("d"), TokenKind::Star, var("x")),
+                    var("dx"),
                 ),
             ],
         ));
 
-        assert!((interpret(stmt).unwrap().unwrap().to_f64() - 60f64).abs() < 1f64);
+        assert!((interpret(stmt).unwrap().unwrap().to_f64() - 60f64).abs() < 0.001f64);
     }
 }
