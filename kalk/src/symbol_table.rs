@@ -18,7 +18,8 @@ impl SymbolTable {
     pub fn insert(&mut self, value: Stmt) -> &mut Self {
         match &value {
             Stmt::VarDecl(identifier, _) => {
-                self.hashmap.insert(format!("var.{}", identifier), value);
+                self.hashmap
+                    .insert(format!("var.{}", identifier.full_name), value);
             }
             Stmt::UnitDecl(identifier, to_unit, _) => {
                 self.unit_types.insert(identifier.to_string(), ());
@@ -27,7 +28,8 @@ impl SymbolTable {
                     .insert(format!("unit.{}.{}", identifier, to_unit), value);
             }
             Stmt::FnDecl(identifier, _, _) => {
-                self.hashmap.insert(format!("fn.{}", identifier), value);
+                self.hashmap
+                    .insert(format!("fn.{}", identifier.full_name), value);
             }
             _ => panic!("Can only insert VarDecl, UnitDecl and FnDecl into symbol table."),
         }
@@ -49,11 +51,15 @@ impl SymbolTable {
 
     pub fn set(&mut self, value: Stmt) {
         let existing_item = match &value {
-            Stmt::VarDecl(identifier, _) => self.hashmap.get_mut(&format!("var.{}", identifier)),
+            Stmt::VarDecl(identifier, _) => self
+                .hashmap
+                .get_mut(&format!("var.{}", identifier.full_name)),
             Stmt::UnitDecl(identifier, to_unit, _) => self
                 .hashmap
                 .get_mut(&format!("unit.{}.{}", identifier, to_unit)),
-            Stmt::FnDecl(identifier, _, _) => self.hashmap.get_mut(&format!("fn.{}", identifier)),
+            Stmt::FnDecl(identifier, _, _) => self
+                .hashmap
+                .get_mut(&format!("fn.{}", identifier.full_name)),
             _ => panic!("Can only set VarDecl, UnitDecl and FnDecl in symbol table."),
         };
 

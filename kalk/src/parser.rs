@@ -1,3 +1,4 @@
+use crate::ast::Identifier;
 use crate::kalk_num::KalkNum;
 use crate::{
     ast::{Expr, Stmt},
@@ -205,7 +206,7 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     if let TokenKind::Equals = peek(context).kind {
         // Use the "function call" expression that was parsed, and put its values into a function declaration statement instead.
         if let Expr::FnCall(identifier, parameters) = primary {
-            if !prelude::is_prelude_func(&identifier) {
+            if !prelude::is_prelude_func(&identifier.full_name) {
                 advance(context);
                 let expr = parse_expr(context)?;
                 let mut parameter_identifiers = Vec::new();
@@ -215,7 +216,7 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
                 // Extract these.
                 for parameter in parameters {
                     if let Expr::Var(parameter_identifier) = parameter {
-                        parameter_identifiers.push(parameter_identifier);
+                        parameter_identifiers.push(parameter_identifier.full_name);
                     }
                 }
 
@@ -245,7 +246,10 @@ fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
         return Err(CalcError::VariableReferencesItself);
     }
 
-    Ok(Stmt::VarDecl(identifier.value, Box::new(expr)))
+    Ok(Stmt::VarDecl(
+        Identifier::from_full_name(&identifier.value),
+        Box::new(expr),
+    ))
 }
 
 fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
@@ -309,9 +313,10 @@ fn parse_equation(context: &mut Context) -> Result<Expr, CalcError> {
             return Err(CalcError::UnableToSolveEquation);
         }
 
-        context
-            .symbol_table
-            .insert(Stmt::VarDecl(var_name.into(), Box::new(inverted.clone())));
+        context.symbol_table.insert(Stmt::VarDecl(
+            Identifier::from_full_name(var_name),
+            Box::new(inverted.clone()),
+        ));
         return Ok(inverted);
     }
 
@@ -323,7 +328,7 @@ fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
 
     if match_token(context, TokenKind::ToKeyword) {
         advance(context);
-        let right = Expr::Var(advance(context).value.clone()); // Parse this as a variable for now.
+        let right = Expr::Var(Identifier::from_full_name(&advance(context).value)); // Parse this as a variable for now.
 
         return Ok(Expr::Binary(
             Box::new(left),
@@ -469,7 +474,7 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
     let expr = parse_expr(context)?;
     advance(context);
 
-    Ok(Expr::FnCall(name.to_string(), vec![expr]))
+    Ok(Expr::FnCall(Identifier::from_full_name(name), vec![expr]))
 }
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
@@ -480,7 +485,10 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
         if context.symbol_table.contains_fn(&identifier.value) {
             let parameter = Expr::Literal(string_to_num(&advance(context).value));
-            return Ok(Expr::FnCall(identifier.value, vec![parameter]));
+            return Ok(Expr::FnCall(
+                Identifier::from_full_name(&identifier.value),
+                vec![parameter],
+            ));
         }
     }
 
@@ -514,32 +522,37 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
             context.is_in_integral = false;
         }
 
-        return Ok(Expr::FnCall(identifier.value, parameters));
+        return Ok(Expr::FnCall(
+            Identifier::from_full_name(&identifier.value),
+            parameters,
+        ));
     }
 
     // Eg. dx inside an integral, should be parsed as *one* identifier
     if context.is_in_integral && identifier.value.starts_with("d") {
-        return Ok(Expr::Var(identifier.value));
+        return Ok(Expr::Var(Identifier::from_full_name(&identifier.value)));
     }
 
     // Eg. x
     if parse_as_var_instead || context.symbol_table.contains_var(&identifier.value) {
-        Ok(Expr::Var(identifier.value))
+        Ok(Expr::Var(Identifier::from_full_name(&identifier.value)))
     } else if context.parsing_unit_decl {
         context.unit_decl_base_unit = Some(identifier.value);
-        Ok(Expr::Var(DECL_UNIT.into()))
+        Ok(Expr::Var(Identifier::from_full_name(DECL_UNIT)))
     } else {
         if let Some(equation_var) = &context.equation_variable {
             if &identifier.value == equation_var {
-                return Ok(Expr::Var(identifier.value));
+                return Ok(Expr::Var(Identifier::from_full_name(&identifier.value)));
             }
         } else if context.contains_equal_sign {
             context.equation_variable = Some(identifier.value.clone());
-            return Ok(Expr::Var(identifier.value));
+            return Ok(Expr::Var(Identifier::from_full_name(&identifier.value)));
         }
 
         let mut chars = identifier.value.chars();
-        let mut left = Expr::Var(chars.next().unwrap().to_string());
+        let mut left = Expr::Var(Identifier::from_full_name(
+            &chars.next().unwrap().to_string(),
+        ));
 
         // Turn each individual character into its own variable reference.
         // This parses eg `xy` as `x*y` instead of *one* variable.
@@ -556,7 +569,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
 
                 parse_exponent(context)?
             } else {
-                Expr::Var(c.to_string())
+                Expr::Var(Identifier::from_full_name(&c.to_string()))
             };
 
             left = Expr::Binary(Box::new(left), TokenKind::Star, Box::new(right));
@@ -610,6 +623,7 @@ fn string_to_num(value: &str) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::Identifier;
     use crate::lexer::{Token, TokenKind::*};
     use crate::test_helpers::*;
     use wasm_bindgen_test::*;
@@ -763,7 +777,7 @@ mod tests {
         assert_eq!(
             parse(tokens).unwrap(),
             Stmt::VarDecl(
-                String::from("x"),
+                Identifier::from_full_name("x"),
                 binary(literal(1f64), Plus, literal(2f64))
             )
         );
@@ -787,7 +801,7 @@ mod tests {
         assert_eq!(
             parse(tokens).unwrap(),
             Stmt::FnDecl(
-                String::from("f"),
+                Identifier::from_full_name("f"),
                 vec![String::from("x")],
                 binary(literal(1f64), Plus, literal(2f64))
             )
@@ -813,7 +827,7 @@ mod tests {
 
         // Add the function to the symbol table first, in order to prevent errors.
         context.symbol_table.set(Stmt::FnDecl(
-            String::from("f"),
+            Identifier::from_full_name("f"),
             vec![String::from("x")],
             literal(1f64),
         ));
@@ -822,7 +836,7 @@ mod tests {
             parse_with_context(&mut context, tokens).unwrap(),
             Stmt::Expr(binary(
                 Box::new(Expr::FnCall(
-                    String::from("f"),
+                    Identifier::from_full_name("f"),
                     vec![*binary(literal(1f64), Plus, literal(2f64))]
                 )),
                 Plus,

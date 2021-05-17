@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::ast::Expr;
+use crate::ast::Identifier;
 use crate::ast::Stmt;
 use crate::lexer::Token;
 use crate::lexer::TokenKind;
@@ -17,11 +18,14 @@ pub fn literal(value: f64) -> Box<Expr> {
 }
 
 pub fn var(identifier: &str) -> Box<Expr> {
-    Box::new(Expr::Var(identifier.into()))
+    Box::new(Expr::Var(Identifier::from_full_name(identifier)))
 }
 
 pub fn fn_call(identifier: &str, arguments: Vec<Expr>) -> Box<Expr> {
-    Box::new(Expr::FnCall(identifier.into(), arguments))
+    Box::new(Expr::FnCall(
+        Identifier::from_full_name(identifier),
+        arguments,
+    ))
 }
 
 pub fn binary(left: Box<Expr>, op: TokenKind, right: Box<Expr>) -> Box<Expr> {
@@ -41,11 +45,11 @@ pub fn unit(identifier: &str, expr: Box<Expr>) -> Box<Expr> {
 }
 
 pub fn var_decl(identifier: &str, value: Box<Expr>) -> Stmt {
-    Stmt::VarDecl(identifier.into(), value)
+    Stmt::VarDecl(Identifier::from_full_name(identifier), value)
 }
 
 pub fn fn_decl(identifier: &str, parameters: Vec<String>, value: Box<Expr>) -> Stmt {
-    Stmt::FnDecl(identifier.into(), parameters, value)
+    Stmt::FnDecl(Identifier::from_full_name(identifier), parameters, value)
 }
 
 pub fn unit_decl(unit: &str, base_unit: &str, expr: Box<Expr>) -> Stmt {
