@@ -14,7 +14,7 @@ pub fn derive_func(
     const H: f64 = 0.000001;
     let unit = &argument.unit.to_string();
     let argument_with_h = Expr::Literal(argument.clone().add(context, H.into()).to_f64());
-    let argument_without_h = Expr::Literal(argument.to_f64());
+    let argument_without_h = Expr::Literal(argument.sub(context, H.into()).to_f64());
 
     let f_x_h = interpreter::eval_fn_call_expr(
         context,
@@ -29,7 +29,7 @@ pub fn derive_func(
         unit,
     )?;
 
-    Ok(f_x_h.sub(context, f_x).div(context, H.into()))
+    Ok(f_x_h.sub(context, f_x).div(context, (2f64 * H).into()))
 }
 
 pub fn integrate(
