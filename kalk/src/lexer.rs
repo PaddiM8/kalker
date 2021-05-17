@@ -16,6 +16,7 @@ pub enum TokenKind {
     Equals,
     Exclamation,
     Percent,
+    Tick,
 
     UnitKeyword,
     ToKeyword,
@@ -114,6 +115,7 @@ impl<'a> Lexer<'a> {
             ',' => build(TokenKind::Comma, "", span),
             ';' => build(TokenKind::Semicolon, "", span),
             '%' => build(TokenKind::Percent, "", span),
+            '\'' => build(TokenKind::Tick, "", span),
             _ => build(TokenKind::Unknown, "", span),
         };
 
