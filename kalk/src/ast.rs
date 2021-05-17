@@ -26,7 +26,7 @@ pub enum Expr {
 pub struct Identifier {
     pub full_name: String,
     pub pure_name: String,
-    pub prime_count: i32,
+    pub prime_count: u32,
 }
 
 impl Identifier {
@@ -39,9 +39,17 @@ impl Identifier {
             prime_count,
         }
     }
+
+    pub fn from_name_and_primes(pure_name: &str, prime_count: u32) -> Self {
+        Identifier {
+            full_name: format!("{}{}", pure_name, "'".repeat(prime_count as usize)),
+            pure_name: pure_name.into(),
+            prime_count,
+        }
+    }
 }
 
-fn separate_identifier_and_prime(identifier: &str) -> (String, i32) {
+fn separate_identifier_and_prime(identifier: &str) -> (String, u32) {
     let mut prim_count = 0;
     let mut pure_identifier = identifier.to_string();
 
