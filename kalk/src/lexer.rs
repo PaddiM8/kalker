@@ -116,6 +116,13 @@ impl<'a> Lexer<'a> {
             ';' => build(TokenKind::Semicolon, "", span),
             '%' => build(TokenKind::Percent, "", span),
             '\'' => build(TokenKind::Tick, "", span),
+            // Some of the special symbols will be lexed here,
+            // so that they don't merge with other symbols.
+            'π' => build(TokenKind::Identifier, "π", span),
+            '√' => build(TokenKind::Identifier, "√", span),
+            'τ' => build(TokenKind::Identifier, "τ", span),
+            'ϕ' => build(TokenKind::Identifier, "ϕ", span),
+            'Γ' => build(TokenKind::Identifier, "Γ", span),
             _ => build(TokenKind::Unknown, "", span),
         };
 
@@ -221,7 +228,7 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
     if let Some(c) = c {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
-            | '⌊' | '⌋' | '⌈' | '⌉' | ']' => false,
+            | '⌊' | '⌋' | '⌈' | '⌉' | ']' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' => false,
             _ => !c.is_digit(10),
         }
     } else {
