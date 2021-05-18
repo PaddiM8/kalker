@@ -1,35 +1,35 @@
 [package]
-name = "kalk_cli"
-version = "0.4.0"
 authors = ["PaddiM8"]
-edition = "2018"
-readme = "../README.md"
-description = "A calculator that supports user-defined functions, variables and units, and can handle fairly ambiguous syntax."
-repository = "https://github.com/PaddiM8/kalk"
-license = "MIT"
-keywords = ["math", "calculator", "cli", "command-line"]
-categories = ["mathematics", "command-line-utilities"]
 build = "build.rs"
+categories = ["mathematics", "command-line-utilities"]
+description = "A calculator that supports user-defined functions, variables and units, and can handle fairly ambiguous syntax."
+edition = "2018"
+keywords = ["math", "calculator", "cli", "command-line"]
+license = "MIT"
+name = "kalk_cli"
+readme = "../README.md"
+repository = "https://github.com/PaddiM8/kalk"
+version = "0.4.0"
 
 [[bin]]
-path = "src/main.rs"
 name = "kalk"
+path = "src/main.rs"
 
 [dependencies]
-kalk = { path = "../kalk", version = "^1.4.6" }
-rustyline = "7.1.0"
 ansi_term = "0.12.1"
-regex = "1"
+kalk = { path = "../kalk", version = "^1.4.6" }
 lazy_static = "1.4.0"
+regex = "1"
+rustyline = "7.1.0"
 seahorse = "1.1.1"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 
 [package.metadata.bundle]
-name = "kalk"
-identifier = "net.strct.kalk"
 icon = ["../res/icon*"]
+identifier = "net.strct.kalk"
+name = "kalk"
 short_description = "A calculator that supports user-defined functions, variables and units, and can handle fairly ambiguous syntax."
 
 [package.metadata.bundle.bin.kalk]
