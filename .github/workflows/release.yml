@@ -116,6 +116,7 @@ jobs:
             make
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-rust
+        continue-on-error: true
       - shell: msys2 {0}
         run: |
           cargo build --release --verbose
