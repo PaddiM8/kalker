@@ -481,10 +481,14 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     let identifier = Identifier::from_full_name(&advance(context).value);
 
     // Eg. sqrt64
-    if match_token(context, TokenKind::Literal) {
+    if match_token(context, TokenKind::Literal)
+        || peek(context).value == "π"
+        || peek(context).value == "τ"
+        || peek(context).value == "ϕ"
+    {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
         if context.symbol_table.contains_fn(&identifier.pure_name) {
-            let parameter = Expr::Literal(string_to_num(&advance(context).value));
+            let parameter = parse_primary(context)?;
             return Ok(Expr::FnCall(identifier, vec![parameter]));
         }
     }
