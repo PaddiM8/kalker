@@ -36,7 +36,7 @@
         "Σ",
         "⌊",
         "⌈",
-        "ϕ",
+        "∫",
     ];
     let numberRowValues = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
     let outputElement: HTMLElement;
@@ -55,20 +55,21 @@
     function calculate(
         kalk: Kalk,
         input: string
-    ): [result: string, success: boolean] {
+    ): [result: string, estimate: string, success: boolean] {
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
-            const result = kalkContext.evaluate(input) ?? "";
+            const result = kalkContext.evaluate(input);
+            const estimate = result.estimate();
             if (result && result.getValue() != 0) {
                 const sciNot = result.toScientificNotation();
                 if (sciNot.exponent > 7 || sciNot.exponent < -6) {
-                    return [sciNot.toString(), true];
+                    return [sciNot.toString(), estimate, true];
                 }
             }
 
-            return [result?.toString(), true];
+            return [result?.toString(), estimate, true];
         } catch (err) {
-            return [err, false];
+            return [err, null, false];
         }
     }
 
@@ -84,12 +85,16 @@
                              href="https://kalk.netlify.app/#usage"
                              target="blank">Link to usage guide</a>`;
             } else {
-                const [result, success] = calculate(
+                const [result, estimate, success] = calculate(
                     kalk,
                     input.replace(/\s+/g, "") // Temporary fix, since it for some reason complains about spaces on chrome
                 );
+
+                const resultWithEstimate = estimate
+                    ? result + " ≈ " + estimate
+                    : result;
                 output = success
-                    ? highlight(result)[0]
+                    ? highlight(resultWithEstimate)[0]
                     : `<span style="color: ${errorcolor}">${result}</span>`;
             }
 
@@ -273,7 +278,7 @@
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<identifier>[^!-@\s_|^⌊⌋⌈⌉]+(_\d+)?)|(?<op>[+\-/*%^!])/g,
+            /(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈]+(_\d+)?)|(?<op>[+\-/*%^!≈])/g,
             (substring, identifier, _, op) => {
                 if (identifier) {
                     let newSubstring: string = substring;

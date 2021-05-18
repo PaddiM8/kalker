@@ -49,7 +49,6 @@ impl KalkNum {
         self.value
     }
 
-    #[wasm_bindgen(js_name = getValue)]
     pub fn to_i32(&self) -> i32 {
         self.value as i32
     }
