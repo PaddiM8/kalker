@@ -22,9 +22,10 @@ pub fn derive_func(
     let f_x =
         interpreter::eval_fn_call_expr(context, &new_identifier, &[argument_without_h], unit)?;
 
-    Ok(round(
-        f_x_h.sub(context, f_x).div(context, (2f64 * H).into()),
-    ))
+    Ok(f_x_h
+        .sub(context, f_x)
+        .div(context, (2f64 * H).into())
+        .round_if_needed())
 }
 
 pub fn integrate(
@@ -55,13 +56,7 @@ pub fn integrate(
         Box::new(Expr::Literal(1f64)),
     ));
 
-    Ok(round(simpsons_rule(
-        context,
-        a,
-        b,
-        expr,
-        integration_variable.unwrap(),
-    )?))
+    Ok(simpsons_rule(context, a, b, expr, integration_variable.unwrap())?.round_if_needed())
 }
 
 /// Composite Simpson's 3/8 rule
@@ -75,8 +70,8 @@ fn simpsons_rule(
     let mut result = KalkNum::default();
 
     const N: i32 = 900;
-    let a = interpreter::eval_expr(context, a_expr, "")?.value.to_f64();
-    let b = interpreter::eval_expr(context, b_expr, "")?.value.to_f64();
+    let a = interpreter::eval_expr(context, a_expr, "")?.to_f64();
+    let b = interpreter::eval_expr(context, b_expr, "")?.to_f64();
     let h = (b - a) / N as f64;
     for i in 0..=N {
         context.symbol_table.set(Stmt::VarDecl(
@@ -91,33 +86,10 @@ fn simpsons_rule(
         };
 
         // factor * f(x_n)
-        result.value += factor * interpreter::eval_expr(context, expr, "")?.value;
+        result.value += factor as f64 * interpreter::eval_expr(context, expr, "")?.value;
     }
 
     result.value *= (3f64 * h) / 8f64;
 
     Ok(result)
-}
-
-/// Basic up/down rounding from 0.00xxx or 0.999xxx or xx.000xxx, etc.
-fn round(num: KalkNum) -> KalkNum {
-    let fract = num.value.clone().fract();
-    let floored = num.value.clone().floor();
-
-    // If it's zero something, don't do the rounding as aggressively.
-    let (limit_floor, limit_ceil) = if floored.clone() == 0 {
-        (-15, -5)
-    } else {
-        (-4, -6)
-    };
-
-    if fract.clone().log10() < limit_floor {
-        // If eg. 0.00xxx
-        return KalkNum::new(floored, &num.unit);
-    } else if (1f64 - fract).log10() < limit_ceil {
-        // If eg. 0.999
-        return KalkNum::new(num.value.clone().ceil(), &num.unit);
-    } else {
-        return num;
-    }
 }

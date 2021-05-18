@@ -14,7 +14,16 @@ pub fn eval(parser: &mut parser::Context, input: &str, precision: u32) {
                 result.to_string_big()
             };
 
-            println!("{} {}", result_str, result.get_unit());
+            let unit = result.get_unit();
+            if let Some(estimate) = result.estimate() {
+                if unit == "" {
+                    println!("{} ≈ {}", result_str, estimate);
+                } else {
+                    println!("{} {} ≈ {}", result_str, unit, estimate);
+                }
+            } else {
+                println!("{} {}", result_str, unit);
+            }
         }
         Ok(None) => print!(""),
         Err(err) => print_err(&err.to_string()),
