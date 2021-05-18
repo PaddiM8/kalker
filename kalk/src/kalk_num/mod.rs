@@ -43,6 +43,12 @@ lazy_static! {
 }
 
 impl KalkNum {
+    #[cfg(not(feature = "rug"))]
+    #[wasm_bindgen(js_name = estimate)]
+    pub fn estimate_js(&self) -> Option<String> {
+        self.estimate()
+    }
+
     // Get an estimate of what the number is, eg. 3.141592 => π
     pub fn estimate(&self) -> Option<String> {
         let fract = self.value.clone().fract().abs();
