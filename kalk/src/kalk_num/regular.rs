@@ -49,6 +49,11 @@ impl KalkNum {
         self.value
     }
 
+    #[wasm_bindgen(js_name = getValue)]
+    pub fn to_i32(&self) -> i32 {
+        self.value as i32
+    }
+
     #[wasm_bindgen(js_name = toString)]
     pub fn to_string(&self) -> String {
         let string_value = self.value.to_string();
@@ -88,12 +93,8 @@ impl KalkNum {
     }
 
     #[wasm_bindgen(js_name = toScientificNotation)]
-    pub fn to_scientific_notation(&self) -> ScientificNotation {
-        ScientificNotation {
-            negative: self.value < 0f64,
-            digits: self.value.to_string().replace(".", ""),
-            exponent: self.value.log(10f64) as i32 + 1,
-        }
+    pub fn to_scientific_notation_js(&self) -> ScientificNotation {
+        self.to_scientific_notation()
     }
 
     pub(crate) fn convert_to_unit(
