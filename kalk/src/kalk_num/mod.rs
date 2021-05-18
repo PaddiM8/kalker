@@ -54,7 +54,7 @@ impl KalkNum {
 
 impl KalkNum {
     pub fn to_scientific_notation(&self) -> ScientificNotation {
-        let value_string = self.value.to_string();
+        let value_string = self.to_string();
         let trimmed = if value_string.contains(".") {
             value_string.trim_end_matches("0")
         } else {
