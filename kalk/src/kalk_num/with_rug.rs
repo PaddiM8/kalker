@@ -49,6 +49,10 @@ impl KalkNum {
         self.value.to_f64_round(rug::float::Round::Nearest)
     }
 
+    pub fn to_i32(&self) -> i32 {
+        self.value.to_i32_saturating().unwrap()
+    }
+
     pub fn to_string(&self) -> String {
         let as_str = self.to_f64().to_string();
 
@@ -80,22 +84,6 @@ impl KalkNum {
 
     pub fn has_unit(&self) -> bool {
         self.unit.len() > 0
-    }
-
-    pub fn to_scientific_notation(&self) -> ScientificNotation {
-        let (neg, digits, exp_option) =
-            self.value
-                .to_sign_string_exp_round(10, None, rug::float::Round::Up);
-
-        ScientificNotation {
-            negative: neg,
-            digits: digits
-                .trim_start_matches('0')
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string(),
-            exponent: if let Some(exp) = exp_option { exp } else { 0 },
-        }
     }
 
     pub fn convert_to_unit(

@@ -10,6 +10,7 @@ pub use regular::*;
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
 
 lazy_static! {
     static ref CONSTANTS: HashMap<&'static str, &'static str> = {
@@ -42,11 +43,34 @@ lazy_static! {
     };
 }
 
+#[wasm_bindgen]
 impl KalkNum {
     #[cfg(not(feature = "rug"))]
     #[wasm_bindgen(js_name = estimate)]
     pub fn estimate_js(&self) -> Option<String> {
         self.estimate()
+    }
+}
+
+impl KalkNum {
+    pub fn to_scientific_notation(&self) -> ScientificNotation {
+        let value_string = self.value.to_string();
+        let trimmed = if value_string.contains(".") {
+            value_string.trim_end_matches("0")
+        } else {
+            &value_string
+        };
+
+        ScientificNotation {
+            negative: self.value < 0f64,
+            digits: trimmed
+                .to_string()
+                .replace(".", "")
+                .trim_start_matches("0")
+                .to_string(),
+            // I... am not sure what else to do...
+            exponent: KalkNum::new(self.value.clone().log10(), "").to_i32(),
+        }
     }
 
     // Get an estimate of what the number is, eg. 3.141592 => π
@@ -230,5 +254,18 @@ mod tests {
             println!("{}", input);
             assert_eq!(output, result);
         }
+    }
+
+    #[test]
+    fn test_to_scientific_notation() {
+        let num = KalkNum::from(0.000001f64);
+        let sci_not = num.to_scientific_notation();
+        assert_eq!(sci_not.negative, false);
+        assert_eq!(sci_not.exponent, -6);
+
+        let num = KalkNum::from(123.456789f64);
+        let sci_not = num.to_scientific_notation();
+        assert_eq!(sci_not.negative, false);
+        assert_eq!(sci_not.exponent, 2);
     }
 }
