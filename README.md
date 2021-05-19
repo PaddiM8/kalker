@@ -2,7 +2,7 @@
 
  [![Crates.io](https://img.shields.io/crates/v/kalk_cli)](https://crates.io/crates/kalk_cli)![npm](https://img.shields.io/npm/v/@paddim8/kalk) [![GitHub](https://img.shields.io/github/license/PaddiM8/kalk)](https://github.com/PaddiM8/kalk/blob/master/LICENSE) [![Docs.rs](https://docs.rs/kalk/badge.svg)](https://docs.rs/kalk/latest/kalk/) ![Build status](https://img.shields.io/github/workflow/status/PaddiM8/kalk/Rust?event=push&label=build%20%26%20test)
 
-Kalk is a calculator (both program and library) that supports user-defined variables, functions, and units (experimental, limited). It runs on Windows, macOS, Linux, Android, and in web browsers (with WebAssembly).
+Kalk is a calculator (both program and library) that supports user-defined variables, functions, derivation, and integration. It runs on Windows, macOS, Linux, Android, and in web browsers (with WebAssembly).
 
 [Kanban](https://kolan.strct.net/Board/4RAdMjLDz) | [Website](https://kalk.strct.net)
 
@@ -15,6 +15,8 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 * [Pre-defined functions and constants](https://github.com/PaddiM8/kalk/blob/master/kalk/src/prelude.rs)
 * User-defined functions and variables. `f(x, y) = xy`, `x = 5`
 * User-defined units (experimental). `unit m = cm/100`, `2m/50cm`, `50cm to m`
+* Derivative of functions. `f'(2)`, `sin'(-pi)`
+* Integration. `∫(0, pi, sin(x) dx)` or `∫(0, π, sin(x) dx)`
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
 * Syntax highlighting
 * Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
