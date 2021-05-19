@@ -59,7 +59,7 @@
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
             const result = kalkContext.evaluate(input);
-            const estimate = result.estimate();
+            const estimate = result?.estimate() ?? null;
             if (result && result.getValue() != 0) {
                 const sciNot = result.toScientificNotation();
                 if (sciNot.exponent > 7 || sciNot.exponent < -6) {
