@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 pub struct KalkNum {
     pub(crate) value: f64,
     pub(crate) unit: String,
+    pub(crate) imaginary_value: f64,
 }
 
 #[wasm_bindgen]
@@ -14,6 +15,15 @@ impl KalkNum {
         Self {
             value,
             unit: unit.to_string(),
+            imaginary_value: 0f64,
+        }
+    }
+
+    pub fn new_with_imaginary(value: f64, unit: &str, imaginary_value: f64) -> Self {
+        Self {
+            value,
+            unit: unit.to_string(),
+            imaginary_value,
         }
     }
 

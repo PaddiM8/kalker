@@ -212,9 +212,11 @@ pub fn convert_unit(
             Box::new(expr.clone()),
         ));
 
-        Ok(KalkNum::new(
-            eval_expr(context, &unit_def, "")?.value,
+        let num = eval_expr(context, &unit_def, "")?;
+        Ok(KalkNum::new_with_imaginary(
+            num.value,
             to_unit.into(),
+            num.imaginary_value,
         ))
     } else {
         Err(CalcError::InvalidUnit)
@@ -273,6 +275,23 @@ pub(crate) fn eval_fn_call_expr(
     let prelude_func = match expressions.len() {
         1 => {
             let x = eval_expr(context, &expressions[0], "")?;
+
+            if x.value < 0f64 && (identifier.full_name == "sqrt" || identifier.full_name == "√") {
+                let (sqrt, unit) = prelude::call_unary_func(
+                    context,
+                    &identifier.full_name,
+                    x.value * (-1f64),
+                    &context.angle_unit.clone(),
+                )
+                .unwrap();
+
+                return Ok(KalkNum::new_with_imaginary(
+                    KalkNum::default().value,
+                    &unit,
+                    sqrt,
+                ));
+            }
+
             if identifier.prime_count > 0 {
                 return calculus::derive_func(context, &identifier, x);
             } else {
