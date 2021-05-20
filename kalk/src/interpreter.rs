@@ -175,8 +175,8 @@ fn eval_unary_expr(
     let num = eval_expr(context, &expr, unit)?;
 
     match op {
-        TokenKind::Minus => Ok(KalkNum::new(-num.value, &num.unit)),
-        TokenKind::Percent => Ok(KalkNum::new(num.value * 0.01, unit)),
+        TokenKind::Minus => Ok(num.mul(context, KalkNum::from(-1f64))),
+        TokenKind::Percent => Ok(num.mul(context, KalkNum::from(0.01f64))),
         TokenKind::Exclamation => Ok(KalkNum::new(
             prelude::special_funcs::factorial(num.value),
             unit,

@@ -7,8 +7,6 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 
-static DEFAULT_PRECISION: u32 = 53;
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     let app = App::new("kalk")

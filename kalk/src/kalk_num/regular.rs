@@ -32,21 +32,18 @@ impl KalkNum {
         self.value
     }
 
+    #[wasm_bindgen(js_name = getImaginaryValue)]
+    pub fn imaginary_to_f64(&self) -> f64 {
+        self.imaginary_value
+    }
+
     pub fn to_i32(&self) -> i32 {
         self.value as i32
     }
 
     #[wasm_bindgen(js_name = toString)]
-    pub fn to_string(&self) -> String {
-        let string_value = self.value.to_string();
-        if string_value.contains(".") {
-            string_value
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string()
-        } else {
-            string_value
-        }
+    pub fn to_string_js(&self) -> String {
+        self.to_string()
     }
 
     #[wasm_bindgen(js_name = toStringBig)]
@@ -75,8 +72,11 @@ impl KalkNum {
     }
 
     #[wasm_bindgen(js_name = toScientificNotation)]
-    pub fn to_scientific_notation_js(&self) -> ScientificNotation {
-        self.to_scientific_notation()
+    pub fn to_scientific_notation_js(
+        &self,
+        complex_number_type: ComplexNumberType,
+    ) -> ScientificNotation {
+        self.to_scientific_notation(complex_number_type)
     }
 
     #[wasm_bindgen(js_name = estimate)]
