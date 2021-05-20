@@ -292,13 +292,36 @@ impl KalkNum {
     }
 
     pub(crate) fn div(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value / right.value, &right.unit)
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs.clone());
+
+        // Avoid unecessary calculations
+        if self.imaginary_value == 0f64 && right.imaginary_value == 0f64 {
+            KalkNum::new(self.value / right.value, &right.unit)
+        } else {
+            // Multiply both the numerator and denominator
+            // with the conjugate of the denominator, and divide.
+            let conjugate = rhs.get_conjugate();
+            let numerator = self.clone().mul(context, conjugate.clone());
+            let denominator = rhs.clone().mul(context, conjugate);
+            KalkNum::new_with_imaginary(
+                numerator.value / denominator.value.clone(),
+                &right.unit,
+                numerator.imaginary_value / denominator.value,
+            )
+        }
     }
 
     pub(crate) fn rem(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
         KalkNum::new(self.value % right.value, &right.unit)
+    }
+
+    pub fn get_conjugate(&self) -> KalkNum {
+        KalkNum::new_with_imaginary(
+            self.value.clone(),
+            &self.unit,
+            self.imaginary_value.clone() * (-1f64),
+        )
     }
 
     /// Get an estimate of what the number is, eg. 3.141592 => π
