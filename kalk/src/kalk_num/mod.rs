@@ -22,9 +22,7 @@ lazy_static! {
         let mut m = HashMap::new();
         m.insert("3.141592", "π");
         m.insert("2.718281", "e");
-        m.insert("6.283185", "tau");
         m.insert("6.283185", "τ");
-        m.insert("1.618033", "phi");
         m.insert("1.618033", "ϕ");
         m.insert("1.414213", "√2");
         // Radian values for common angles
@@ -127,17 +125,55 @@ impl KalkNum {
         }
     }
 
+    pub fn to_string(&self) -> String {
+        let as_str = trim_number_string(&self.to_f64().to_string());
+
+        if self.imaginary_value != 0f64 {
+            let imaginary_as_str = trim_number_string(&self.imaginary_to_f64().to_string());
+            let sign = if self.imaginary_value < 0f64 {
+                "-"
+            } else {
+                "+"
+            };
+
+            format!("{} {} {}i", as_str, sign, imaginary_as_str)
+        } else {
+            as_str
+        }
+    }
+
     pub fn to_string_big(&self) -> String {
-        if self.imaginary_value == 0 {
+        if self.imaginary_value == 0f64 {
             self.value.to_string()
         } else {
-            let sign = if self.imaginary_value < 0 { "-" } else { "+" };
+            let sign = if self.imaginary_value < 0f64 {
+                "-"
+            } else {
+                "+"
+            };
             format!(
                 "{} {} {}",
                 self.value.to_string(),
                 sign,
                 self.imaginary_value.to_string()
             )
+        }
+    }
+
+    pub fn to_string_real(&self) -> String {
+        trim_number_string(&self.to_f64().to_string())
+    }
+
+    pub fn to_string_imaginary(&self, include_i: bool) -> String {
+        let value = trim_number_string(&self.imaginary_to_f64().to_string());
+        if include_i && value == "1" {
+            String::from("i")
+        } else if include_i && value == "-1" {
+            String::from("-i")
+        } else if include_i {
+            format!("{}i", value)
+        } else {
+            value
         }
     }
 
@@ -156,7 +192,7 @@ impl KalkNum {
         {
             self.to_string_imaginary(true)
         } else {
-            format!("{} i", sci_notation_imaginary.to_string())
+            format!("{}", sci_notation_imaginary.to_string())
         };
 
         let mut output = result_str;
@@ -166,13 +202,21 @@ impl KalkNum {
             if output == "0" {
                 output = String::new();
             }
+
+            // If there is a real value as well
             if output.len() > 0 {
                 output.push_str(&format!(
-                    " {} ",
-                    if self.imaginary_value < 0 { "-" } else { "+" }
+                    " {} {}",
+                    if self.imaginary_value < 0f64 {
+                        "-"
+                    } else {
+                        "+"
+                    },
+                    result_str_imaginary.trim_start_matches("-"),
                 ));
+            } else {
+                output.push_str(&format!("{}", result_str_imaginary));
             }
-            output.push_str(&format!("{}", result_str_imaginary));
         }
 
         let unit = self.get_unit();
@@ -238,8 +282,10 @@ impl KalkNum {
 
     pub(crate) fn mul(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        // (a + bi)(c + di) = ac + adi + bci + bdi²
         KalkNum::new_with_imaginary(
-            KalkNum::default().value,
+            self.value.clone() * right.value.clone()
+                - self.imaginary_value.clone() * right.imaginary_value.clone(),
             &right.unit,
             self.value * right.imaginary_value + self.imaginary_value * right.value,
         )
@@ -346,6 +392,17 @@ impl KalkNum {
         } else {
             self.clone() // Hmm
         }
+    }
+}
+
+fn trim_number_string(input: &str) -> String {
+    if input.contains(".") {
+        input
+            .trim_end_matches('0')
+            .trim_end_matches('.')
+            .to_string()
+    } else {
+        input.into()
     }
 }
 

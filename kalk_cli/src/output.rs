@@ -1,4 +1,3 @@
-use crate::DEFAULT_PRECISION;
 use ansi_term::Colour::Red;
 use kalk::parser;
 
