@@ -101,7 +101,9 @@ impl KalkNum {
         let value_string = match complex_number_type {
             ComplexNumberType::Real => self.to_string_real(),
             ComplexNumberType::Imaginary => self.to_string_imaginary(false),
-        };
+        }
+        .trim_start_matches("-")
+        .to_string();
         let trimmed = if value_string.contains(".") {
             value_string.trim_end_matches("0")
         } else {
