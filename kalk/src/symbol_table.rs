@@ -1,4 +1,4 @@
-use crate::{ast::Stmt, prelude};
+use crate::{ast::Expr, ast::Identifier, ast::Stmt, prelude};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -9,10 +9,21 @@ pub struct SymbolTable {
 
 impl SymbolTable {
     pub fn new() -> Self {
-        SymbolTable {
+        let mut symbol_table = SymbolTable {
             hashmap: HashMap::new(),
             unit_types: HashMap::new(),
-        }
+        };
+
+        // i = sqrt(-1)
+        symbol_table.insert(Stmt::VarDecl(
+            Identifier::from_full_name("i"),
+            Box::new(Expr::FnCall(
+                Identifier::from_full_name("sqrt"),
+                vec![Expr::Literal(-1f64)],
+            )),
+        ));
+
+        symbol_table
     }
 
     pub fn insert(&mut self, value: Stmt) -> &mut Self {
@@ -72,6 +83,7 @@ impl SymbolTable {
 
     pub fn contains_var(&self, identifier: &str) -> bool {
         prelude::CONSTANTS.contains_key(identifier)
+            || identifier == "i"
             || self.hashmap.contains_key(&format!("var.{}", identifier))
     }
 

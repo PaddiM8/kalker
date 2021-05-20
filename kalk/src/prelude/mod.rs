@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use FuncType::*;
 
+// `i` is added in the symbol_table module, since for some reason it didn't work here.
 pub const INIT: &'static str = "unit deg = (rad*180)/pi";
 
 lazy_static! {

@@ -54,12 +54,24 @@ pub struct ScientificNotation {
     pub negative: bool,
     pub(crate) digits: String,
     pub exponent: i32,
+    pub imaginary: bool,
+}
+
+#[wasm_bindgen]
+#[derive(PartialEq)]
+pub enum ComplexNumberType {
+    Real,
+    Imaginary,
 }
 
 #[wasm_bindgen]
 impl ScientificNotation {
     #[wasm_bindgen(js_name = toString)]
     pub fn to_string(&self) -> String {
+        if self.digits == "" {
+            return String::from("0");
+        }
+
         let sign = if self.negative { "-" } else { "" };
         let mut digits_and_mul = if self.digits == "1" {
             String::new()
@@ -71,33 +83,106 @@ impl ScientificNotation {
             digits_and_mul.insert(1usize, '.');
         }
 
-        format!("{}{}10^{}", sign, digits_and_mul, self.exponent - 1)
+        format!(
+            "{}{}10^{} {}",
+            sign,
+            digits_and_mul,
+            self.exponent - 1,
+            if self.imaginary { "i" } else { "" }
+        )
     }
 }
 
 impl KalkNum {
-    pub fn to_scientific_notation(&self) -> ScientificNotation {
-        let value_string = self.to_string();
+    pub fn to_scientific_notation(
+        &self,
+        complex_number_type: ComplexNumberType,
+    ) -> ScientificNotation {
+        let value_string = match complex_number_type {
+            ComplexNumberType::Real => self.to_string_real(),
+            ComplexNumberType::Imaginary => self.to_string_imaginary(false),
+        };
         let trimmed = if value_string.contains(".") {
             value_string.trim_end_matches("0")
         } else {
             &value_string
         };
+        let value = match complex_number_type {
+            ComplexNumberType::Real => self.value.clone(),
+            ComplexNumberType::Imaginary => self.imaginary_value.clone(),
+        };
 
         ScientificNotation {
-            negative: self.value < 0f64,
+            negative: value < 0f64,
             digits: trimmed
                 .to_string()
                 .replace(".", "")
                 .trim_start_matches("0")
                 .to_string(),
             // I... am not sure what else to do...
-            exponent: KalkNum::new(self.value.clone().log10(), "").to_i32(),
+            exponent: KalkNum::new(value.clone().abs().log10(), "").to_i32(),
+            imaginary: complex_number_type == ComplexNumberType::Imaginary,
         }
     }
 
     pub fn to_string_big(&self) -> String {
-        self.value.to_string()
+        if self.imaginary_value == 0 {
+            self.value.to_string()
+        } else {
+            let sign = if self.imaginary_value < 0 { "-" } else { "+" };
+            format!(
+                "{} {} {}",
+                self.value.to_string(),
+                sign,
+                self.imaginary_value.to_string()
+            )
+        }
+    }
+
+    pub fn to_string_pretty(&self) -> String {
+        let sci_notation_real = self.to_scientific_notation(ComplexNumberType::Real);
+        let result_str = if (-6..8).contains(&sci_notation_real.exponent) || self.value == 0f64 {
+            self.to_string_real()
+        } else {
+            sci_notation_real.to_string()
+        };
+
+        let sci_notation_imaginary = self.to_scientific_notation(ComplexNumberType::Imaginary);
+        let result_str_imaginary = if (-6..8).contains(&sci_notation_imaginary.exponent)
+            || self.imaginary_value == 0f64
+            || self.imaginary_value == 1f64
+        {
+            self.to_string_imaginary(true)
+        } else {
+            format!("{} i", sci_notation_imaginary.to_string())
+        };
+
+        let mut output = result_str;
+        if self.imaginary_value != 0f64 {
+            // If the real value is 0, and there is an imaginary one,
+            // clear the output so that the real value is not shown.
+            if output == "0" {
+                output = String::new();
+            }
+            if output.len() > 0 {
+                output.push_str(&format!(
+                    " {} ",
+                    if self.imaginary_value < 0 { "-" } else { "+" }
+                ));
+            }
+            output.push_str(&format!("{}", result_str_imaginary));
+        }
+
+        let unit = self.get_unit();
+        if unit != "" {
+            output.push_str(&format!(" {}", unit));
+        }
+
+        if let Some(estimate) = self.estimate() {
+            output.push_str(&format!(" ≈ {}", estimate));
+        }
+
+        output
     }
 
     pub fn is_too_big(&self) -> bool {
@@ -133,17 +218,29 @@ impl KalkNum {
 
     pub(crate) fn add(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value + right.value, &right.unit)
+        KalkNum::new_with_imaginary(
+            self.value + right.value,
+            &right.unit,
+            self.imaginary_value + right.imaginary_value,
+        )
     }
 
     pub(crate) fn sub(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value - right.value, &right.unit)
+        KalkNum::new_with_imaginary(
+            self.value - right.value,
+            &right.unit,
+            self.imaginary_value - right.imaginary_value,
+        )
     }
 
     pub(crate) fn mul(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value * right.value, &right.unit)
+        KalkNum::new_with_imaginary(
+            KalkNum::default().value,
+            &right.unit,
+            self.value * right.imaginary_value + self.imaginary_value * right.value,
+        )
     }
 
     pub(crate) fn div(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
@@ -258,7 +355,11 @@ fn calculate_unit(
     if left.has_unit() && right.has_unit() {
         right.convert_to_unit(context, &left.unit)
     } else {
-        Some(KalkNum::new(right.value, &left.unit))
+        Some(KalkNum::new_with_imaginary(
+            right.value,
+            &left.unit,
+            right.imaginary_value,
+        ))
     }
 }
 
@@ -293,6 +394,7 @@ impl Into<f64> for KalkNum {
 
 #[cfg(test)]
 mod tests {
+    use crate::kalk_num::ComplexNumberType;
     use crate::kalk_num::KalkNum;
 
     #[test]
@@ -372,12 +474,12 @@ mod tests {
     #[test]
     fn test_to_scientific_notation() {
         let num = KalkNum::from(0.000001f64);
-        let sci_not = num.to_scientific_notation();
+        let sci_not = num.to_scientific_notation(ComplexNumberType::Real);
         assert_eq!(sci_not.negative, false);
         assert_eq!(sci_not.exponent, -6);
 
         let num = KalkNum::from(123.456789f64);
-        let sci_not = num.to_scientific_notation();
+        let sci_not = num.to_scientific_notation(ComplexNumberType::Real);
         assert_eq!(sci_not.negative, false);
         assert_eq!(sci_not.exponent, 2);
     }
