@@ -326,8 +326,68 @@ impl KalkNum {
 
     /// Get an estimate of what the number is, eg. 3.141592 => π
     pub fn estimate(&self) -> Option<String> {
-        let fract = self.value.clone().fract().abs();
-        let integer = self.value.clone().trunc();
+        let rounded_real = self.estimate_one_value(ComplexNumberType::Real);
+        let rounded_imaginary = self.estimate_one_value(ComplexNumberType::Imaginary);
+
+        if let (None, None) = (&rounded_real, &rounded_imaginary) {
+            return None;
+        }
+
+        let mut output = String::new();
+        if let Some(value) = rounded_real {
+            output.push_str(&value);
+        }
+
+        if let Some(value) = rounded_imaginary {
+            // Clear output if it's just 0.
+            if output == "0" {
+                output = String::new();
+            }
+
+            if value != "0" {
+                // If there is a real value as well
+                if output.len() > 0 {
+                    output.push_str(" + ");
+                }
+
+                output.push_str(&format!("{}i", value));
+            }
+        }
+
+        Some(output)
+    }
+
+    /// Basic up/down rounding from 0.00xxx or 0.999xxx or xx.000xxx, etc.
+    pub fn round(&self) -> Option<KalkNum> {
+        let rounded_real = self.round_one_value(ComplexNumberType::Real);
+        let rounded_imaginary = self.round_one_value(ComplexNumberType::Imaginary);
+
+        if let (None, None) = (&rounded_real, &rounded_imaginary) {
+            return None;
+        }
+
+        Some(KalkNum::new_with_imaginary(
+            rounded_real.unwrap_or(self.clone()).value,
+            &self.unit,
+            rounded_imaginary.unwrap_or(self.clone()).imaginary_value,
+        ))
+    }
+
+    pub fn round_if_needed(&self) -> KalkNum {
+        if let Some(value) = self.round() {
+            value
+        } else {
+            self.clone() // Hmm
+        }
+    }
+
+    pub fn estimate_one_value(&self, complex_number_type: ComplexNumberType) -> Option<String> {
+        let (value, value_string) = match complex_number_type {
+            ComplexNumberType::Real => (&self.value, self.to_string()),
+            ComplexNumberType::Imaginary => (&self.imaginary_value, self.to_string_imaginary(true)),
+        };
+        let fract = value.clone().fract().abs();
+        let integer = value.clone().trunc();
 
         // If it's an integer, there's nothing that would be done to it.
         if fract == 0f64 {
@@ -335,8 +395,8 @@ impl KalkNum {
         }
 
         // Eg. 0.5 to 1/2
-        let as_abs_string = self.to_string().trim_start_matches("-").to_string();
-        let sign = if self.value < 0f64 { "-" } else { "" };
+        let as_abs_string = value_string.trim_start_matches("-").to_string();
+        let sign = if *value < 0f64 { "-" } else { "" };
         let fract_as_string = fract.to_string();
         if as_abs_string.starts_with("0.5") {
             if as_abs_string.len() == 3 || (as_abs_string.len() > 6 && &as_abs_string[3..5] == "00")
@@ -377,15 +437,18 @@ impl KalkNum {
         }
 
         // If nothing above was relevant, simply round it off a bit, eg. from 0.99999 to 1
-        let rounded = self.round()?.to_string();
+        let rounded = self.round_one_value(complex_number_type)?.to_string();
         Some(trim_zeroes(&rounded))
     }
 
-    /// Basic up/down rounding from 0.00xxx or 0.999xxx or xx.000xxx, etc.
-    pub fn round(&self) -> Option<KalkNum> {
-        let sign = if self.value < 0f64 { -1f64 } else { 1f64 };
-        let fract = self.value.clone().abs().fract();
-        let integer = self.value.clone().abs().trunc();
+    fn round_one_value(&self, complex_number_type: ComplexNumberType) -> Option<KalkNum> {
+        let value = match complex_number_type {
+            ComplexNumberType::Real => &self.value,
+            ComplexNumberType::Imaginary => &self.imaginary_value,
+        };
+        let sign = if *value < 0f64 { -1f64 } else { 1f64 };
+        let fract = value.clone().abs().fract();
+        let integer = value.clone().abs().trunc();
 
         // If it's zero something, don't do the rounding as aggressively.
         let (limit_floor, limit_ceil) = if integer == 0f64 {
@@ -400,20 +463,9 @@ impl KalkNum {
         } else if (1f64 - fract.clone()).log10() < limit_ceil {
             // If eg. 0.999
             // .abs() this before ceiling to make sure it rounds correctly. The sign is re-added afterwards.
-            Some(KalkNum::new(
-                self.value.clone().abs().ceil() * sign,
-                &self.unit,
-            ))
+            Some(KalkNum::new(value.clone().abs().ceil() * sign, &self.unit))
         } else {
             None
-        }
-    }
-
-    pub fn round_if_needed(&self) -> KalkNum {
-        if let Some(value) = self.round() {
-            value
-        } else {
-            self.clone() // Hmm
         }
     }
 }
