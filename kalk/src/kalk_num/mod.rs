@@ -1,6 +1,10 @@
 #[cfg(feature = "rug")]
 pub mod with_rug;
 #[cfg(feature = "rug")]
+use rug::ops::Pow;
+#[cfg(feature = "rug")]
+use rug::Float;
+#[cfg(feature = "rug")]
 pub use with_rug::*;
 
 #[cfg(not(feature = "rug"))]
@@ -8,6 +12,7 @@ pub mod regular;
 #[cfg(not(feature = "rug"))]
 pub use regular::*;
 
+use crate::ast::Expr;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -44,11 +49,29 @@ lazy_static! {
 }
 
 #[wasm_bindgen]
-impl KalkNum {
-    #[cfg(not(feature = "rug"))]
-    #[wasm_bindgen(js_name = estimate)]
-    pub fn estimate_js(&self) -> Option<String> {
-        self.estimate()
+#[derive(Clone)]
+pub struct ScientificNotation {
+    pub negative: bool,
+    pub(crate) digits: String,
+    pub exponent: i32,
+}
+
+#[wasm_bindgen]
+impl ScientificNotation {
+    #[wasm_bindgen(js_name = toString)]
+    pub fn to_string(&self) -> String {
+        let sign = if self.negative { "-" } else { "" };
+        let mut digits_and_mul = if self.digits == "1" {
+            String::new()
+        } else {
+            format!("{}*", &self.digits)
+        };
+
+        if self.digits.len() > 1 {
+            digits_and_mul.insert(1usize, '.');
+        }
+
+        format!("{}{}10^{}", sign, digits_and_mul, self.exponent - 1)
     }
 }
 
@@ -73,7 +96,67 @@ impl KalkNum {
         }
     }
 
-    // Get an estimate of what the number is, eg. 3.141592 => π
+    pub fn to_string_big(&self) -> String {
+        self.value.to_string()
+    }
+
+    pub fn is_too_big(&self) -> bool {
+        self.value.is_infinite()
+    }
+
+    pub fn to_string_with_unit(&self) -> String {
+        format!("{} {}", self.to_string(), self.unit)
+    }
+
+    pub fn has_unit(&self) -> bool {
+        self.unit.len() > 0
+    }
+
+    pub(crate) fn convert_to_unit(
+        &self,
+        context: &mut crate::interpreter::Context,
+        to_unit: &str,
+    ) -> Option<KalkNum> {
+        let result = crate::interpreter::convert_unit(
+            context,
+            &Expr::Literal(self.to_f64()),
+            &self.unit,
+            to_unit,
+        );
+
+        if let Ok(num) = result {
+            Some(num)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn add(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value + right.value, &right.unit)
+    }
+
+    pub(crate) fn sub(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value - right.value, &right.unit)
+    }
+
+    pub(crate) fn mul(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value * right.value, &right.unit)
+    }
+
+    pub(crate) fn div(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value / right.value, &right.unit)
+    }
+
+    pub(crate) fn rem(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        KalkNum::new(self.value % right.value, &right.unit)
+    }
+
+    /// Get an estimate of what the number is, eg. 3.141592 => π
     pub fn estimate(&self) -> Option<String> {
         let fract = self.value.clone().fract().abs();
         let integer = self.value.clone().trunc();
@@ -167,6 +250,18 @@ impl KalkNum {
     }
 }
 
+fn calculate_unit(
+    context: &mut crate::interpreter::Context,
+    left: &KalkNum,
+    right: KalkNum,
+) -> Option<KalkNum> {
+    if left.has_unit() && right.has_unit() {
+        right.convert_to_unit(context, &left.unit)
+    } else {
+        Some(KalkNum::new(right.value, &left.unit))
+    }
+}
+
 fn trim_zeroes(input: &str) -> String {
     if input.contains(".") {
         input
@@ -175,6 +270,24 @@ fn trim_zeroes(input: &str) -> String {
             .to_string()
     } else {
         input.into()
+    }
+}
+
+impl Into<String> for ScientificNotation {
+    fn into(self) -> String {
+        self.to_string()
+    }
+}
+
+impl Into<String> for KalkNum {
+    fn into(self) -> String {
+        self.to_string()
+    }
+}
+
+impl Into<f64> for KalkNum {
+    fn into(self) -> f64 {
+        self.to_f64()
     }
 }
 

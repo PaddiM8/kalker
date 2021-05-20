@@ -1,4 +1,4 @@
-use crate::ast::Expr;
+use crate::kalk_num::*;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -6,33 +6,6 @@ use wasm_bindgen::prelude::*;
 pub struct KalkNum {
     pub(crate) value: f64,
     pub(crate) unit: String,
-}
-
-#[wasm_bindgen]
-#[derive(Clone)]
-pub struct ScientificNotation {
-    pub negative: bool,
-    pub(crate) digits: String,
-    pub exponent: i32,
-}
-
-#[wasm_bindgen]
-impl ScientificNotation {
-    #[wasm_bindgen(js_name = toString)]
-    pub fn to_string(&self) -> String {
-        let sign = if self.negative { "-" } else { "" };
-        let mut digits_and_mul = if self.digits == "1" {
-            String::new()
-        } else {
-            format!("{}*", &self.digits)
-        };
-
-        if self.digits.len() > 1 {
-            digits_and_mul.insert(1usize, '.');
-        }
-
-        format!("{}{}10^{}", sign, digits_and_mul, self.exponent - 1)
-    }
 }
 
 #[wasm_bindgen]
@@ -67,18 +40,23 @@ impl KalkNum {
     }
 
     #[wasm_bindgen(js_name = toStringBig)]
-    pub fn to_string_big(&self) -> String {
-        self.value.to_string()
+    pub fn to_string_big_js(&self) -> String {
+        self.to_string_big()
     }
 
     #[wasm_bindgen(js_name = isTooBig)]
-    pub fn is_too_big(&self) -> bool {
-        self.value.is_infinite()
+    pub fn is_too_big_js(&self) -> bool {
+        self.is_too_big()
     }
 
     #[wasm_bindgen(js_name = toStringWithUnit)]
-    pub fn to_string_with_unit(&self) -> String {
-        format!("{} {}", self.to_string(), self.unit)
+    pub fn to_string_with_unit_js(&self) -> String {
+        self.to_string_with_unit()
+    }
+
+    #[wasm_bindgen(js_name = hasUnit)]
+    pub fn has_unit_js(&self) -> bool {
+        self.has_unit()
     }
 
     #[wasm_bindgen(js_name = getUnit)]
@@ -86,93 +64,19 @@ impl KalkNum {
         self.unit.clone()
     }
 
-    #[wasm_bindgen(js_name = hasUnit)]
-    pub fn has_unit(&self) -> bool {
-        self.unit.len() > 0
-    }
-
     #[wasm_bindgen(js_name = toScientificNotation)]
     pub fn to_scientific_notation_js(&self) -> ScientificNotation {
         self.to_scientific_notation()
     }
 
-    pub(crate) fn convert_to_unit(
-        &self,
-        context: &mut crate::interpreter::Context,
-        to_unit: &str,
-    ) -> Option<KalkNum> {
-        let result = crate::interpreter::convert_unit(
-            context,
-            &Expr::Literal(self.value),
-            &self.unit,
-            to_unit,
-        );
-
-        if let Ok(num) = result {
-            Some(num)
-        } else {
-            None
-        }
-    }
-
-    pub(crate) fn add(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value + right.value, &right.unit)
-    }
-
-    pub(crate) fn sub(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value - right.value, &right.unit)
-    }
-
-    pub(crate) fn mul(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value * right.value, &right.unit)
-    }
-
-    pub(crate) fn div(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value / right.value, &right.unit)
-    }
-
-    pub(crate) fn rem(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value % right.value, &right.unit)
+    #[wasm_bindgen(js_name = estimate)]
+    pub fn estimate_js(&self) -> Option<String> {
+        self.estimate()
     }
 
     pub(crate) fn pow(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
         KalkNum::new(self.value.powf(right.value), &right.unit)
-    }
-}
-
-fn calculate_unit(
-    context: &mut crate::interpreter::Context,
-    left: &KalkNum,
-    right: KalkNum,
-) -> Option<KalkNum> {
-    if left.has_unit() && right.has_unit() {
-        right.convert_to_unit(context, &left.unit)
-    } else {
-        Some(KalkNum::new(right.value, &left.unit))
-    }
-}
-
-impl Into<String> for ScientificNotation {
-    fn into(self) -> String {
-        self.to_string()
-    }
-}
-
-impl Into<String> for KalkNum {
-    fn into(self) -> String {
-        self.to_string()
-    }
-}
-
-impl Into<f64> for KalkNum {
-    fn into(self) -> f64 {
-        self.value
     }
 }
 
