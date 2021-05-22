@@ -187,8 +187,12 @@ impl KalkNum {
 
     pub fn to_string_pretty(&self) -> String {
         let sci_notation_real = self.to_scientific_notation(ComplexNumberType::Real);
+        let mut adjusted_num = self.clone();
         let result_str = if (-6..8).contains(&sci_notation_real.exponent) || self.value == 0f64 {
             self.to_string_real()
+        } else if sci_notation_real.exponent <= -15 {
+            adjusted_num.value = KalkNum::from(1f64).value;
+            String::from("0")
         } else {
             sci_notation_real.to_string().trim().to_string()
         };
@@ -199,12 +203,15 @@ impl KalkNum {
             || self.imaginary_value == 1f64
         {
             self.to_string_imaginary(true)
+        } else if sci_notation_real.exponent <= -15 {
+            adjusted_num.imaginary_value = KalkNum::from(1f64).value;
+            String::from("0")
         } else {
             format!("{}", sci_notation_imaginary.to_string().trim())
         };
 
         let mut output = result_str;
-        if self.has_imaginary() {
+        if adjusted_num.has_imaginary() {
             // If the real value is 0, and there is an imaginary one,
             // clear the output so that the real value is not shown.
             if output == "0" {
@@ -227,12 +234,12 @@ impl KalkNum {
             }
         }
 
-        let unit = self.get_unit();
+        let unit = adjusted_num.get_unit();
         if unit != "" {
             output.push_str(&format!(" {}", unit));
         }
 
-        if let Some(estimate) = self.estimate() {
+        if let Some(estimate) = adjusted_num.estimate() {
             output.push_str(&format!(" ≈ {}", estimate));
         }
 
@@ -475,10 +482,14 @@ impl KalkNum {
 
         // If the value squared (and rounded) is an integer,
         // eg. x² is an integer,
-        // then it can be expressed as sqrt(x²)
-        let squared = KalkNum::new(value.clone() * value, "").round_if_needed();
-        if squared.value.clone().fract() == 0f64 {
-            return Some(format!("√{}", squared.to_string()));
+        // then it can be expressed as sqrt(x²).
+        // Ignore it if the square root of the result is an integer.
+        if fract != 0f64 {
+            let squared = KalkNum::new(value.clone() * value, "").round_if_needed();
+            if squared.value.clone().sqrt().fract() != 0f64 && squared.value.clone().fract() == 0f64
+            {
+                return Some(format!("√{}", squared.to_string()));
+            }
         }
 
         // If nothing above was relevant, simply round it off a bit, eg. from 0.99999 to 1
