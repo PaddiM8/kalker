@@ -112,7 +112,7 @@ pub enum CalcError {
 impl ToString for CalcError {
     fn to_string(&self) -> String {
         match self {
-            CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx)."),
+            CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
             CalcError::IncorrectAmountOfArguments(expected, func, got) => format!(
                 "Expected {} arguments for function {}, but got {}.",
                 expected, func, got
@@ -527,8 +527,22 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     }
 
     // Eg. dx inside an integral, should be parsed as *one* identifier
-    if context.is_in_integral && identifier.full_name.starts_with("d") {
-        return Ok(Expr::Var(identifier));
+    // Reverse the identifier and take two. This gets the last two characters (in reversed order).
+    // Now reverse this to finally get the last two characters in correct order.
+    // It's a bit weird, but it should work for more than ASCII.
+    let last_two_chars_rev: String = identifier.full_name.chars().rev().take(2).collect();
+    let last_two_chars: String = last_two_chars_rev.chars().rev().collect();
+    let mut dx = None;
+    if context.is_in_integral && last_two_chars.starts_with("d") {
+        // If the token contains more than just "dx",
+        // save the dx/dy/du/etc. in a variable, that can be
+        // used further down when splitting the identifier into multiple variables.
+        if identifier.full_name.len() > 2 {
+            // This variable will be used further down in order to separate dx from the rest.
+            dx = Some(last_two_chars);
+        } else {
+            return Ok(Expr::Var(Identifier::from_full_name(&last_two_chars)));
+        }
     }
 
     // Eg. x
@@ -547,14 +561,19 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
             return Ok(Expr::Var(identifier));
         }
 
-        let mut chars = identifier.pure_name.chars();
-        let mut left = Expr::Var(Identifier::from_full_name(
-            &chars.next().unwrap().to_string(),
-        ));
+        let mut chars: Vec<char> = identifier.pure_name.chars().collect();
+        let mut left = Expr::Var(Identifier::from_full_name(&chars[0].to_string()));
+
+        // If there is a an infinitesimal at the end,
+        // remove it from 'chars', since it should be separate.
+        if let Some(_) = dx {
+            chars.pop();
+            chars.pop();
+        }
 
         // Turn each individual character into its own variable reference.
         // This parses eg `xy` as `x*y` instead of *one* variable.
-        let mut right_chars = chars.peekable();
+        let mut right_chars = chars.iter().skip(1).peekable();
         while let Some(c) = right_chars.next() {
             // If last iteration
             let right = if right_chars.peek().is_none() {
@@ -588,7 +607,14 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
             left = Expr::Binary(Box::new(left), TokenKind::Star, Box::new(right));
         }
 
-        // TODO: When implementing derivation for variables, make sure to add the derivation here.
+        if let Some(dx) = dx {
+            left = Expr::Binary(
+                Box::new(left),
+                TokenKind::Star,
+                Box::new(Expr::Var(Identifier::from_full_name(&dx))),
+            );
+        }
+
         Ok(left)
     }
 }
