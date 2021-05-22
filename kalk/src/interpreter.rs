@@ -365,16 +365,33 @@ pub(crate) fn eval_fn_call_expr(
             return Ok(sum);
         }
         "integrate" | "integral" | "∫" => {
-            // Make sure exactly 3 arguments were supplied.
-            if expressions.len() != 3 {
-                return Err(CalcError::IncorrectAmountOfArguments(
+            // Make sure either 3 or 4 arguments were supplied.
+            if expressions.len() < 3 || expressions.len() > 4 {}
+
+            return match expressions.len() {
+                3 => calculus::integrate_with_unknown_variable(
+                    context,
+                    &expressions[0],
+                    &expressions[1],
+                    &expressions[2],
+                ),
+                4 => calculus::integrate(
+                    context,
+                    &expressions[0],
+                    &expressions[1],
+                    &expressions[2],
+                    if let Expr::Var(integration_variable) = &expressions[3] {
+                        &integration_variable.full_name[1..]
+                    } else {
+                        return Err(CalcError::ExpectedDx);
+                    },
+                ),
+                _ => Err(CalcError::IncorrectAmountOfArguments(
                     3,
                     "integrate".into(),
                     expressions.len(),
-                ));
-            }
-
-            return calculus::integrate(context, &expressions[0], &expressions[1], &expressions[2]);
+                )),
+            };
         }
         _ => (),
     }
