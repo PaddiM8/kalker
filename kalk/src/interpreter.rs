@@ -177,10 +177,7 @@ fn eval_unary_expr(
     match op {
         TokenKind::Minus => Ok(num.mul(context, KalkNum::from(-1f64))),
         TokenKind::Percent => Ok(num.mul(context, KalkNum::from(0.01f64))),
-        TokenKind::Exclamation => Ok(KalkNum::new(
-            prelude::special_funcs::factorial(num.value),
-            unit,
-        )),
+        TokenKind::Exclamation => Ok(prelude::special_funcs::factorial(num)),
         _ => Err(CalcError::InvalidOperator),
     }
 }
@@ -276,11 +273,13 @@ pub(crate) fn eval_fn_call_expr(
         1 => {
             let x = eval_expr(context, &expressions[0], "")?;
 
+            // Turn eg. sqrt(-1) into i
             if x.value < 0f64 && (identifier.full_name == "sqrt" || identifier.full_name == "√") {
+                let abs_value = x.mul(context, KalkNum::from(-1f64));
                 let (sqrt, unit) = prelude::call_unary_func(
                     context,
                     &identifier.full_name,
-                    x.value * (-1f64),
+                    abs_value,
                     &context.angle_unit.clone(),
                 )
                 .unwrap();
@@ -288,7 +287,7 @@ pub(crate) fn eval_fn_call_expr(
                 return Ok(KalkNum::new_with_imaginary(
                     KalkNum::default().value,
                     &unit,
-                    sqrt,
+                    sqrt.value,
                 ));
             }
 
@@ -298,14 +297,14 @@ pub(crate) fn eval_fn_call_expr(
                 prelude::call_unary_func(
                     context,
                     &identifier.full_name,
-                    x.value,
+                    x,
                     &context.angle_unit.clone(),
                 )
             }
         }
         2 => {
-            let x = eval_expr(context, &expressions[0], "")?.value;
-            let y = eval_expr(context, &expressions[1], "")?.value;
+            let x = eval_expr(context, &expressions[0], "")?;
+            let y = eval_expr(context, &expressions[1], "")?;
             prelude::call_binary_func(
                 context,
                 &identifier.full_name,
@@ -317,11 +316,8 @@ pub(crate) fn eval_fn_call_expr(
         _ => None,
     };
 
-    if let Some((result, func_unit)) = prelude_func {
-        return Ok(KalkNum::new(
-            result,
-            if unit.len() > 0 { unit } else { &func_unit },
-        ));
+    if let Some((result, _)) = prelude_func {
+        return Ok(result);
     }
 
     // Special functions
@@ -455,7 +451,6 @@ mod tests {
     }
 
     fn cmp(x: KalkNum, y: f64) -> bool {
-        println!("{} = {}", x.to_f64(), y);
         (x.to_f64() - y).abs() < 0.0001
     }
 

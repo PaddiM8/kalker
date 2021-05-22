@@ -11,8 +11,8 @@ lazy_static! {
     pub static ref INVERSE_UNARY_FUNCS: HashMap<&'static str, &'static str> = {
         let mut m = HashMap::new();
         m.insert("cos", "acos");
-        m.insert("cosec", "acosec");
-        m.insert("cosech", "cosech");
+        m.insert("csc", "acsc");
+        m.insert("csch", "csch");
         m.insert("cosh", "acosh");
         m.insert("cot", "acot");
         m.insert("coth", "acoth");
@@ -24,8 +24,8 @@ lazy_static! {
         m.insert("tanh", "atanh");
 
         m.insert("acos", "cos");
-        m.insert("acosec", "cosec");
-        m.insert("acosech", "cosech");
+        m.insert("acsc", "csc");
+        m.insert("acsch", "csch");
         m.insert("acosh", "cosh");
         m.insert("acot", "cot");
         m.insert("acoth", "coth");

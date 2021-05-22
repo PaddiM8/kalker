@@ -92,6 +92,10 @@ impl ScientificNotation {
 }
 
 impl KalkNum {
+    pub fn has_imaginary(&self) -> bool {
+        self.imaginary_value != 0f64
+    }
+
     pub fn to_scientific_notation(
         &self,
         complex_number_type: ComplexNumberType,
@@ -128,7 +132,7 @@ impl KalkNum {
     pub fn to_string(&self) -> String {
         let as_str = trim_number_string(&self.to_f64().to_string());
 
-        if self.imaginary_value != 0f64 {
+        if self.has_imaginary() {
             let imaginary_as_str = trim_number_string(&self.imaginary_to_f64().to_string());
             let sign = if self.imaginary_value < 0f64 {
                 "-"
@@ -143,7 +147,7 @@ impl KalkNum {
     }
 
     pub fn to_string_big(&self) -> String {
-        if self.imaginary_value == 0f64 {
+        if !self.has_imaginary() {
             self.value.to_string()
         } else {
             let sign = if self.imaginary_value < 0f64 {
@@ -196,7 +200,7 @@ impl KalkNum {
         };
 
         let mut output = result_str;
-        if self.imaginary_value != 0f64 {
+        if self.has_imaginary() {
             // If the real value is 0, and there is an imaginary one,
             // clear the output so that the real value is not shown.
             if output == "0" {
@@ -264,56 +268,71 @@ impl KalkNum {
 
     pub(crate) fn add(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new_with_imaginary(
-            self.value + right.value,
-            &right.unit,
-            self.imaginary_value + right.imaginary_value,
-        )
+        self.add_without_unit(right)
     }
 
     pub(crate) fn sub(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new_with_imaginary(
-            self.value - right.value,
-            &right.unit,
-            self.imaginary_value - right.imaginary_value,
-        )
+        self.sub_without_unit(right)
     }
 
     pub(crate) fn mul(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        // (a + bi)(c + di) = ac + adi + bci + bdi²
-        KalkNum::new_with_imaginary(
-            self.value.clone() * right.value.clone()
-                - self.imaginary_value.clone() * right.imaginary_value.clone(),
-            &right.unit,
-            self.value * right.imaginary_value + self.imaginary_value * right.value,
-        )
+        self.mul_without_unit(right)
     }
 
     pub(crate) fn div(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs.clone());
-
-        // Avoid unecessary calculations
-        if self.imaginary_value == 0f64 && right.imaginary_value == 0f64 {
-            KalkNum::new(self.value / right.value, &right.unit)
-        } else {
-            // Multiply both the numerator and denominator
-            // with the conjugate of the denominator, and divide.
-            let conjugate = rhs.get_conjugate();
-            let numerator = self.clone().mul(context, conjugate.clone());
-            let denominator = rhs.clone().mul(context, conjugate);
-            KalkNum::new_with_imaginary(
-                numerator.value / denominator.value.clone(),
-                &right.unit,
-                numerator.imaginary_value / denominator.value,
-            )
-        }
+        self.div_without_unit(right)
     }
 
     pub(crate) fn rem(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
         KalkNum::new(self.value % right.value, &right.unit)
+    }
+
+    pub(crate) fn add_without_unit(self, rhs: KalkNum) -> KalkNum {
+        KalkNum::new_with_imaginary(
+            self.value + rhs.value,
+            &rhs.unit,
+            self.imaginary_value + rhs.imaginary_value,
+        )
+    }
+
+    pub(crate) fn sub_without_unit(self, rhs: KalkNum) -> KalkNum {
+        KalkNum::new_with_imaginary(
+            self.value - rhs.value,
+            &rhs.unit,
+            self.imaginary_value - rhs.imaginary_value,
+        )
+    }
+
+    pub(crate) fn mul_without_unit(self, rhs: KalkNum) -> KalkNum {
+        // (a + bi)(c + di) = ac + adi + bci + bdi²
+        KalkNum::new_with_imaginary(
+            self.value.clone() * rhs.value.clone()
+                - self.imaginary_value.clone() * rhs.imaginary_value.clone(),
+            &rhs.unit,
+            self.value * rhs.imaginary_value + self.imaginary_value * rhs.value,
+        )
+    }
+
+    pub(crate) fn div_without_unit(self, rhs: KalkNum) -> KalkNum {
+        // Avoid unecessary calculations
+        if self.imaginary_value == 0f64 && rhs.imaginary_value == 0f64 {
+            KalkNum::new(self.value / rhs.value, &rhs.unit)
+        } else {
+            // Multiply both the numerator and denominator
+            // with the conjugate of the denominator, and divide.
+            let conjugate = rhs.get_conjugate();
+            let numerator = self.clone().mul_without_unit(conjugate.clone());
+            let denominator = rhs.clone().mul_without_unit(conjugate);
+            KalkNum::new_with_imaginary(
+                numerator.value / denominator.value.clone(),
+                &rhs.unit,
+                numerator.imaginary_value / denominator.value,
+            )
+        }
     }
 
     pub fn get_conjugate(&self) -> KalkNum {

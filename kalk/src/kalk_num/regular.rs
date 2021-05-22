@@ -27,6 +27,14 @@ impl KalkNum {
         }
     }
 
+    pub fn from_imaginary(value: f64) -> Self {
+        Self {
+            value: 0f64,
+            unit: String::new(),
+            imaginary_value: value,
+        }
+    }
+
     #[wasm_bindgen(js_name = getValue)]
     pub fn to_f64(&self) -> f64 {
         self.value
@@ -86,7 +94,28 @@ impl KalkNum {
 
     pub(crate) fn pow(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        KalkNum::new(self.value.powf(right.value), &right.unit)
+        self.pow_without_unit(right)
+    }
+
+    pub(crate) fn pow_without_unit(self, rhs: KalkNum) -> KalkNum {
+        if self.has_imaginary() || rhs.has_imaginary() {
+            let a = self.value.clone();
+            let b = self.imaginary_value.clone();
+            let c = rhs.value;
+            let d = rhs.imaginary_value;
+            let arg = crate::prelude::funcs::arg(self).value;
+            let raised = a.clone() * a + b.clone() * b;
+            let exp = raised.clone().powf(c.clone() / 2f64) * (-d.clone() * arg.clone()).exp();
+            let polar = c * arg + d / 2f64 * raised.ln();
+
+            KalkNum::new_with_imaginary(
+                polar.clone().cos() * exp.clone(),
+                &rhs.unit,
+                polar.sin() * exp,
+            )
+        } else {
+            KalkNum::new(self.value.powf(rhs.value), &rhs.unit)
+        }
     }
 }
 
