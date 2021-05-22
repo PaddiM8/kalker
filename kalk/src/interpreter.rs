@@ -50,13 +50,29 @@ impl<'a> Context<'a> {
                     Identifier::from_full_name("ans"),
                     Box::new(Expr::Unit(
                         num.unit.clone(),
-                        Box::new(Expr::Literal(num.to_f64())),
+                        Box::new(Expr::Binary(
+                            Box::new(Expr::Literal(num.to_f64())),
+                            TokenKind::Plus,
+                            Box::new(Expr::Binary(
+                                Box::new(Expr::Literal(num.imaginary_to_f64())),
+                                TokenKind::Star,
+                                Box::new(Expr::Var(Identifier::from_full_name("i"))),
+                            )),
+                        )),
                     )),
                 )
             } else {
                 Stmt::VarDecl(
                     Identifier::from_full_name("ans"),
-                    Box::new(Expr::Literal(num.to_f64())),
+                    Box::new(Expr::Binary(
+                        Box::new(Expr::Literal(num.to_f64())),
+                        TokenKind::Plus,
+                        Box::new(Expr::Binary(
+                            Box::new(Expr::Literal(num.imaginary_to_f64())),
+                            TokenKind::Star,
+                            Box::new(Expr::Var(Identifier::from_full_name("i"))),
+                        )),
+                    )),
                 )
             });
 
@@ -338,7 +354,9 @@ pub(crate) fn eval_fn_call_expr(
 
             for n in start..=end {
                 context.sum_n_value = Some(n);
-                sum.value += eval_expr(context, &expressions[2], "")?.value;
+                let eval = eval_expr(context, &expressions[2], "")?;
+                sum.value += eval.value;
+                sum.imaginary_value += eval.imaginary_value;
             }
 
             context.sum_n_value = None;
