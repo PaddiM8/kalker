@@ -28,7 +28,7 @@ pub fn derive_func(
         .round_if_needed())
 }
 
-pub fn integrate(
+pub fn integrate_with_unknown_variable(
     context: &mut interpreter::Context,
     a: &Expr,
     b: &Expr,
@@ -56,7 +56,17 @@ pub fn integrate(
         Box::new(Expr::Literal(1f64)),
     ));
 
-    Ok(simpsons_rule(context, a, b, expr, integration_variable.unwrap())?.round_if_needed())
+    Ok(integrate(context, a, b, expr, integration_variable.unwrap())?.round_if_needed())
+}
+
+pub fn integrate(
+    context: &mut interpreter::Context,
+    a: &Expr,
+    b: &Expr,
+    expr: &Expr,
+    integration_variable: &str,
+) -> Result<KalkNum, CalcError> {
+    Ok(simpsons_rule(context, a, b, expr, integration_variable)?.round_if_needed())
 }
 
 /// Composite Simpson's 3/8 rule

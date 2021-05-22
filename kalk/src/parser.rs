@@ -111,8 +111,8 @@ pub enum CalcError {
 
 impl ToString for CalcError {
     fn to_string(&self) -> String {
-        match self {
-            CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
+        match self 
+            CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
             CalcError::IncorrectAmountOfArguments(expected, func, got) => format!(
                 "Expected {} arguments for function {}, but got {}.",
                 expected, func, got
