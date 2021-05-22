@@ -377,7 +377,7 @@ impl KalkNum {
 
                 output.push_str(&format!("{}i", value));
             }
-        } else if self.has_real() {
+        } else if self.has_imaginary() {
             // If there is a real value as well
             if output.len() > 0 {
                 output.push_str(" + ");
@@ -471,6 +471,14 @@ impl KalkNum {
             if let Some(constant) = CONSTANTS.get(&as_abs_string[0..8]) {
                 return Some(format!("{}{}", sign, constant.to_string()));
             }
+        }
+
+        // If the value squared (and rounded) is an integer,
+        // eg. x² is an integer,
+        // then it can be expressed as sqrt(x²)
+        let squared = KalkNum::new(value.clone() * value, "").round_if_needed();
+        if squared.value.clone().fract() == 0f64 {
+            return Some(format!("√{}", squared.to_string()));
         }
 
         // If nothing above was relevant, simply round it off a bit, eg. from 0.99999 to 1
