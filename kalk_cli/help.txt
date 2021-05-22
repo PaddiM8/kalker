@@ -40,14 +40,14 @@ They are used like this: name(arg1, arg2, etc.)
 Example: f(3) + 3 A(2, 3) 
 
 Predefined functions
-    sin, cos, tan, cot, cosec, sec
-    sinh, cosh, tanh, coth, cosech, sech
-    asin, acos, atan, acot, acosec, asec
-    asinh, acosh, atanh, acoth, acosech, asech
+    sin, cos, tan, cot, csc, sec
+    sinh, cosh, tanh, coth, csch, sech
+    asin, acos, atan, acot, acsc, asec
+    asinh, acosh, atanh, acoth, acsch, asech
     abs, ceil or ⌈⌉, floor or ⌊⌋, frac, round, trunc
     sqrt or √, cbrt, exp, log, ln
     gamma or Γ
-    asinh, acosh, atanh, acoth, acosech, asech
+    asinh, acosh, atanh, acoth, acsch, asech
     min, max, hyp
     log Eg. log(1000, 10) is the same as log10(1000)
     root Eg. root(16, 3) is the same as 3√16
