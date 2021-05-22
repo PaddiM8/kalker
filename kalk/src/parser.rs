@@ -504,7 +504,9 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     if !parse_as_var_instead && match_token(context, TokenKind::OpenParenthesis) {
         advance(context);
 
-        let is_integral = identifier.full_name == "integrate" || identifier.full_name == "∫";
+        let is_integral = identifier.full_name == "integrate"
+            || identifier.full_name == "integral"
+            || identifier.full_name == "∫";
         if is_integral {
             context.is_in_integral = true;
         }
