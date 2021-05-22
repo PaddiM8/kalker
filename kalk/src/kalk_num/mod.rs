@@ -124,7 +124,7 @@ impl KalkNum {
                 .trim_start_matches("0")
                 .to_string(),
             // I... am not sure what else to do...
-            exponent: KalkNum::new(value.clone().abs().log10(), "").to_i32(),
+            exponent: KalkNum::new(value.clone().abs().log10() + 1f64, "").to_i32(),
             imaginary: complex_number_type == ComplexNumberType::Imaginary,
         }
     }
@@ -186,7 +186,7 @@ impl KalkNum {
         let result_str = if (-6..8).contains(&sci_notation_real.exponent) || self.value == 0f64 {
             self.to_string_real()
         } else {
-            sci_notation_real.to_string()
+            sci_notation_real.to_string().trim().to_string()
         };
 
         let sci_notation_imaginary = self.to_scientific_notation(ComplexNumberType::Imaginary);
@@ -196,7 +196,7 @@ impl KalkNum {
         {
             self.to_string_imaginary(true)
         } else {
-            format!("{}", sci_notation_imaginary.to_string())
+            format!("{}", sci_notation_imaginary.to_string().trim())
         };
 
         let mut output = result_str;
@@ -343,7 +343,7 @@ impl KalkNum {
         )
     }
 
-    /// Get an estimate of what the number is, eg. 3.141592 => π
+    /// Get an estimate of what the number is, eg. 3.141592 => π. Does not work properly with scientific notation.
     pub fn estimate(&self) -> Option<String> {
         let rounded_real = self.estimate_one_value(ComplexNumberType::Real);
         let rounded_imaginary = self.estimate_one_value(ComplexNumberType::Imaginary);
@@ -405,8 +405,14 @@ impl KalkNum {
             ComplexNumberType::Real => (&self.value, self.to_string()),
             ComplexNumberType::Imaginary => (&self.imaginary_value, self.to_string_imaginary(true)),
         };
+
         let fract = value.clone().fract().abs();
         let integer = value.clone().trunc();
+
+        #[cfg(feature = "rug")]
+        let fract_as_string = fract.to_f64().to_string();
+        #[cfg(not(feature = "rug"))]
+        let fract_as_string = fract.to_string();
 
         // If it's an integer, there's nothing that would be done to it.
         if fract == 0f64 {
@@ -416,7 +422,6 @@ impl KalkNum {
         // Eg. 0.5 to 1/2
         let as_abs_string = value_string.trim_start_matches("-").to_string();
         let sign = if *value < 0f64 { "-" } else { "" };
-        let fract_as_string = fract.to_string();
         if as_abs_string.starts_with("0.5") {
             if as_abs_string.len() == 3 || (as_abs_string.len() > 6 && &as_abs_string[3..5] == "00")
             {
@@ -547,7 +552,6 @@ impl Into<f64> for KalkNum {
 
 #[cfg(test)]
 mod tests {
-    use crate::kalk_num::ComplexNumberType;
     use crate::kalk_num::KalkNum;
 
     #[test]
@@ -622,18 +626,5 @@ mod tests {
             println!("{}", input);
             assert_eq!(output, result);
         }
-    }
-
-    #[test]
-    fn test_to_scientific_notation() {
-        let num = KalkNum::from(0.000001f64);
-        let sci_not = num.to_scientific_notation(ComplexNumberType::Real);
-        assert_eq!(sci_not.negative, false);
-        assert_eq!(sci_not.exponent, -6);
-
-        let num = KalkNum::from(123.456789f64);
-        let sci_not = num.to_scientific_notation(ComplexNumberType::Real);
-        assert_eq!(sci_not.negative, false);
-        assert_eq!(sci_not.exponent, 2);
     }
 }
