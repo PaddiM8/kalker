@@ -92,6 +92,10 @@ impl ScientificNotation {
 }
 
 impl KalkNum {
+    pub fn has_real(&self) -> bool {
+        self.value != 0f64
+    }
+
     pub fn has_imaginary(&self) -> bool {
         self.imaginary_value != 0f64
     }
@@ -355,6 +359,8 @@ impl KalkNum {
         let mut output = String::new();
         if let Some(value) = rounded_real {
             output.push_str(&value);
+        } else if self.has_real() {
+            output.push_str(&self.to_string_real());
         }
 
         if let Some(value) = rounded_imaginary {
@@ -371,6 +377,13 @@ impl KalkNum {
 
                 output.push_str(&format!("{}i", value));
             }
+        } else if self.has_real() {
+            // If there is a real value as well
+            if output.len() > 0 {
+                output.push_str(" + ");
+            }
+
+            output.push_str(&self.to_string_imaginary(true));
         }
 
         Some(output)
