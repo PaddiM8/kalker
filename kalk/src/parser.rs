@@ -566,6 +566,24 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         let mut chars: Vec<char> = identifier.pure_name.chars().collect();
         let mut left = Expr::Var(Identifier::from_full_name(&chars[0].to_string()));
 
+        // Temporarily remove the last character and check if a function
+        // without that character exists. If it does,
+        // create a function call expression, where that last character
+        // is the argument.
+        let last_char = chars.pop().unwrap_or_default();
+        let identifier_without_last: String = chars.iter().collect();
+        if context.symbol_table.contains_fn(&identifier_without_last) {
+            return Ok(Expr::FnCall(
+                Identifier::from_full_name(&identifier_without_last),
+                vec![Expr::Var(Identifier::from_full_name(
+                    &last_char.to_string(),
+                ))],
+            ));
+        } else {
+            // Otherwise, re-add the character.
+            chars.push(last_char);
+        }
+
         // If there is a an infinitesimal at the end,
         // remove it from 'chars', since it should be separate.
         if let Some(_) = dx {
