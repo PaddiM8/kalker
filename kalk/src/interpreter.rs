@@ -364,7 +364,7 @@ pub(crate) fn eval_fn_call_expr(
 
             return Ok(sum);
         }
-        "integrate" | "∫" => {
+        "integrate" | "integral" | "∫" => {
             // Make sure exactly 3 arguments were supplied.
             if expressions.len() != 3 {
                 return Err(CalcError::IncorrectAmountOfArguments(

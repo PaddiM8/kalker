@@ -112,6 +112,7 @@ lazy_static! {
         m.insert("gamma", "Γ");
         m.insert("sum", "Σ()");
         m.insert("integrate", "∫()");
+        m.insert("integral", "∫()");
         m.insert("phi", "ϕ");
         m.insert("pi", "π");
         m.insert("sqrt", "√");
