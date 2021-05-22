@@ -558,14 +558,29 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         while let Some(c) = right_chars.next() {
             // If last iteration
             let right = if right_chars.peek().is_none() {
-                context.pos -= 1;
-                context.tokens[context.pos] = Token {
+                // Temporarily change the token content, so that
+                // the parse_exponent step will parse it as its
+                // new name. It will later be switched back,
+                // since the parser sometimes rewinds a bit,
+                // and may get confused by a sudden change.
+                let pos = context.pos - 1;
+                context.pos = pos;
+                context.tokens[pos] = Token {
                     kind: TokenKind::Identifier,
                     value: c.to_string(),
                     span: (0, 0),
                 };
 
-                parse_exponent(context)?
+                let last_var = parse_exponent(context)?;
+
+                // Revert back to how it was before.
+                context.tokens[pos] = Token {
+                    kind: TokenKind::Identifier,
+                    value: identifier.full_name.to_string(),
+                    span: (0, 0),
+                };
+
+                last_var
             } else {
                 Expr::Var(Identifier::from_full_name(&c.to_string()))
             };
@@ -649,6 +664,37 @@ mod tests {
         let tokens = vec![token(Identifier, "x"), token(EOF, "")];
 
         assert_eq!(parse(tokens).unwrap(), Stmt::Expr(var("x")));
+    }
+
+    #[test]
+    #[wasm_bindgen_test]
+    fn test_var_multiplication() {
+        let mut context = Context::new();
+        context.symbol_table.insert(Stmt::VarDecl(
+            Identifier::from_full_name("x"),
+            literal(1f64),
+        ));
+        context.symbol_table.insert(Stmt::VarDecl(
+            Identifier::from_full_name("y"),
+            literal(2f64),
+        ));
+
+        // xy²
+        let tokens = vec![
+            token(Identifier, "xy"),
+            token(Power, ""),
+            token(Literal, "2"),
+            token(EOF, ""),
+        ];
+
+        assert_eq!(
+            parse(tokens).unwrap(),
+            Stmt::Expr(binary(
+                var("x"),
+                Star,
+                binary(var("y"), Power, literal(2f64))
+            ))
+        );
     }
 
     #[test]
