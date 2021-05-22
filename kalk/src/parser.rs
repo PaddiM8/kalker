@@ -448,7 +448,7 @@ fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
         TokenKind::OpenParenthesis => parse_group(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
-        TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)),
+        TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
         _ => return Err(CalcError::UnableToParseExpression),
     };
 
@@ -656,8 +656,12 @@ fn is_at_end(context: &Context) -> bool {
     context.pos >= context.tokens.len() || peek(context).kind == TokenKind::EOF
 }
 
-fn string_to_num(value: &str) -> f64 {
-    value.replace(" ", "").parse::<f64>().unwrap()
+fn string_to_num(value: &str) -> Result<f64, CalcError> {
+    if let Ok(result) = value.replace(" ", "").parse::<f64>() {
+        Ok(result)
+    } else {
+        Err(CalcError::InvalidNumberLiteral(value.into()))
+    }
 }
 
 #[cfg(test)]
