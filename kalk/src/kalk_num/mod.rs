@@ -396,30 +396,6 @@ impl KalkNum {
         Some(output)
     }
 
-    /// Basic up/down rounding from 0.00xxx or 0.999xxx or xx.000xxx, etc.
-    pub fn round(&self) -> Option<KalkNum> {
-        let rounded_real = self.round_one_value(ComplexNumberType::Real);
-        let rounded_imaginary = self.round_one_value(ComplexNumberType::Imaginary);
-
-        if let (None, None) = (&rounded_real, &rounded_imaginary) {
-            return None;
-        }
-
-        Some(KalkNum::new_with_imaginary(
-            rounded_real.unwrap_or(self.clone()).value,
-            &self.unit,
-            rounded_imaginary.unwrap_or(self.clone()).imaginary_value,
-        ))
-    }
-
-    pub fn round_if_needed(&self) -> KalkNum {
-        if let Some(value) = self.round() {
-            value
-        } else {
-            self.clone() // Hmm
-        }
-    }
-
     pub fn estimate_one_value(&self, complex_number_type: ComplexNumberType) -> Option<String> {
         let (value, value_string) = match complex_number_type {
             ComplexNumberType::Real => (&self.value, self.to_string()),
@@ -497,6 +473,38 @@ impl KalkNum {
         Some(trim_zeroes(&rounded))
     }
 
+    /// Basic up/down rounding from 0.00xxx or 0.999xxx or xx.000xxx, etc.
+    pub fn round(&self) -> Option<KalkNum> {
+        let rounded_real = self.round_one_value(ComplexNumberType::Real);
+        let rounded_imaginary = self.round_one_value(ComplexNumberType::Imaginary);
+
+        if let (None, None) = (&rounded_real, &rounded_imaginary) {
+            return None;
+        }
+
+        Some(KalkNum::new_with_imaginary(
+            if let Some(rounded) = rounded_real {
+                rounded.value
+            } else {
+                self.value.clone()
+            },
+            &self.unit,
+            if let Some(rounded) = rounded_imaginary {
+                rounded.imaginary_value
+            } else {
+                self.imaginary_value.clone()
+            },
+        ))
+    }
+
+    pub fn round_if_needed(&self) -> KalkNum {
+        if let Some(value) = self.round() {
+            value
+        } else {
+            self.clone() // Hmm
+        }
+    }
+
     fn round_one_value(&self, complex_number_type: ComplexNumberType) -> Option<KalkNum> {
         let value = match complex_number_type {
             ComplexNumberType::Real => &self.value,
@@ -515,11 +523,25 @@ impl KalkNum {
 
         if fract.clone().log10() < limit_floor {
             // If eg. 0.00xxx
-            Some(KalkNum::new(integer * sign, &self.unit))
+            let mut new_num = self.clone();
+            let new_value = integer * sign;
+            match complex_number_type {
+                ComplexNumberType::Real => new_num.value = new_value,
+                ComplexNumberType::Imaginary => new_num.imaginary_value = new_value,
+            }
+
+            Some(new_num)
         } else if (1f64 - fract.clone()).log10() < limit_ceil {
             // If eg. 0.999
             // .abs() this before ceiling to make sure it rounds correctly. The sign is re-added afterwards.
-            Some(KalkNum::new(value.clone().abs().ceil() * sign, &self.unit))
+            let mut new_num = self.clone();
+            let new_value = value.clone().abs().ceil() * sign;
+            match complex_number_type {
+                ComplexNumberType::Real => new_num.value = new_value,
+                ComplexNumberType::Imaginary => new_num.imaginary_value = new_value,
+            }
+
+            Some(new_num)
         } else {
             None
         }
