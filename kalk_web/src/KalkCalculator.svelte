@@ -77,6 +77,10 @@
                 output = `<a style="color: ${linkcolor}"
                              href="https://kalk.netlify.app/#usage"
                              target="blank">Link to usage guide</a>`;
+            } else if (input.trim() == "clear") {
+                outputLines = [];
+                target.innerHTML = "";
+                return;
             } else {
                 const [result, success] = calculate(
                     kalk,
