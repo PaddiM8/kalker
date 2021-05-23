@@ -3,8 +3,8 @@ Overview of features
     Groups: (), ⌈⌉, ⌋⌊
     Pre-defined functions and constants
     User-defined functions and variables
-    User-defined units (experimental)
-    Understands fairly ambiguous syntax. Eg. 2sin50 + 2xy
+    User-defined units (experimental and limited)
+    Understands fairly ambiguous syntax. Eg. 2sinx + 2xy
     Syntax highlighting
     Completion for special symbols on tab
     Sum functions
