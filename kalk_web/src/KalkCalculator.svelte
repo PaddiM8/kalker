@@ -221,8 +221,7 @@
         const textNodes = getTextNodesIn(element);
 
         let nodeEndPos = 0;
-        for (let i = 0; i < textNodes.length; i++) {
-            const textNode = textNodes[i];
+        for (const textNode of textNodes) {
             const previousNodeEndPos = nodeEndPos;
             nodeEndPos += textNode.length;
 
