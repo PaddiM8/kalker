@@ -49,6 +49,22 @@ impl Identifier {
     }
 }
 
+pub fn build_literal_ast(kalk_num: &crate::kalk_num::KalkNum) -> Expr {
+    if kalk_num.has_imaginary() {
+        Expr::Binary(
+            Box::new(Expr::Literal(kalk_num.to_f64())),
+            TokenKind::Plus,
+            Box::new(Expr::Binary(
+                Box::new(Expr::Literal(kalk_num.imaginary_to_f64())),
+                TokenKind::Star,
+                Box::new(Expr::Var(Identifier::from_full_name("i"))),
+            )),
+        )
+    } else {
+        Expr::Literal(kalk_num.to_f64())
+    }
+}
+
 fn separate_identifier_and_prime(identifier: &str) -> (String, u32) {
     let mut prim_count = 0;
     let mut pure_identifier = identifier.to_string();

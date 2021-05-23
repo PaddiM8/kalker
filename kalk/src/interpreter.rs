@@ -50,29 +50,13 @@ impl<'a> Context<'a> {
                     Identifier::from_full_name("ans"),
                     Box::new(Expr::Unit(
                         num.unit.clone(),
-                        Box::new(Expr::Binary(
-                            Box::new(Expr::Literal(num.to_f64())),
-                            TokenKind::Plus,
-                            Box::new(Expr::Binary(
-                                Box::new(Expr::Literal(num.imaginary_to_f64())),
-                                TokenKind::Star,
-                                Box::new(Expr::Var(Identifier::from_full_name("i"))),
-                            )),
-                        )),
+                        Box::new(crate::ast::build_literal_ast(&num)),
                     )),
                 )
             } else {
                 Stmt::VarDecl(
                     Identifier::from_full_name("ans"),
-                    Box::new(Expr::Binary(
-                        Box::new(Expr::Literal(num.to_f64())),
-                        TokenKind::Plus,
-                        Box::new(Expr::Binary(
-                            Box::new(Expr::Literal(num.imaginary_to_f64())),
-                            TokenKind::Star,
-                            Box::new(Expr::Var(Identifier::from_full_name("i"))),
-                        )),
-                    )),
+                    Box::new(crate::ast::build_literal_ast(&num)),
                 )
             });
 
