@@ -54,6 +54,11 @@ impl KalkNum {
         self.to_string()
     }
 
+    #[wasm_bindgen(js_name = toPrettyString)]
+    pub fn to_string_pretty_js(&self) -> String {
+        self.to_string_pretty()
+    }
+
     #[wasm_bindgen(js_name = toStringBig)]
     pub fn to_string_big_js(&self) -> String {
         self.to_string_big()

@@ -55,21 +55,14 @@
     function calculate(
         kalk: Kalk,
         input: string
-    ): [result: string, estimate: string, success: boolean] {
+    ): [result: string, success: boolean] {
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
             const result = kalkContext.evaluate(input);
-            const estimate = result?.estimate() ?? null;
-            if (result && result.getValue() != 0) {
-                const sciNot = result.toScientificNotation();
-                if (sciNot.exponent > 7 || sciNot.exponent < -6) {
-                    return [sciNot.toString(), estimate, true];
-                }
-            }
 
-            return [result?.toString(), estimate, true];
+            return [result?.toPrettyString(), true];
         } catch (err) {
-            return [err, null, false];
+            return [err, false];
         }
     }
 
@@ -85,16 +78,13 @@
                              href="https://kalk.netlify.app/#usage"
                              target="blank">Link to usage guide</a>`;
             } else {
-                const [result, estimate, success] = calculate(
+                const [result, success] = calculate(
                     kalk,
                     input.replace(/\s+/g, "") // Temporary fix, since it for some reason complains about spaces on chrome
                 );
 
-                const resultWithEstimate = estimate
-                    ? result + " ≈ " + estimate
-                    : result;
                 output = success
-                    ? highlight(resultWithEstimate)[0]
+                    ? highlight(result)[0]
                     : `<span style="color: ${errorcolor}">${result}</span>`;
             }
 
