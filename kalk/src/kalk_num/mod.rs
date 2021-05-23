@@ -137,7 +137,7 @@ impl KalkNum {
         let as_str = trim_number_string(&self.to_f64().to_string());
 
         if self.has_imaginary() {
-            let imaginary_as_str = trim_number_string(&self.imaginary_to_f64().to_string());
+            let imaginary_as_str = trim_number_string(&self.imaginary_to_f64().abs().to_string());
             let sign = if self.imaginary_value < 0f64 {
                 "-"
             } else {
@@ -396,7 +396,7 @@ impl KalkNum {
         Some(output)
     }
 
-    pub fn estimate_one_value(&self, complex_number_type: ComplexNumberType) -> Option<String> {
+    fn estimate_one_value(&self, complex_number_type: ComplexNumberType) -> Option<String> {
         let (value, value_string) = match complex_number_type {
             ComplexNumberType::Real => (&self.value, self.to_string()),
             ComplexNumberType::Imaginary => (&self.imaginary_value, self.to_string_imaginary(true)),
