@@ -203,7 +203,7 @@ impl KalkNum {
             || self.imaginary_value == 1f64
         {
             self.to_string_imaginary(true)
-        } else if sci_notation_real.exponent <= -15 {
+        } else if sci_notation_imaginary.exponent <= -15 {
             adjusted_num.imaginary_value = KalkNum::from(1f64).value;
             String::from("0")
         } else {
@@ -211,7 +211,7 @@ impl KalkNum {
         };
 
         let mut output = result_str;
-        if adjusted_num.has_imaginary() {
+        if adjusted_num.has_imaginary() && result_str_imaginary != "0" {
             // If the real value is 0, and there is an imaginary one,
             // clear the output so that the real value is not shown.
             if output == "0" {
@@ -370,27 +370,41 @@ impl KalkNum {
             output.push_str(&self.to_string_real());
         }
 
-        if let Some(value) = rounded_imaginary {
+        let imaginary_value = if let Some(value) = rounded_imaginary {
+            Some(value)
+        } else if self.has_imaginary() {
+            Some(self.to_string_imaginary(false))
+        } else {
+            None
+        };
+
+        if let Some(value) = imaginary_value {
             // Clear output if it's just 0.
             if output == "0" {
                 output = String::new();
             }
 
-            if value != "0" {
+            if value == "0" {
+                // If both values ended up being estimated as zero,
+                // return zero.
+                if output.len() == 0 {
+                    return Some(String::from("0"));
+                }
+            } else {
+                let sign = if value.starts_with("-") { "-" } else { "+" };
+                let value = match value.as_ref() {
+                    "1" => String::from("i"),
+                    "-1" => String::from("-i"),
+                    _ => format!("{}i", value),
+                };
+
                 // If there is a real value as well
                 if output.len() > 0 {
-                    output.push_str(" + ");
+                    output.push_str(&format!(" {} {}", sign, value.trim_start_matches("-")));
+                } else {
+                    output.push_str(&value);
                 }
-
-                output.push_str(&format!("{}i", value));
             }
-        } else if self.has_imaginary() {
-            // If there is a real value as well
-            if output.len() > 0 {
-                output.push_str(" + ");
-            }
-
-            output.push_str(&self.to_string_imaginary(true));
         }
 
         Some(output)
@@ -469,8 +483,18 @@ impl KalkNum {
         }
 
         // If nothing above was relevant, simply round it off a bit, eg. from 0.99999 to 1
-        let rounded = self.round_one_value(complex_number_type)?.to_string();
-        Some(trim_zeroes(&rounded))
+        let rounded = match complex_number_type {
+            ComplexNumberType::Real => self.round_one_value(complex_number_type)?.value,
+            ComplexNumberType::Imaginary => {
+                self.round_one_value(complex_number_type)?.imaginary_value
+            }
+        };
+        let rounded_str = rounded.to_string();
+        Some(trim_zeroes(if rounded_str == "-0" {
+            "0"
+        } else {
+            &rounded_str
+        }))
     }
 
     /// Basic up/down rounding from 0.00xxx or 0.999xxx or xx.000xxx, etc.
@@ -607,6 +631,40 @@ impl Into<f64> for KalkNum {
 #[cfg(test)]
 mod tests {
     use crate::kalk_num::KalkNum;
+
+    #[test]
+    fn test_to_string_pretty() {
+        let in_out = vec![
+            (0.99999, 0.0, "0.99999 ≈ 1"),
+            (0.0, 0.99999, "0.99999i ≈ i"),
+            (0.000000001, 0.0, "10^-9 ≈ 0"),
+            (0.0, 0.000000001, "10^-9 i ≈ 0"),
+            (0.99999, 0.999999, "0.99999 + 0.999999i ≈ 1 + i"),
+            (1.0, 0.99999, "1 + 0.99999i ≈ 1 + i"),
+            (-0.99999, 0.999999, "-0.99999 + 0.999999i ≈ -1 + i"),
+            (0.99999, -0.999999, "0.99999 - 0.999999i ≈ 1 - i"),
+            (-1.0, 0.99999, "-1 + 0.99999i ≈ -1 + i"),
+            (1.0, -0.99999, "1 - 0.99999i ≈ 1 - i"),
+            (-0.99999, 1.0, "-0.99999 + i ≈ -1 + i"),
+            (0.99999, -1.0, "0.99999 - i ≈ 1 - i"),
+            (0.000000001, 0.000000001, "10^-9 + 10^-9 i ≈ 0"),
+            (1.0, 0.000000001, "1 + 10^-9 i ≈ 1"),
+            (0.000000001, 1.0, "10^-9 + i ≈ i"),
+            (-1.0, 0.000000001, "-1 + 10^-9 i ≈ -1"),
+            (0.000000001, -1.0, "10^-9 - i ≈ -i"),
+            (10e-17, 1.0, "i"),
+            (1.0, 10e-17, "1"),
+        ];
+        for (real, imaginary, output) in in_out {
+            let result = KalkNum::new_with_imaginary(
+                KalkNum::from(real).value,
+                "",
+                KalkNum::from(imaginary).value,
+            )
+            .to_string_pretty();
+            assert_eq!(output, result);
+        }
+    }
 
     #[test]
     fn test_estimate() {
