@@ -80,26 +80,45 @@ fn simpsons_rule(
     let mut result = KalkNum::default();
 
     const N: i32 = 900;
-    let a = interpreter::eval_expr(context, a_expr, "")?.to_f64();
-    let b = interpreter::eval_expr(context, b_expr, "")?.to_f64();
-    let h = (b - a) / N as f64;
+    let a = interpreter::eval_expr(context, a_expr, "")?;
+    let b = interpreter::eval_expr(context, b_expr, "")?;
+    let h = (b.sub_without_unit(a.clone())).div_without_unit(KalkNum::from(N));
     for i in 0..=N {
+        let variable_value = a
+            .clone()
+            .add_without_unit(KalkNum::from(i).mul_without_unit(h.clone()));
         context.symbol_table.set(Stmt::VarDecl(
             Identifier::from_full_name(integration_variable),
-            Box::new(Expr::Literal(a + i as f64 * h)),
+            if variable_value.has_imaginary() {
+                Box::new(Expr::Binary(
+                    Box::new(Expr::Literal(variable_value.to_f64())),
+                    TokenKind::Plus,
+                    Box::new(Expr::Binary(
+                        Box::new(Expr::Literal(variable_value.imaginary_to_f64())),
+                        TokenKind::Star,
+                        Box::new(Expr::Var(Identifier::from_full_name("i"))),
+                    )),
+                ))
+            } else {
+                Box::new(Expr::Literal(variable_value.to_f64()))
+            },
         ));
 
-        let factor = match i {
+        let factor = KalkNum::from(match i {
             0 | N => 1,
             _ if i % 3 == 0 => 2,
             _ => 3,
-        };
+        });
 
         // factor * f(x_n)
-        result.value += factor as f64 * interpreter::eval_expr(context, expr, "")?.value;
+        let mul = factor.mul_without_unit(interpreter::eval_expr(context, expr, "")?);
+        result.value += mul.value;
+        result.imaginary_value += mul.imaginary_value;
     }
 
-    result.value *= (3f64 * h) / 8f64;
-
-    Ok(result)
+    Ok(result.mul_without_unit(KalkNum::new_with_imaginary(
+        3f64 / 8f64 * h.value,
+        &h.unit,
+        3f64 / 8f64 * h.imaginary_value,
+    )))
 }
