@@ -29,8 +29,10 @@ pub struct Context {
     unit_decl_base_unit: Option<String>,
     parsing_identifier_stmt: bool,
     equation_variable: Option<String>,
-    contains_equal_sign: bool,
+    contains_equation_equal_sign: bool,
     is_in_integral: bool,
+    current_function: Option<String>,
+    current_function_parameters: Option<Vec<String>>,
 }
 
 #[wasm_bindgen]
@@ -47,8 +49,10 @@ impl Context {
             unit_decl_base_unit: None,
             parsing_identifier_stmt: false,
             equation_variable: None,
-            contains_equal_sign: false,
+            contains_equation_equal_sign: false,
             is_in_integral: false,
+            current_function: None,
+            current_function_parameters: None,
         };
 
         parse(&mut context, crate::prelude::INIT).unwrap();
@@ -143,7 +147,9 @@ pub fn eval(
     input: &str,
     #[cfg(feature = "rug")] precision: u32,
 ) -> Result<Option<KalkNum>, CalcError> {
-    context.contains_equal_sign = input.contains("=");
+    // Variable and function declaration parsers will set this to false
+    // if the equal sign is for one of those instead.
+    context.contains_equation_equal_sign = input.contains("=");
     let statements = parse(context, input)?;
 
     let mut interpreter = interpreter::Context::new(
@@ -208,20 +214,28 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
         if let Expr::FnCall(identifier, parameters) = primary {
             if !prelude::is_prelude_func(&identifier.full_name) {
                 advance(context);
-                let expr = parse_expr(context)?;
-                let mut parameter_identifiers = Vec::new();
 
                 // All the "arguments" are expected to be parsed as variables,
                 // since parameter definitions look the same as variable references.
                 // Extract these.
+                let mut parameter_identifiers = Vec::new();
                 for parameter in parameters {
                     if let Expr::Var(parameter_identifier) = parameter {
-                        parameter_identifiers.push(parameter_identifier.full_name);
+                        parameter_identifiers.push(format!(
+                            "{}-{}",
+                            &identifier.pure_name, &parameter_identifier.full_name
+                        ));
                     }
                 }
 
-                let fn_decl =
-                    Stmt::FnDecl(identifier.clone(), parameter_identifiers, Box::new(expr));
+                context.current_function = Some(identifier.pure_name.clone());
+                context.current_function_parameters = Some(parameter_identifiers.clone());
+                context.contains_equation_equal_sign = false;
+                context.equation_variable = None;
+                let expr = parse_expr(context)?;
+                let fn_decl = Stmt::FnDecl(identifier, parameter_identifiers, Box::new(expr));
+                context.current_function = None;
+                context.current_function_parameters = None;
 
                 // Insert the function declaration into the symbol table during parsing
                 // so that the parser can find out if particular functions exist.
@@ -241,6 +255,8 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let identifier = advance(context).clone();
     advance(context); // Equal sign
+    context.contains_equation_equal_sign = false;
+    context.equation_variable = None;
     let expr = parse_expr(context)?;
     if inverter::contains_var(&context.symbol_table, &expr, &identifier.value) {
         return Err(CalcError::VariableReferencesItself);
@@ -528,25 +544,6 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         return Ok(Expr::FnCall(identifier, parameters));
     }
 
-    // Eg. dx inside an integral, should be parsed as *one* identifier
-    // Reverse the identifier and take two. This gets the last two characters (in reversed order).
-    // Now reverse this to finally get the last two characters in correct order.
-    // It's a bit weird, but it should work for more than ASCII.
-    let last_two_chars_rev: String = identifier.full_name.chars().rev().take(2).collect();
-    let last_two_chars: String = last_two_chars_rev.chars().rev().collect();
-    let mut dx = None;
-    if context.is_in_integral && last_two_chars.starts_with("d") {
-        // If the token contains more than just "dx",
-        // save the dx/dy/du/etc. in a variable, that can be
-        // used further down when splitting the identifier into multiple variables.
-        if identifier.full_name.len() > 2 {
-            // This variable will be used further down in order to separate dx from the rest.
-            dx = Some(last_two_chars);
-        } else {
-            return Ok(Expr::Var(Identifier::from_full_name(&last_two_chars)));
-        }
-    }
-
     // Eg. x
     if parse_as_var_instead || context.symbol_table.contains_var(&identifier.pure_name) {
         Ok(Expr::Var(identifier))
@@ -556,87 +553,132 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     } else {
         if let Some(equation_var) = &context.equation_variable {
             if &identifier.full_name == equation_var {
-                return Ok(Expr::Var(identifier));
+                return Ok(build_var(context, &identifier.full_name));
             }
-        } else if context.contains_equal_sign {
+        }
+        if context.contains_equation_equal_sign {
             context.equation_variable = Some(identifier.full_name.clone());
-            return Ok(Expr::Var(identifier));
+            return Ok(build_var(context, &identifier.full_name));
         }
 
-        let mut chars: Vec<char> = identifier.pure_name.chars().collect();
-        let mut left = Expr::Var(Identifier::from_full_name(&chars[0].to_string()));
-
-        // Temporarily remove the last character and check if a function
-        // without that character exists. If it does,
-        // create a function call expression, where that last character
-        // is the argument.
-        let last_char = chars.pop().unwrap_or_default();
-        let identifier_without_last: String = chars.iter().collect();
-        if context.symbol_table.contains_fn(&identifier_without_last) {
-            return Ok(Expr::FnCall(
-                Identifier::from_full_name(&identifier_without_last),
-                vec![Expr::Var(Identifier::from_full_name(
-                    &last_char.to_string(),
-                ))],
-            ));
-        } else {
-            // Otherwise, re-add the character.
-            chars.push(last_char);
+        if identifier.pure_name.len() == 1 {
+            return Ok(build_var(context, &identifier.full_name));
         }
 
-        // If there is a an infinitesimal at the end,
-        // remove it from 'chars', since it should be separate.
-        if let Some(_) = dx {
-            chars.pop();
-            chars.pop();
-        }
-
-        // Turn each individual character into its own variable reference.
-        // This parses eg `xy` as `x*y` instead of *one* variable.
-        let mut right_chars = chars.iter().skip(1).peekable();
-        while let Some(c) = right_chars.next() {
-            // If last iteration
-            let right = if right_chars.peek().is_none() {
-                // Temporarily change the token content, so that
-                // the parse_exponent step will parse it as its
-                // new name. It will later be switched back,
-                // since the parser sometimes rewinds a bit,
-                // and may get confused by a sudden change.
-                let pos = context.pos - 1;
-                context.pos = pos;
-                context.tokens[pos] = Token {
-                    kind: TokenKind::Identifier,
-                    value: c.to_string(),
-                    span: (0, 0),
-                };
-
-                let last_var = parse_exponent(context)?;
-
-                // Revert back to how it was before.
-                context.tokens[pos] = Token {
-                    kind: TokenKind::Identifier,
-                    value: identifier.full_name.to_string(),
-                    span: (0, 0),
-                };
-
-                last_var
+        // Eg. dx inside an integral, should be parsed as *one* identifier
+        // Reverse the identifier and take two. This gets the last two characters (in reversed order).
+        // Now reverse this to finally get the last two characters in correct order.
+        // It's a bit weird, but it should work for more than ASCII.
+        let last_two_chars_rev: String = identifier.full_name.chars().rev().take(2).collect();
+        let last_two_chars: String = last_two_chars_rev.chars().rev().collect();
+        let mut dx = None;
+        if context.is_in_integral && last_two_chars.starts_with("d") {
+            // If the token contains more than just "dx",
+            // save the dx/dy/du/etc. in a variable, that can be
+            // used further down when splitting the identifier into multiple variables.
+            if identifier.full_name.len() > 2 {
+                // This variable will be used further down in order to separate dx from the rest.
+                dx = Some(last_two_chars);
             } else {
-                Expr::Var(Identifier::from_full_name(&c.to_string()))
+                return Ok(Expr::Var(Identifier::from_full_name(&last_two_chars)));
+            }
+        }
+
+        split_into_variables(context, &identifier, dx)
+    }
+}
+
+fn split_into_variables(
+    context: &mut Context,
+    identifier: &Identifier,
+    dx: Option<String>,
+) -> Result<Expr, CalcError> {
+    let mut chars: Vec<char> = identifier.pure_name.chars().collect();
+    let mut left = Expr::Var(Identifier::from_full_name(&chars[0].to_string()));
+
+    // Temporarily remove the last character and check if a function
+    // without that character exists. If it does,
+    // create a function call expression, where that last character
+    // is the argument.
+    let last_char = chars.pop().unwrap_or_default();
+    let identifier_without_last: String = chars.iter().collect();
+    if context.symbol_table.contains_fn(&identifier_without_last) {
+        return Ok(Expr::FnCall(
+            Identifier::from_full_name(&identifier_without_last),
+            vec![Expr::Var(Identifier::from_full_name(
+                &last_char.to_string(),
+            ))],
+        ));
+    } else {
+        // Otherwise, re-add the character.
+        chars.push(last_char);
+    }
+
+    // If there is a an infinitesimal at the end,
+    // remove it from 'chars', since it should be separate.
+    if let Some(_) = dx {
+        chars.pop();
+        chars.pop();
+    }
+
+    // Turn each individual character into its own variable reference.
+    // This parses eg `xy` as `x*y` instead of *one* variable.
+    let mut right_chars = chars.iter().skip(1).peekable();
+    while let Some(c) = right_chars.next() {
+        // If last iteration
+        let right = if right_chars.peek().is_none() {
+            // Temporarily change the token content, so that
+            // the parse_exponent step will parse it as its
+            // new name. It will later be switched back,
+            // since the parser sometimes rewinds a bit,
+            // and may get confused by a sudden change.
+            let pos = context.pos - 1;
+            context.pos = pos;
+            context.tokens[pos] = Token {
+                kind: TokenKind::Identifier,
+                value: c.to_string(),
+                span: (0, 0),
             };
 
-            left = Expr::Binary(Box::new(left), TokenKind::Star, Box::new(right));
-        }
+            let last_var = parse_exponent(context)?;
 
-        if let Some(dx) = dx {
-            left = Expr::Binary(
-                Box::new(left),
-                TokenKind::Star,
-                Box::new(Expr::Var(Identifier::from_full_name(&dx))),
-            );
-        }
+            // Revert back to how it was before.
+            context.tokens[pos] = Token {
+                kind: TokenKind::Identifier,
+                value: identifier.full_name.to_string(),
+                span: (0, 0),
+            };
 
-        Ok(left)
+            last_var
+        } else {
+            build_var(context, &c.to_string())
+        };
+
+        left = Expr::Binary(Box::new(left), TokenKind::Star, Box::new(right));
     }
+
+    if let Some(dx) = dx {
+        left = Expr::Binary(
+            Box::new(left),
+            TokenKind::Star,
+            Box::new(Expr::Var(Identifier::from_full_name(&dx))),
+        );
+    }
+
+    Ok(left)
+}
+
+fn build_var(context: &Context, name: &str) -> Expr {
+    if let (Some(function_name), Some(params)) = (
+        context.current_function.as_ref(),
+        context.current_function_parameters.as_ref(),
+    ) {
+        let identifier = Identifier::parameter_from_name(name, &function_name);
+        if params.contains(&identifier.full_name) {
+            return Expr::Var(identifier);
+        }
+    }
+    return Expr::Var(Identifier::from_full_name(name));
 }
 
 fn peek(context: &Context) -> &Token {
@@ -889,7 +931,7 @@ mod tests {
             token(Equals, ""),
             token(Literal, "1"),
             token(Plus, ""),
-            token(Literal, "2"),
+            token(Identifier, "x"),
             token(EOF, ""),
         ];
 
@@ -897,8 +939,8 @@ mod tests {
             parse(tokens).unwrap(),
             Stmt::FnDecl(
                 Identifier::from_full_name("f"),
-                vec![String::from("x")],
-                binary(literal(1f64), Plus, literal(2f64))
+                vec![String::from("f-x")],
+                binary(literal(1f64), Plus, param_var("f", "x"))
             )
         );
     }
