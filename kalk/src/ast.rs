@@ -26,6 +26,7 @@ pub enum Expr {
 pub struct Identifier {
     pub full_name: String,
     pub pure_name: String,
+    pub parameter_of_function: Option<String>,
     pub prime_count: u32,
 }
 
@@ -36,6 +37,7 @@ impl Identifier {
         Identifier {
             full_name: full_name.to_string(),
             pure_name,
+            parameter_of_function: None,
             prime_count,
         }
     }
@@ -44,7 +46,17 @@ impl Identifier {
         Identifier {
             full_name: format!("{}{}", pure_name, "'".repeat(prime_count as usize)),
             pure_name: pure_name.into(),
+            parameter_of_function: None,
             prime_count,
+        }
+    }
+
+    pub fn parameter_from_name(name: &str, function: &str) -> Self {
+        Identifier {
+            full_name: format!("{}-{}", function, name),
+            pure_name: name.into(),
+            parameter_of_function: Some(function.into()),
+            prime_count: 0u32,
         }
     }
 }

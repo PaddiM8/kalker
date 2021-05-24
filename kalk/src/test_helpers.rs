@@ -21,6 +21,12 @@ pub fn var(identifier: &str) -> Box<Expr> {
     Box::new(Expr::Var(Identifier::from_full_name(identifier)))
 }
 
+pub fn param_var(function: &str, identifier: &str) -> Box<Expr> {
+    Box::new(Expr::Var(Identifier::parameter_from_name(
+        identifier, function,
+    )))
+}
+
 pub fn fn_call(identifier: &str, arguments: Vec<Expr>) -> Box<Expr> {
     Box::new(Expr::FnCall(
         Identifier::from_full_name(identifier),
