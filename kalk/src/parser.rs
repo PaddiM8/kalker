@@ -504,7 +504,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
         if context.symbol_table.contains_fn(&identifier.pure_name) {
-            let parameter = parse_primary(context)?;
+            let parameter = parse_factor(context)?;
             return Ok(Expr::FnCall(identifier, vec![parameter]));
         }
     }
