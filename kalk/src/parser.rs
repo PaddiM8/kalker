@@ -569,30 +569,51 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         // Reverse the identifier and take two. This gets the last two characters (in reversed order).
         // Now reverse this to finally get the last two characters in correct order.
         // It's a bit weird, but it should work for more than ASCII.
-        let last_two_chars_rev: String = identifier.full_name.chars().rev().take(2).collect();
-        let last_two_chars: String = last_two_chars_rev.chars().rev().collect();
-        let mut dx = None;
+        let mut identifier_without_dx: Vec<char> = identifier.full_name.chars().collect();
+        let mut last_two_chars = String::new();
+        let last_char = identifier_without_dx.pop().unwrap_or_default();
+        let first_char = identifier_without_dx.pop().unwrap_or_default();
+        last_two_chars.push(first_char);
+        last_two_chars.push(last_char);
+
         if context.is_in_integral && last_two_chars.starts_with("d") {
             // If the token contains more than just "dx",
             // save the dx/dy/du/etc. in a variable, that can be
             // used further down when splitting the identifier into multiple variables.
             if identifier.full_name.len() > 2 {
                 // This variable will be used further down in order to separate dx from the rest.
-                dx = Some(last_two_chars);
+                let pos = context.pos - 1;
+                context.pos = pos;
+                context.tokens[pos] = Token {
+                    kind: TokenKind::Identifier,
+                    value: identifier_without_dx.iter().collect(),
+                    span: (0, 0),
+                };
+
+                let left_expr = parse_exponent(context)?;
+
+                // Revert back to how it was before.
+                context.tokens[pos] = Token {
+                    kind: TokenKind::Identifier,
+                    value: identifier.full_name.to_string(),
+                    span: (0, 0),
+                };
+
+                return Ok(Expr::Binary(
+                    Box::new(left_expr),
+                    TokenKind::Star,
+                    Box::new(Expr::Var(Identifier::from_full_name(&last_two_chars))),
+                ));
             } else {
                 return Ok(Expr::Var(Identifier::from_full_name(&last_two_chars)));
             }
         }
 
-        split_into_variables(context, &identifier, dx)
+        split_into_variables(context, &identifier)
     }
 }
 
-fn split_into_variables(
-    context: &mut Context,
-    identifier: &Identifier,
-    dx: Option<String>,
-) -> Result<Expr, CalcError> {
+fn split_into_variables(context: &mut Context, identifier: &Identifier) -> Result<Expr, CalcError> {
     let mut chars: Vec<char> = identifier.pure_name.chars().collect();
     let mut left = Expr::Var(Identifier::from_full_name(&chars[0].to_string()));
 
@@ -612,13 +633,6 @@ fn split_into_variables(
     } else {
         // Otherwise, re-add the character.
         chars.push(last_char);
-    }
-
-    // If there is a an infinitesimal at the end,
-    // remove it from 'chars', since it should be separate.
-    if let Some(_) = dx {
-        chars.pop();
-        chars.pop();
     }
 
     // Turn each individual character into its own variable reference.
@@ -655,14 +669,6 @@ fn split_into_variables(
         };
 
         left = Expr::Binary(Box::new(left), TokenKind::Star, Box::new(right));
-    }
-
-    if let Some(dx) = dx {
-        left = Expr::Binary(
-            Box::new(left),
-            TokenKind::Star,
-            Box::new(Expr::Var(Identifier::from_full_name(&dx))),
-        );
     }
 
     Ok(left)
