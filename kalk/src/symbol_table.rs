@@ -81,6 +81,10 @@ impl SymbolTable {
         }
     }
 
+    pub fn get_and_remove_var(&mut self, identifier: &str) -> Option<Stmt> {
+        self.hashmap.remove(&format!("var.{}", identifier))
+    }
+
     pub fn contains_var(&self, identifier: &str) -> bool {
         prelude::CONSTANTS.contains_key(identifier)
             || identifier == "i"

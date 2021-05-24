@@ -79,6 +79,9 @@ fn simpsons_rule(
     integration_variable: &str,
 ) -> Result<KalkNum, CalcError> {
     let mut result = KalkNum::default();
+    let original_variable_value = context
+        .symbol_table
+        .get_and_remove_var(integration_variable);
 
     const N: i32 = 900;
     let a = interpreter::eval_expr(context, a_expr, "")?;
@@ -103,6 +106,14 @@ fn simpsons_rule(
         let mul = factor.mul_without_unit(interpreter::eval_expr(context, expr, "")?);
         result.value += mul.value;
         result.imaginary_value += mul.imaginary_value;
+    }
+
+    if let Some(value) = original_variable_value {
+        context.symbol_table.insert(value);
+    } else {
+        context
+            .symbol_table
+            .get_and_remove_var(integration_variable);
     }
 
     Ok(result.mul_without_unit(KalkNum::new_with_imaginary(
