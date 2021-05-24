@@ -116,12 +116,12 @@ impl KalkNum {
             &value_string
         };
         let value = match complex_number_type {
-            ComplexNumberType::Real => self.value.clone(),
-            ComplexNumberType::Imaginary => self.imaginary_value.clone(),
+            ComplexNumberType::Real => &self.value,
+            ComplexNumberType::Imaginary => &self.imaginary_value,
         };
 
         ScientificNotation {
-            negative: value < 0f64,
+            negative: value < &0f64,
             digits: trimmed
                 .to_string()
                 .replace(".", "")
@@ -134,10 +134,10 @@ impl KalkNum {
     }
 
     pub fn to_string(&self) -> String {
-        let as_str = trim_number_string(&self.to_f64().to_string());
+        let as_str = format_number(self.to_f64());
 
         if self.has_imaginary() {
-            let imaginary_as_str = trim_number_string(&self.imaginary_to_f64().abs().to_string());
+            let imaginary_as_str = format_number(self.imaginary_to_f64().abs());
             let sign = if self.imaginary_value < 0f64 {
                 "-"
             } else {
@@ -169,11 +169,11 @@ impl KalkNum {
     }
 
     pub fn to_string_real(&self) -> String {
-        trim_number_string(&self.to_f64().to_string())
+        format_number(self.to_f64())
     }
 
     pub fn to_string_imaginary(&self, include_i: bool) -> String {
-        let value = trim_number_string(&self.imaginary_to_f64().to_string());
+        let value = format_number(self.imaginary_to_f64());
         if include_i && value == "1" {
             String::from("i")
         } else if include_i && value == "-1" {
@@ -190,7 +190,7 @@ impl KalkNum {
         let mut adjusted_num = self.clone();
         let result_str = if (-6..8).contains(&sci_notation_real.exponent) || self.value == 0f64 {
             self.to_string_real()
-        } else if sci_notation_real.exponent <= -15 {
+        } else if sci_notation_real.exponent <= -14 {
             adjusted_num.value = KalkNum::from(1f64).value;
             String::from("0")
         } else {
@@ -203,8 +203,8 @@ impl KalkNum {
             || self.imaginary_value == 1f64
         {
             self.to_string_imaginary(true)
-        } else if sci_notation_imaginary.exponent <= -15 {
-            adjusted_num.imaginary_value = KalkNum::from(1f64).value;
+        } else if sci_notation_imaginary.exponent <= -14 {
+            adjusted_num.imaginary_value = KalkNum::from(0f64).value;
             String::from("0")
         } else {
             format!("{}", sci_notation_imaginary.to_string().trim())
@@ -240,7 +240,9 @@ impl KalkNum {
         }
 
         if let Some(estimate) = adjusted_num.estimate() {
-            output.push_str(&format!(" ≈ {}", estimate));
+            if estimate != output {
+                output.push_str(&format!(" ≈ {}", estimate));
+            }
         }
 
         output
@@ -572,14 +574,15 @@ impl KalkNum {
     }
 }
 
-fn trim_number_string(input: &str) -> String {
-    if input.contains(".") {
-        input
+fn format_number(input: f64) -> String {
+    let rounded = format!("{:.1$}", input, 10);
+    if rounded.contains(".") {
+        rounded
             .trim_end_matches('0')
             .trim_end_matches('.')
             .to_string()
     } else {
-        input.into()
+        rounded.into()
     }
 }
 
@@ -636,6 +639,7 @@ mod tests {
     fn test_to_string_pretty() {
         let in_out = vec![
             (0.99999, 0.0, "0.99999 ≈ 1"),
+            (-0.99999, 0.0, "-0.99999 ≈ -1"),
             (0.0, 0.99999, "0.99999i ≈ i"),
             (0.000000001, 0.0, "10^-9 ≈ 0"),
             (0.0, 0.000000001, "10^-9 i ≈ 0"),
@@ -654,6 +658,7 @@ mod tests {
             (0.000000001, -1.0, "10^-9 - i ≈ -i"),
             (10e-17, 1.0, "i"),
             (1.0, 10e-17, "1"),
+            (10e-15, 0.0, "0"),
         ];
         for (real, imaginary, output) in in_out {
             let result = KalkNum::new_with_imaginary(
