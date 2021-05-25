@@ -92,10 +92,12 @@ lazy_static! {
         m.insert("exp", (UnaryFuncInfo(exp, Other), ""));
         m.insert("floor", (UnaryFuncInfo(floor, Other), ""));
         m.insert("frac", (UnaryFuncInfo(frac, Other), ""));
+        m.insert("Im", (UnaryFuncInfo(im, Other), ""));
         m.insert("gamma", (UnaryFuncInfo(gamma, Other), ""));
         m.insert("Γ", (UnaryFuncInfo(gamma, Other), ""));
         m.insert("log", (UnaryFuncInfo(log, Other), ""));
         m.insert("ln", (UnaryFuncInfo(ln, Other), ""));
+        m.insert("Re", (UnaryFuncInfo(re, Other), ""));
         m.insert("round", (UnaryFuncInfo(round, Other), ""));
         m.insert("sqrt", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("√", (UnaryFuncInfo(sqrt, Other), ""));
@@ -500,6 +502,10 @@ pub mod funcs {
         KalkNum::new_with_imaginary(x.value.fract(), &x.unit, x.imaginary_value.fract())
     }
 
+    pub fn im(x: KalkNum) -> KalkNum {
+        KalkNum::new_with_imaginary(x.value, "", KalkNum::default().value)
+    }
+
     pub fn log(x: KalkNum) -> KalkNum {
         if x.has_imaginary() || x.value < 0f64 {
             // ln(z) / ln(10)
@@ -530,6 +536,10 @@ pub mod funcs {
 
     pub fn nth_root(x: KalkNum, n: KalkNum) -> KalkNum {
         x.pow_without_unit(KalkNum::from(1f64).div_without_unit(n))
+    }
+
+    pub fn re(x: KalkNum) -> KalkNum {
+        KalkNum::new_with_imaginary(KalkNum::default().value, "", x.imaginary_value)
     }
 
     pub fn round(x: KalkNum) -> KalkNum {
