@@ -634,6 +634,127 @@ impl Into<f64> for KalkNum {
 #[cfg(test)]
 mod tests {
     use crate::kalk_num::KalkNum;
+    use crate::test_helpers::cmp;
+
+    #[test]
+    fn test_add_complex() {
+        let in_out = vec![
+            ((0f64, 0f64), (0f64, 0f64), (0f64, 0f64)),
+            ((2f64, 0f64), (3f64, 4f64), (5f64, 4f64)),
+            ((0f64, 2f64), (3f64, 4f64), (3f64, 6f64)),
+            ((3f64, -2f64), (-3f64, 4f64), (0f64, 2f64)),
+        ];
+
+        for (a, b, expected_result) in in_out {
+            let actual_result =
+                KalkNum::new_with_imaginary(KalkNum::from(a.0).value, "", KalkNum::from(a.1).value)
+                    .add_without_unit(KalkNum::new_with_imaginary(
+                        KalkNum::from(b.0).value,
+                        "",
+                        KalkNum::from(b.1).value,
+                    ));
+            assert_eq!(actual_result.to_f64(), expected_result.0);
+            assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
+        }
+    }
+
+    #[test]
+    fn test_sub_complex() {
+        let in_out = vec![
+            ((0f64, 0f64), (0f64, 0f64), (0f64, 0f64)),
+            ((2f64, 0f64), (3f64, 4f64), (-1f64, -4f64)),
+            ((0f64, 2f64), (3f64, 4f64), (-3f64, -2f64)),
+            ((3f64, -2f64), (-3f64, 4f64), (6f64, -6f64)),
+        ];
+
+        for (a, b, expected_result) in in_out {
+            let actual_result =
+                KalkNum::new_with_imaginary(KalkNum::from(a.0).value, "", KalkNum::from(a.1).value)
+                    .sub_without_unit(KalkNum::new_with_imaginary(
+                        KalkNum::from(b.0).value,
+                        "",
+                        KalkNum::from(b.1).value,
+                    ));
+            assert_eq!(actual_result.to_f64(), expected_result.0);
+            assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
+        }
+    }
+
+    #[test]
+    fn test_mul_complex() {
+        let in_out = vec![
+            ((0f64, 0f64), (0f64, 0f64), (0f64, 0f64)),
+            ((2f64, 0f64), (3f64, 4f64), (6f64, 8f64)),
+            ((0f64, 2f64), (3f64, 4f64), (-8f64, 6f64)),
+            ((3f64, -2f64), (-3f64, 4f64), (-1f64, 18f64)),
+        ];
+
+        for (a, b, expected_result) in in_out {
+            let actual_result =
+                KalkNum::new_with_imaginary(KalkNum::from(a.0).value, "", KalkNum::from(a.1).value)
+                    .mul_without_unit(KalkNum::new_with_imaginary(
+                        KalkNum::from(b.0).value,
+                        "",
+                        KalkNum::from(b.1).value,
+                    ));
+            assert_eq!(actual_result.to_f64(), expected_result.0);
+            assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
+        }
+    }
+
+    #[test]
+    fn test_div_complex() {
+        let in_out = vec![
+            ((2f64, 0f64), (3f64, 4f64), (0.24f64, -0.32f64)),
+            ((0f64, 2f64), (3f64, 4f64), (0.32f64, 0.24f64)),
+            ((3f64, -2f64), (-3f64, 4f64), (-0.68f64, -0.24f64)),
+        ];
+
+        for (a, b, expected_result) in in_out {
+            let actual_result =
+                KalkNum::new_with_imaginary(KalkNum::from(a.0).value, "", KalkNum::from(a.1).value)
+                    .div_without_unit(KalkNum::new_with_imaginary(
+                        KalkNum::from(b.0).value,
+                        "",
+                        KalkNum::from(b.1).value,
+                    ));
+            assert_eq!(actual_result.to_f64(), expected_result.0);
+            assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
+        }
+    }
+
+    #[test]
+    fn test_pow_complex() {
+        let in_out = vec![
+            ((2f64, 0f64), (0f64, 3f64), (-0.4869944f64, 0.8734050f64)),
+            ((2f64, 0f64), (2f64, 3f64), (-1.9479776f64, 3.4936203f64)),
+            ((0f64, 2f64), (0f64, 3f64), (-0.0043748f64, 0.0078460f64)),
+            ((3f64, 2f64), (0f64, 3f64), (-0.1304148f64, -0.111153f64)),
+            ((3f64, 2f64), (4f64, 3f64), (28.8577819f64, -2.422530f64)),
+            (
+                (3f64, 0f64),
+                (0f64, 1f64 / 3f64),
+                (0.9336932f64, 0.3580738f64),
+            ),
+            (
+                (3f64, 4f64),
+                (0f64, 1f64 / 4f64),
+                (0.7297490f64, 0.3105648f64),
+            ),
+        ];
+
+        for (a, b, expected_result) in in_out {
+            let actual_result =
+                KalkNum::new_with_imaginary(KalkNum::from(a.0).value, "", KalkNum::from(a.1).value)
+                    .pow_without_unit(KalkNum::new_with_imaginary(
+                        KalkNum::from(b.0).value,
+                        "",
+                        KalkNum::from(b.1).value,
+                    ));
+            assert!(cmp(actual_result.to_f64(), expected_result.0));
+            assert!(cmp(actual_result.imaginary_to_f64(), expected_result.1));
+        }
+    }
 
     #[test]
     fn test_to_string_pretty() {
