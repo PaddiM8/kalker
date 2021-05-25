@@ -26,7 +26,11 @@ impl KalkNum {
         Self {
             value,
             unit: unit.to_string(),
-            imaginary_value,
+            imaginary_value: if imaginary_value == -0f64 {
+                imaginary_value.abs()
+            } else {
+                imaginary_value
+            },
         }
     }
 
@@ -48,7 +52,7 @@ impl KalkNum {
     }
 
     pub fn to_i32(&self) -> i32 {
-        self.value.to_i32_saturating().unwrap()
+        self.value.to_i32_saturating().unwrap_or(0i32)
     }
 
     pub fn get_unit(&self) -> &str {
