@@ -34,7 +34,6 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - name: Install wasm-pack
         run: cargo install --git https://github.com/rustwasm/wasm-pack.git --rev d46d1c69b788956160deed5e4e603f4f2780ffcf
-        #run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Build
         run: |
           yarn install
@@ -135,10 +134,49 @@ jobs:
           name: binaries
           path: kalk_cli/target/wix/kalk-windows.msi
 
+  release_android:
+    name: release android
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./kalk_mobile
+
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/cache@v2
+        with:
+          path: |
+            kalk_mobile/android/.gradle
+            kalk_mobile/android/build
+            kalk_mobile/android/app/build
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+      - name: npm
+        run: |
+          npm install
+          npm run build
+      - name: build app
+        run: |
+          npx cap sync
+          cd android
+          ./gradlew assembleRelease
+      - uses: r0adkll/sign-android-release@v1
+        name: sign apk
+        with:
+          releaseDirectory: kalk_mobile/android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+      - run: mv android/app/build/outputs/apk/release/app-release-unsigned-signed.apk ./kalk-android.apk
+      - uses: actions/upload-artifact@v2
+        with:
+          name: binaries
+          path: kalk_mobile/kalk-android.apk
+
   create_release:
     name: Create Release
     if: always()
-    needs: [release_linux, release_mac, release_windows]
+    needs: [release_linux, release_mac, release_windows, release_android]
     runs-on: ubuntu-latest
     steps:
     - name: Create Release
