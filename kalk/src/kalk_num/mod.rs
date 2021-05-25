@@ -186,6 +186,16 @@ impl KalkNum {
     }
 
     pub fn to_string_pretty(&self) -> String {
+        let real_f64 = self.to_f64();
+        let imaginary_f64 = self.imaginary_to_f64();
+        if real_f64.is_nan() || imaginary_f64.is_nan() {
+            return String::from("Not defined.");
+        }
+
+        if real_f64.is_infinite() {
+            return format!("{}∞", if real_f64.is_sign_negative() { "-" } else { "" });
+        }
+
         let sci_notation_real = self.to_scientific_notation(ComplexNumberType::Real);
         let mut adjusted_num = self.clone();
         let result_str = if (-6..8).contains(&sci_notation_real.exponent) || self.value == 0f64 {
