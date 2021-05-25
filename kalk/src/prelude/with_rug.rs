@@ -11,7 +11,6 @@ pub(crate) mod funcs {
     use crate::prelude::funcs::abs;
 
     pub fn arg(x: KalkNum) -> KalkNum {
-        // i(ln|x| - ln(x))
         KalkNum::new(x.imaginary_value.atan2(&x.value), &x.unit)
     }
 

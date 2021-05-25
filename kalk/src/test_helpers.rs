@@ -13,6 +13,10 @@ pub fn token(kind: TokenKind, value: &str) -> Token {
     }
 }
 
+pub fn cmp(x: f64, y: f64) -> bool {
+    (x - y).abs() < 0.0001
+}
+
 pub fn literal(value: f64) -> Box<Expr> {
     Box::new(Expr::Literal(value))
 }

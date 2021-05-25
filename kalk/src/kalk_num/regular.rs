@@ -23,7 +23,11 @@ impl KalkNum {
         Self {
             value,
             unit: unit.to_string(),
-            imaginary_value,
+            imaginary_value: if imaginary_value == -0f64 {
+                0f64
+            } else {
+                imaginary_value
+            },
         }
     }
 

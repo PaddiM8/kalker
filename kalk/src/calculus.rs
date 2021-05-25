@@ -144,10 +144,6 @@ mod tests {
         )
     }
 
-    fn cmp(x: f64, y: f64) -> bool {
-        (x - y).abs() < 0.0001
-    }
-
     #[test]
     fn test_derive_func() {
         let mut symbol_table = SymbolTable::new();
