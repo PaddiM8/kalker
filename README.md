@@ -29,8 +29,8 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 There are currently three different libraries related to kalk.
 
 * [kalk](https://crates.io/crates/kalk): The Rust crate that powers it all.
-* [@paddim8/kalk](https://www.npmjs.com/package/@paddim8/kalk): JavaScript bindings to `kalk`. This lets you use it in the browser, thanks to WebAssembly.
-* [@paddim8/kalk-component](https://www.npmjs.com/package/@paddim8/kalk-component): A web component that acts as a frontend to `@paddim8/kalk`, which lets you use kalk in the browser with a command line-like interface.
+* [@paddim8/kalk](https://www.npmjs.com/package/@paddim8/kalk): JavaScript bindings for `kalk`. This lets you use it in the browser thanks to WebAssembly.
+* [@paddim8/kalk-component](https://www.npmjs.com/package/@paddim8/kalk-component): A web component that runs `@paddim8/kalk`, which let's you use kalk in the browser with a command line-like interface.
 
 ## Installation
 
