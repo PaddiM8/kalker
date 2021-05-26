@@ -107,7 +107,7 @@ impl KalkNum {
     }
 
     pub(crate) fn pow_without_unit(self, rhs: KalkNum) -> KalkNum {
-        if self.has_imaginary() || rhs.has_imaginary() {
+        if self.has_imaginary() || rhs.has_imaginary() || (self.value < 0f64 && rhs.value < 1f64) {
             let a = self.value.clone();
             let b = self.imaginary_value.clone();
             let c = rhs.value;
