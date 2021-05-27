@@ -2,12 +2,25 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
+
+    def version = System.getenv("APP_VERSION_NAME") ?: "1.0.0"
+    def parts = version.split('\\.')
+    def major = parts[0]
+    def minor = parts[1]
+    def patch = parts[2]
+
+    if (major.size() == 1) major = major + "0"
+    if (minor.size() == 1) minor = minor + "0"
+    if (patch.size() == 1) patch = patch + "0"
+
+    def code = (major + minor + patch) as Integer
+
     defaultConfig {
         applicationId "net.strct.kalk"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 11
-        versionName "1.1"
+        versionCode code
+        versionName version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
