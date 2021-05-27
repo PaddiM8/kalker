@@ -546,7 +546,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
 
     // Eg. x
     if parse_as_var_instead || context.symbol_table.contains_var(&identifier.pure_name) {
-        Ok(Expr::Var(identifier))
+        Ok(build_var(context, &identifier.full_name))
     } else if context.parsing_unit_decl {
         context.unit_decl_base_unit = Some(identifier.full_name);
         Ok(Expr::Var(Identifier::from_full_name(DECL_UNIT)))
