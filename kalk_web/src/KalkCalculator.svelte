@@ -164,6 +164,7 @@
     }
 
     function insertText(input: string) {
+        inputElement.focus();
         let cursorPos = getCursorPos(inputElement);
         const textContent = inputElement.textContent;
         let movementOffset = input.length;
