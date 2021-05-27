@@ -70,6 +70,7 @@ jobs:
         run: echo success
       - name: publish
         run: |
+          cd kalk_web
           sudo apt install expect
           /usr/bin/expect <<EOD
           spawn npm adduser
