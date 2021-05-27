@@ -201,7 +201,7 @@ impl KalkNum {
         let result_str = if (-6..8).contains(&sci_notation_real.exponent) || self.value == 0f64 {
             self.to_string_real()
         } else if sci_notation_real.exponent <= -14 {
-            adjusted_num.value = KalkNum::from(1f64).value;
+            adjusted_num.value = KalkNum::from(0f64).value;
             String::from("0")
         } else {
             sci_notation_real.to_string().trim().to_string()
@@ -790,6 +790,7 @@ mod tests {
             (10e-17, 1.0, "i"),
             (1.0, 10e-17, "1"),
             (10e-15, 0.0, "0"),
+            (3.00000000004, 0.0, "3"),
         ];
         for (real, imaginary, output) in in_out {
             let result = KalkNum::new_with_imaginary(
