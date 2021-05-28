@@ -43,15 +43,24 @@
     let kalkContext: Context;
     let selectedLineOffset: number = 0;
     let calculatorElement: HTMLElement;
-    let inputElement: HTMLInputElement;
+    let inputElement: HTMLTextAreaElement;
+    let highlightedTextElement: HTMLElement;
+    let hasBeenInteractedWith = false;
 
-    afterUpdate(() => {
-        // Scroll to bottom
-        outputElement.children[
-            outputElement.children.length - 1
-        ].scrollIntoView(false);
-        calculatorElement.scrollIntoView();
-    });
+    function setText(text: string) {
+        inputElement.value = text;
+        const highlighted = highlight(text);
+        setHtml(highlighted);
+    }
+
+    function setHtml(html: string) {
+        highlightedTextElement.innerHTML = html;
+        inputElement.value = highlightedTextElement.textContent;
+    }
+
+    function getHtml(): string {
+        return highlightedTextElement.innerHTML;
+    }
 
     function calculate(
         kalk: Kalk,
@@ -68,36 +77,44 @@
     }
 
     function handleKeyDown(event: KeyboardEvent, kalk: Kalk) {
+        hasBeenInteractedWith = true;
         if (event.key == "Enter") {
             selectedLineOffset = 0;
-            const target = event.target as HTMLInputElement;
-            const input = target.textContent;
+            const input = inputElement.value;
             let output: string;
 
             if (input.trim() == "help") {
                 output = `<a style="color: ${linkcolor}"
-                             href="https://kalk.netlify.app/#usage"
+                             href="https://kalk.strct.net/#usage"
                              target="blank">Link to usage guide</a>`;
             } else if (input.trim() == "clear") {
                 outputLines = [];
-                target.innerHTML = "";
+                setText("");
                 return;
             } else {
-                const [result, success] = calculate(
-                    kalk,
-                    input.replace(/\s+/g, "") // Temporary fix, since it for some reason complains about spaces on chrome
-                );
+                const [result, success] = calculate(kalk, input);
 
                 output = success
-                    ? highlight(result)[0]
+                    ? highlight(result)
                     : `<span style="color: ${errorcolor}">${result}</span>`;
             }
 
             outputLines = output
-                ? [...outputLines, [target.innerHTML, true], [output, false]]
-                : [...outputLines, [target.innerHTML, true]];
+                ? [...outputLines, [getHtml(), true], [output, false]]
+                : [...outputLines, [getHtml(), true]];
 
-            target.innerHTML = "";
+            setText("");
+
+            let i = 0;
+            setInterval(() => {
+                if (i == 60) return;
+                outputElement.children[
+                    outputElement.children.length - 1
+                ].scrollIntoView();
+
+                calculatorElement.scrollIntoView(false);
+                i++;
+            }, 10);
         }
     }
 
@@ -106,12 +123,11 @@
         // of the input field. This piece of code will put the cursor at the end,
         // which therefore will need to be done afterwards, so that it doesn't just get moved back again.
         if (event.key == "ArrowUp" || event.key == "ArrowDown") {
-            const target = event.target as HTMLInputElement;
             const change = event.key == "ArrowUp" ? 1 : -1;
             selectedLineOffset += change;
 
             if (selectedLineOffset < 0) {
-                target.innerHTML = "";
+                setText("");
                 selectedLineOffset = 0;
                 return;
             }
@@ -126,8 +142,7 @@
             }
 
             if (line) {
-                target.innerHTML = line[0];
-                setCursorPosEnd(target);
+                setHtml(line[0]);
             }
 
             if (selectedLineOffset >= outputLines.length) {
@@ -138,16 +153,27 @@
 
     function handleInput(event: Event) {
         const target = event.target as HTMLInputElement;
-        const cursorPos = getCursorPos(target);
-        const [highlighted, offset] = highlight(target.textContent);
-        target.innerHTML = highlighted;
-        setCursorPos(target, cursorPos - offset);
+        // Make sure it doesn't mess with the HTML.
+        target.value = target.value
+            .replaceAll("\n", "")
+            .replaceAll("  ", " ")
+            .replaceAll("&", "")
+            .replaceAll("<", "");
+        setText(target.value);
     }
 
     function handleTouchLine(event: Event) {
-        if (!inputElement.innerHTML) {
+        if (!inputElement.value) {
             const target = event.currentTarget as HTMLElement;
-            inputElement.innerHTML = target.querySelector(".value").innerHTML;
+            setHtml(target.innerHTML);
+
+            // Sighs... What else?
+            let i = 0;
+            setInterval(() => {
+                if (i == 40) return;
+                inputElement.focus({ preventScroll: true });
+                i++;
+            }, 1);
         }
     }
 
@@ -158,128 +184,53 @@
     }
 
     function handleArrowClick(event: Event, left: boolean) {
-        const target = event.target as HTMLElement;
-        const cursorPos = getCursorPos(inputElement);
-        target.blur();
-        setCursorPos(inputElement, cursorPos + (left ? -1 : 1));
+        const length = inputElement.value.length;
+        const selection = inputElement.selectionEnd + (left ? -1 : 1);
+        inputElement.selectionEnd = Math.min(Math.max(selection, 0), length);
+        inputElement.selectionStart = inputElement.selectionEnd;
+        inputElement.focus({ preventScroll: true });
     }
 
     function insertText(input: string) {
-        inputElement.focus({ preventScroll: true });
-        let cursorPos = getCursorPos(inputElement);
-        const textContent = inputElement.textContent;
-        let movementOffset = input.length;
-
+        let offset = 0;
         if (input == "(") {
             input += ")";
         } else if (input == "=") {
             input = " = ";
-            movementOffset = 3;
         } else if (input == "Σ") {
             input += "()";
-            movementOffset = 2;
+            offset = -1;
         } else if (input == "∫") {
             input += "()";
-            movementOffset = 2;
+            offset = -1;
         } else if (input == "⌊") {
             input += "⌋";
+            offset = -1;
         } else if (input == "⌈") {
             input += "⌉";
+            offset = -1;
         } else if (input == ",") {
             input = ", ";
-            movementOffset = 2;
         }
 
-        const newString =
-            textContent.slice(0, cursorPos) +
-            input +
-            textContent.slice(cursorPos);
-        const [highlighted, offset] = highlight(newString);
-
-        inputElement.innerHTML = highlighted;
+        inputElement.setRangeText(
+            input,
+            inputElement.selectionStart,
+            inputElement.selectionEnd,
+            "end"
+        );
+        inputElement.selectionEnd += offset;
+        setText(inputElement.value);
         inputElement.focus({ preventScroll: true });
-        setCursorPos(inputElement, cursorPos - offset + movementOffset);
-
-        // I know this sucks, but it keeps scrolling away on some browsers >:(
-        let i = 0;
-        setInterval(() => {
-            if (i == 60) return;
-            calculatorElement.scrollIntoView();
-            i++;
-        }, 20);
     }
 
-    function focus(element: HTMLInputElement) {
+    function handleLoad(element: HTMLElement) {
         if (autofocus) element.focus();
     }
 
-    function getCursorPos(element: HTMLInputElement): number {
-        const shadowRoot = calculatorElement.getRootNode() as ShadowRoot;
-        const range = shadow.getRange(shadowRoot);
-        //const selection = shadowRoot.getSelection();
-        //const range = selection.getRangeAt(0);
-        const preCaretRange = range.cloneRange();
-        preCaretRange.selectNodeContents(element);
-        preCaretRange.setEnd(range.endContainer, range.endOffset);
-
-        return preCaretRange.toString().length;
-    }
-
-    function setCursorPos(element: HTMLElement, indexToSelect: number) {
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        const textNodes = getTextNodesIn(element);
-
-        let nodeEndPos = 0;
-        for (const textNode of textNodes) {
-            const previousNodeEndPos = nodeEndPos;
-            nodeEndPos += textNode.length;
-
-            // If the index that should be selected is
-            // less than or equal to the current position (the end of the text node),
-            // then the index points to somewhere inside the current text node.
-            // This text node along with indexToSelect will then be used when setting the cursor position.
-            if (indexToSelect <= nodeEndPos) {
-                range.setStart(textNode, indexToSelect - previousNodeEndPos);
-                range.setEnd(textNode, indexToSelect - previousNodeEndPos);
-                break;
-            }
-        }
-
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-    }
-
-    function setCursorPosEnd(element: HTMLElement) {
-        const range = document.createRange();
-        const selection = window.getSelection();
-        range.selectNodeContents(element);
-        range.setStart(element, range.endOffset);
-        selection.removeAllRanges();
-        selection.addRange(range);
-    }
-
-    function getTextNodesIn(node: Node): Text[] {
-        const textNodes: Text[] = [];
-
-        // If it's text node, add it to the list directly,
-        // otherwise go through it recursively and find text nodes within it.
-        if (node.nodeType == Node.TEXT_NODE) {
-            textNodes.push(node as Text);
-        } else {
-            for (const child of node.childNodes) {
-                textNodes.push(...getTextNodesIn(child));
-            }
-        }
-
-        return textNodes;
-    }
-
-    function highlight(input: string): [string, number] {
-        if (!input) return ["", 0];
+    function highlight(input: string): string {
+        if (!input) return "";
         let result = input;
-        let offset = 0;
         result = result.replace(
             /(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈]+(_\d+)?)|(?<op>[+\-/*%^!≈])/g,
             (substring, identifier, _, op) => {
@@ -320,8 +271,6 @@
                         }
                     }
 
-                    offset += substring.length - newSubstring.length;
-
                     return `<span style="color: ${identifiercolor}">${newSubstring}</span>`;
                 }
 
@@ -333,9 +282,7 @@
             }
         );
 
-        if (result.endsWith(" ")) result = result.slice(0, -1) + "&nbsp";
-
-        return [result, offset];
+        return result;
     }
 </script>
 
@@ -343,11 +290,11 @@
     <section class="output" bind:this={outputElement}>
         <slot />
         {#each outputLines as line}
-            <console-line byuser={line[1]} on:touchstart={handleTouchLine}>
+            <console-line byuser={line[1]}>
                 {#if line[1]}
                     <span style="color: {promptcolor}">&gt;&gt;</span>
                 {/if}
-                <span class="value">
+                <span class="value" on:touchstart={handleTouchLine}>
                     {@html line[0]}
                 </span>
             </console-line>
@@ -358,22 +305,27 @@
         {#await import("@paddim8/kalk")}
             <span>Loading...</span>
         {:then kalk}
-            <div
-                type="text"
-                contenteditable="true"
-                class="input"
-                placeholder={hinttext}
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                use:focus
-                bind:this={inputElement}
-                on:keydown={(event) => handleKeyDown(event, kalk)}
-                on:keyup={handleKeyUp}
-                on:input={handleInput}
-                role="textbox"
-            />
+            <div class="input-field-wrapper">
+                <div
+                    class="highlighted-text"
+                    aria-hidden
+                    bind:this={highlightedTextElement}
+                />
+                <textarea
+                    class="input"
+                    placeholder={hinttext}
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    use:handleLoad
+                    bind:this={inputElement}
+                    on:keydown={(event) => handleKeyDown(event, kalk)}
+                    on:keyup={handleKeyUp}
+                    on:input={handleInput}
+                    role="textbox"
+                />
+            </div>
         {:catch error}
             <span style="color: {errorcolor}">{error}</span>
         {/await}
@@ -406,6 +358,7 @@
         flex-direction: column;
         width: 100%;
         height: 100%;
+        padding-bottom: 3.5em;
         box-sizing: border-box;
         background-color: inherit;
         color: inherit;
@@ -427,35 +380,53 @@
         }
 
         .input-area {
+            display: flex;
             background-color: inherit;
             display: flex;
             padding-left: 10px;
             font-size: 1.4em;
             padding-bottom: 10px;
+            box-sizing: border-box;
         }
 
-        .prompt,
-        .input {
+        .prompt {
             background-color: inherit;
         }
 
-        .input {
+        .input-field-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .highlighted-text {
             display: inline-block;
             width: 100%;
             color: white;
             word-wrap: anywhere;
+            z-index: 1;
+        }
+
+        .input {
+            display: inline-block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            border: 0;
+            font-size: inherit;
+            font-family: inherit;
+
             cursor: text;
+            color: transparent;
+            background: transparent;
+            caret-color: white;
+            resize: none;
+            z-index: 2;
+            word-wrap: anywhere;
 
             &:focus {
                 outline: none;
             }
-        }
-
-        [contenteditable][placeholder]:empty:before {
-            content: attr(placeholder);
-            position: absolute;
-            color: gray;
-            background-color: transparent;
         }
 
         .button-panel {
