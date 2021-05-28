@@ -164,7 +164,7 @@
     }
 
     function insertText(input: string) {
-        inputElement.focus();
+        inputElement.focus({ preventScroll: true });
         let cursorPos = getCursorPos(inputElement);
         const textContent = inputElement.textContent;
         let movementOffset = input.length;
@@ -196,8 +196,16 @@
         const [highlighted, offset] = highlight(newString);
 
         inputElement.innerHTML = highlighted;
-        inputElement.focus();
+        inputElement.focus({ preventScroll: true });
         setCursorPos(inputElement, cursorPos - offset + movementOffset);
+
+        // I know this sucks, but it keeps scrolling away on some browsers >:(
+        let i = 0;
+        setInterval(() => {
+            if (i == 60) return;
+            calculatorElement.scrollIntoView();
+            i++;
+        }, 20);
     }
 
     function focus(element: HTMLInputElement) {
