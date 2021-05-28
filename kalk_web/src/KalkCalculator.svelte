@@ -358,7 +358,6 @@
         flex-direction: column;
         width: 100%;
         height: 100%;
-        padding-bottom: 3.5em;
         box-sizing: border-box;
         background-color: inherit;
         color: inherit;
