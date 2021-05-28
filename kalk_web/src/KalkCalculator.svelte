@@ -50,6 +50,7 @@
         outputElement.children[
             outputElement.children.length - 1
         ].scrollIntoView(false);
+        calculatorElement.scrollIntoView();
     });
 
     function calculate(
