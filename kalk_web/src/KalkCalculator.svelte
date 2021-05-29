@@ -56,6 +56,10 @@
     function setHtml(html: string) {
         highlightedTextElement.innerHTML = html;
         inputElement.value = highlightedTextElement.textContent;
+
+        if (!html) {
+            highlightedTextElement.innerHTML = `<span class='placeholder'>${hinttext}</div>`;
+        }
     }
 
     function getHtml(): string {
@@ -310,7 +314,9 @@
                     class="highlighted-text"
                     aria-hidden
                     bind:this={highlightedTextElement}
-                />
+                >
+                    <span class="placeholder">{hinttext}</span>
+                </div>
                 <textarea
                     class="input"
                     placeholder={hinttext}
@@ -386,6 +392,10 @@
             font-size: 1.4em;
             padding-bottom: 10px;
             box-sizing: border-box;
+        }
+
+        .placeholder {
+            color: gray;
         }
 
         .prompt {
