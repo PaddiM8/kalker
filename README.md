@@ -4,7 +4,7 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 
 [![Crates.io](https://img.shields.io/crates/v/kalk_cli)](https://crates.io/crates/kalk_cli)![npm](https://img.shields.io/npm/v/@paddim8/kalk) [![GitHub](https://img.shields.io/github/license/PaddiM8/kalk)](https://github.com/PaddiM8/kalk/blob/master/LICENSE) [![Docs.rs](https://docs.rs/kalk/badge.svg)](https://docs.rs/kalk/latest/kalk/) ![Build status](https://img.shields.io/github/workflow/status/PaddiM8/kalk/Rust?event=push&label=build%20%26%20test)
 
-[Kanban](https://kolan.strct.net/Board/4RAdMjLDz) | [Website](https://kalk.strct.net)
+[Kanban](https://kolan.strct.net/Board/4RAdMjLDz) | [Website - Try it out here!](https://kalk.strct.net)
 
 ![](preview.png)
 
@@ -72,13 +72,21 @@ A more complete reference can be found on [the website](https://kalk.strct.net)
 **Using:** name\
 **Example:** `x`
 
-### Units (experimental, are likely to not work properly)
+## Contributing
 
-*Note: You only need to define the relationship between two units once. You will be able to convert between both of them.* **Defining:** `unit` name = expression\
-**Example:** `unit deg = (rad*180)/π`
+## kalk and kalk_cli (Rust)
 
-**Using:** Use them freely in expressions.\
-**Example:** `2m/50cm`
+After making changes to the kalk library (in `kalk/`), you can easily try them out by going to the root of the project directory, and doing `cargo run`. This will start kalk_cli, with the new changes. If you're using Windows, you will need to [follow the instructions here](https://docs.rs/gmp-mpfr-sys/1.2.3/gmp_mpfr_sys/index.html#building-on-windows), but also make sure to install `mingw-w64-x86_64-rust` in MSYS2. 
 
-**Converting:** expression `to` unit\
-**Example:** `2 m to cm`
+## kalk_web (Svelte, TypeScript, Sass)
+
+Run:
+1. `npm install`  
+2. `npm run dev` - this will automatically re-compile the project when changes are made
+
+## kalk_mobile (Android)
+
+Run:  
+1. `npm install`
+2. `npx cap sync`
+3. Build the project using Android Studio, or Gradle directly.
