@@ -24,11 +24,15 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
         highlighter: LineHighlighter {},
         validator: MatchingBracketValidator::new(),
     }));
-    println!("kalk");
-    println!(
-        "{}",
-        ansi_term::Color::Fixed(246).paint("Type 'help' for instructions.")
-    );
+
+    // If in tty, print the welcome message
+    if atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout) {
+        println!("kalk");
+        println!(
+            "{}",
+            ansi_term::Color::Fixed(246).paint("Type 'help' for instructions.")
+        );
+    }
 
     loop {
         let prompt = if cfg!(windows) {
