@@ -152,7 +152,7 @@ impl<'a> Lexer<'a> {
                 break;
             };
 
-            if !c.is_digit(10) && c != '.' && !c.is_whitespace() {
+            if !c.is_digit(10) && c != '.' && !c.is_whitespace() || c == '\n' {
                 break;
             }
 
