@@ -15,7 +15,7 @@ Kalk is a calculator (both program and library) that supports user-defined varia
 * [Pre-defined functions and constants](https://github.com/PaddiM8/kalk/blob/master/kalk/src/prelude.rs)
 * User-defined functions and variables. `f(x, y) = xy`, `x = 5`
 * User-defined units (experimental). `unit m = cm/100`, `2m/50cm`, `50cm to m`
-* Derivative of functions. `f'(2)`, `sin'(-pi)`
+* Derivative of functions (derivatives of higher order can be a bit inaccurate). `f'(2)`, `sin'(-pi)`
 * Integration. `∫(0, pi, sin(x) dx)` or `∫(0, π, sin(x) dx)`
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
 * Syntax highlighting
