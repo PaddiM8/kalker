@@ -582,14 +582,12 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         && (match_token(context, TokenKind::Literal) || match_token(context, TokenKind::Identifier))
     {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
-        if exists_as_fn {
-            let parameter = if identifier.full_name == "√" {
-                parse_exponent(context)?
-            } else {
-                parse_factor(context)?
-            };
-            return Ok(Expr::FnCall(identifier, vec![parameter]));
-        }
+        let parameter = if identifier.full_name == "√" {
+            parse_exponent(context)?
+        } else {
+            parse_factor(context)?
+        };
+        return Ok(Expr::FnCall(identifier, vec![parameter]));
     }
 
     let parse_as_var_instead = match_token(context, TokenKind::OpenParenthesis)
