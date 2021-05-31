@@ -578,10 +578,8 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         || context.current_function.as_ref() == Some(&identifier.pure_name);
 
     // Eg. sqrt64
-    if match_token(context, TokenKind::Literal)
-        || peek(context).value == "π"
-        || peek(context).value == "τ"
-        || peek(context).value == "ϕ"
+    if exists_as_fn
+        && (match_token(context, TokenKind::Literal) || match_token(context, TokenKind::Identifier))
     {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
         if exists_as_fn {
