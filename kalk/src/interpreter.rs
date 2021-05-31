@@ -382,17 +382,45 @@ pub(crate) fn eval_fn_call_expr(
             }
 
             // Initialise the arguments as their own variables.
+            let mut new_argument_values = Vec::new();
             for (i, argument) in arguments.iter().enumerate() {
-                eval_stmt(
-                    context,
-                    &Stmt::VarDecl(
-                        Identifier::from_full_name(argument),
-                        Box::new(expressions[i].clone()),
-                    ),
-                )?;
+                let identifier_parts: Vec<&str> = argument.split('-').collect();
+                let var_decl = Stmt::VarDecl(
+                    Identifier::parameter_from_name(identifier_parts[1], identifier_parts[0]),
+                    Box::new(Expr::Literal(
+                        eval_expr(context, &expressions[i], "")?.to_f64(),
+                    )),
+                );
+
+                // Don't set these values just yet, since
+                // to avoid affecting the value of arguments
+                // during recursion.
+                new_argument_values.push((argument, var_decl));
             }
 
-            eval_expr(context, &fn_body, unit)
+            let mut old_argument_values = Vec::new();
+            for (name, value) in new_argument_values {
+                // Save the original argument values,
+                // so that they can be reverted to after
+                // the function call is evaluated.
+                // This is necessary since recursive
+                // function calls have the same argument names.
+                old_argument_values.push(context.symbol_table.get_and_remove_var(name));
+
+                // Now set the new variable value
+                eval_stmt(context, &value)?;
+            }
+
+            let fn_value = eval_expr(context, &fn_body, unit);
+
+            // Revert to original argument values
+            for old_argument_value in old_argument_values {
+                if let Some(old_argument_value) = old_argument_value {
+                    context.symbol_table.insert(old_argument_value);
+                }
+            }
+
+            fn_value
         }
         _ => Err(CalcError::UndefinedFn(identifier.full_name.clone())),
     }
