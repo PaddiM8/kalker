@@ -13,10 +13,15 @@ pub enum TokenKind {
     Star,
     Slash,
     Power,
-    Equals,
     Exclamation,
     Percent,
     Tick,
+    GreaterThan,
+    LessThan,
+    Equals,
+    NotEquals,
+    GreaterOrEquals,
+    LessOrEquals,
 
     UnitKeyword,
     ToKeyword,
@@ -28,6 +33,8 @@ pub enum TokenKind {
     ClosedFloor,
     OpenParenthesis,
     ClosedParenthesis,
+    OpenBracket,
+    ClosedBracket,
     Comma,
     Semicolon,
 
@@ -110,12 +117,19 @@ impl<'a> Lexer<'a> {
             '⌋' => build(TokenKind::ClosedFloor, "", span),
             '(' => build(TokenKind::OpenParenthesis, "", span),
             ')' => build(TokenKind::ClosedParenthesis, "", span),
-            '=' => build(TokenKind::Equals, "", span),
+            '[' => build(TokenKind::OpenBracket, "", span),
+            ']' => build(TokenKind::ClosedBracket, "", span),
             '!' => build(TokenKind::Exclamation, "", span),
+            '=' => build(TokenKind::Equals, "", span),
+            '>' => build(TokenKind::GreaterThan, "", span),
+            '<' => build(TokenKind::LessThan, "", span),
             ',' => build(TokenKind::Comma, "", span),
             ';' => build(TokenKind::Semicolon, "", span),
             '%' => build(TokenKind::Percent, "", span),
             '\'' => build(TokenKind::Tick, "", span),
+            '≠' => build(TokenKind::NotEquals, "", span),
+            '≥' => build(TokenKind::GreaterOrEquals, "", span),
+            '≤' => build(TokenKind::LessOrEquals, "", span),
             // Some of the special symbols will be lexed here,
             // so that they don't merge with other symbols.
             'π' => build(TokenKind::Identifier, "π", span),
@@ -128,13 +142,25 @@ impl<'a> Lexer<'a> {
 
         self.advance();
 
-        // Handle **
-        if let (TokenKind::Star, Some(c)) = (token.kind, self.peek()) {
-            if *c == '*' {
+        // Handle tokens with two characters
+        match (token.kind, self.peek()) {
+            (TokenKind::Star, Some('*')) => {
                 self.advance();
-
                 return build(TokenKind::Power, "", span);
             }
+            (TokenKind::Exclamation, Some('=')) => {
+                self.advance();
+                return build(TokenKind::NotEquals, "", span);
+            }
+            (TokenKind::GreaterThan, Some('=')) => {
+                self.advance();
+                return build(TokenKind::GreaterOrEquals, "", span);
+            }
+            (TokenKind::LessThan, Some('=')) => {
+                self.advance();
+                return build(TokenKind::LessOrEquals, "", span);
+            }
+            _ => (),
         }
 
         token
@@ -228,7 +254,8 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
     if let Some(c) = c {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
-            | '⌊' | '⌋' | '⌈' | '⌉' | ']' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' => false,
+            | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<' | '>' | '≠'
+            | '≥' | '≤' => false,
             _ => !c.is_digit(10),
         }
     } else {
@@ -268,6 +295,22 @@ mod tests {
             TokenKind::Equals,
             TokenKind::Exclamation,
             TokenKind::Comma,
+            TokenKind::EOF,
+        ];
+
+        match_tokens(tokens, expected);
+    }
+
+    #[test]
+    #[wasm_bindgen_test]
+    fn test_brackets() {
+        let tokens = Lexer::lex("[1 < 2]");
+        let expected = vec![
+            TokenKind::OpenBracket,
+            TokenKind::Literal,
+            TokenKind::LessThan,
+            TokenKind::Literal,
+            TokenKind::ClosedBracket,
             TokenKind::EOF,
         ];
 

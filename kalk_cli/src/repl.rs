@@ -76,7 +76,7 @@ impl Highlighter for LineHighlighter {
 
         let reg = Regex::new(
             r"(?x)
-            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉]+(_\d+)?) |
+            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]≠≥≤]+(_\d+)?) |
             (?P<op>[+\-/*%^!])",
         )
         .unwrap();
@@ -122,6 +122,9 @@ lazy_static! {
         m.insert("sqrt", "√");
         m.insert("tau", "τ");
         m.insert("(", "()");
+        m.insert("!=", "≠");
+        m.insert(">=", "≥");
+        m.insert("<=", "≤");
         m
     };
 }

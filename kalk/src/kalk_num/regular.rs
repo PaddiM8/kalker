@@ -7,6 +7,7 @@ pub struct KalkNum {
     pub(crate) value: f64,
     pub(crate) unit: String,
     pub(crate) imaginary_value: f64,
+    pub(crate) boolean_value: Option<bool>,
 }
 
 #[wasm_bindgen]
@@ -16,6 +17,7 @@ impl KalkNum {
             value,
             unit: unit.to_string(),
             imaginary_value: 0f64,
+            boolean_value: None,
         }
     }
 
@@ -28,6 +30,7 @@ impl KalkNum {
             } else {
                 imaginary_value
             },
+            boolean_value: None,
         }
     }
 
@@ -36,6 +39,16 @@ impl KalkNum {
             value: 0f64,
             unit: String::new(),
             imaginary_value: value,
+            boolean_value: None,
+        }
+    }
+
+    pub fn from_bool(value: bool) -> Self {
+        Self {
+            value: 0f64,
+            unit: String::new(),
+            imaginary_value: 0f64,
+            boolean_value: Some(value),
         }
     }
 

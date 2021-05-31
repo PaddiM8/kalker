@@ -186,6 +186,10 @@ impl KalkNum {
     }
 
     pub fn to_string_pretty(&self) -> String {
+        if let Some(boolean_value) = self.boolean_value {
+            return boolean_value.to_string();
+        }
+
         let real_f64 = self.to_f64();
         let imaginary_f64 = self.imaginary_to_f64();
         if real_f64.is_nan() || imaginary_f64.is_nan() {
@@ -312,6 +316,58 @@ impl KalkNum {
     pub(crate) fn rem(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
         KalkNum::new(self.value % right.value, &right.unit)
+    }
+
+    pub(crate) fn eq(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        right.boolean_value = Some(self.value == right.value);
+        right
+    }
+
+    pub(crate) fn not_eq(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
+        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        right.boolean_value = Some(self.value != right.value);
+        right
+    }
+
+    pub(crate) fn greater_than(
+        self,
+        context: &mut crate::interpreter::Context,
+        rhs: KalkNum,
+    ) -> KalkNum {
+        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        right.boolean_value = Some(self.value > right.value);
+        right
+    }
+
+    pub(crate) fn less_than(
+        self,
+        context: &mut crate::interpreter::Context,
+        rhs: KalkNum,
+    ) -> KalkNum {
+        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        right.boolean_value = Some(self.value < right.value);
+        right
+    }
+
+    pub(crate) fn greater_or_equals(
+        self,
+        context: &mut crate::interpreter::Context,
+        rhs: KalkNum,
+    ) -> KalkNum {
+        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        right.boolean_value = Some(self.value >= right.value);
+        right
+    }
+
+    pub(crate) fn less_or_equals(
+        self,
+        context: &mut crate::interpreter::Context,
+        rhs: KalkNum,
+    ) -> KalkNum {
+        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        right.boolean_value = Some(self.value <= right.value);
+        right
     }
 
     pub(crate) fn add_without_unit(self, rhs: KalkNum) -> KalkNum {
