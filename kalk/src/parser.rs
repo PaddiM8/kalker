@@ -98,12 +98,14 @@ impl Default for Context {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalcError {
     ExpectedDx,
+    ExpectedIf,
     IncorrectAmountOfArguments(usize, String, usize),
     InvalidNumberLiteral(String),
     InvalidOperator,
     InvalidUnit,
     TimedOut,
     VariableReferencesItself,
+    PiecewiseConditionsAreFalse,
     UnexpectedToken(TokenKind, TokenKind),
     UndefinedFn(String),
     UndefinedVar(String),
@@ -117,6 +119,7 @@ impl ToString for CalcError {
     fn to_string(&self) -> String {
         match self {
             CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
+            CalcError::ExpectedIf => format!("Expected 'if', with a condition after it."),
             CalcError::IncorrectAmountOfArguments(expected, func, got) => format!(
                 "Expected {} arguments for function {}, but got {}.",
                 expected, func, got
@@ -126,6 +129,7 @@ impl ToString for CalcError {
             CalcError::InvalidUnit => format!("Invalid unit."),
             CalcError::TimedOut => format!("Operation took too long."),
             CalcError::VariableReferencesItself => format!("Variable references itself."),
+            CalcError::PiecewiseConditionsAreFalse => format!("All the conditions in the piecewise are false."),
             CalcError::UnexpectedToken(got, expected) => {
                 format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
             }
@@ -151,7 +155,8 @@ pub fn eval(
     // if the equal sign is for one of those instead.
     // It also should not contain an iverson bracket, since equal signs in there
     // mean something else. This is not super reliable, and should probably be improved in the future.
-    context.contains_equation_equal_sign = input.contains("=") && !input.contains("[");
+    context.contains_equation_equal_sign =
+        input.contains("=") && !input.contains("[") && !input.contains("{");
     let statements = parse(context, input)?;
 
     let mut interpreter = interpreter::Context::new(
@@ -234,7 +239,13 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
                 context.current_function_parameters = Some(parameter_identifiers.clone());
                 context.contains_equation_equal_sign = false;
                 context.equation_variable = None;
-                let expr = parse_expr(context)?;
+
+                // Piecewise
+                let expr = if match_token(context, TokenKind::OpenBrace) {
+                    parse_piecewise(context)?
+                } else {
+                    parse_expr(context)?
+                };
                 let fn_decl = Stmt::FnDecl(identifier, parameter_identifiers, Box::new(expr));
                 context.current_function = None;
                 context.current_function_parameters = None;
@@ -252,6 +263,46 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     // Redo the parsing for this specific part.
     context.pos = began_at;
     Ok(Stmt::Expr(Box::new(parse_expr(context)?)))
+}
+
+fn parse_piecewise(context: &mut Context) -> Result<Expr, CalcError> {
+    advance(context);
+
+    let mut pieces = Vec::new();
+    let mut reached_otherwise = false;
+    // Parse `expr if condition`
+    // do-while loop
+    while {
+        let left_expr = parse_expr(context)?;
+        if match_token(context, TokenKind::IfKeyword) {
+            advance(context);
+            pieces.push(crate::ast::ConditionalPiece {
+                expr: left_expr,
+                condition: parse_expr(context)?,
+            });
+        } else if match_token(context, TokenKind::OtherwiseKeyword) {
+            advance(context);
+            // Yeah, a bit hacky, but there's no `true` keyword...
+            let true_expr = Expr::Binary(
+                Box::new(Expr::Literal(1f64)),
+                TokenKind::Equals,
+                Box::new(Expr::Literal(1f64)),
+            );
+            pieces.push(crate::ast::ConditionalPiece {
+                expr: left_expr,
+                condition: true_expr,
+            });
+
+            reached_otherwise = true;
+        } else {
+            return Err(CalcError::ExpectedIf);
+        }
+
+        advance(context);
+        previous(context).kind == TokenKind::Semicolon && !reached_otherwise
+    } {}
+
+    Ok(Expr::Piecewise(pieces))
 }
 
 fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {

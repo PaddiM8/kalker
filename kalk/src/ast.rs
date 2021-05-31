@@ -20,6 +20,13 @@ pub enum Expr {
     Group(Box<Expr>),
     FnCall(Identifier, Vec<Expr>),
     Literal(f64),
+    Piecewise(Vec<ConditionalPiece>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConditionalPiece {
+    pub expr: Expr,
+    pub condition: Expr,
 }
 
 #[derive(Debug, Clone, PartialEq)]

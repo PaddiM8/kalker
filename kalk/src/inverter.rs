@@ -86,6 +86,7 @@ fn invert(
             unknown_var,
         ),
         Expr::Literal(_) => Ok((target_expr, expr.clone())),
+        Expr::Piecewise(_) => Err(CalcError::UnableToInvert(String::from("Piecewise"))),
     }
 }
 
@@ -384,6 +385,7 @@ pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> 
             false
         }
         Expr::Literal(_) => false,
+        Expr::Piecewise(_) => true, // Let it try to invert this. It will just display the error message.
     }
 }
 

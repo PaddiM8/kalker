@@ -119,6 +119,7 @@ pub(crate) fn eval_expr(
         Expr::FnCall(identifier, expressions) => {
             eval_fn_call_expr(context, identifier, expressions, unit)
         }
+        Expr::Piecewise(pieces) => eval_piecewise(context, pieces, unit),
     }
 }
 
@@ -395,6 +396,22 @@ pub(crate) fn eval_fn_call_expr(
         }
         _ => Err(CalcError::UndefinedFn(identifier.full_name.clone())),
     }
+}
+
+fn eval_piecewise(
+    context: &mut Context,
+    pieces: &Vec<crate::ast::ConditionalPiece>,
+    unit: &str,
+) -> Result<KalkNum, CalcError> {
+    for piece in pieces {
+        if let Some(condition_is_true) = eval_expr(context, &piece.condition, unit)?.boolean_value {
+            if condition_is_true {
+                return Ok(eval_expr(context, &piece.expr, unit)?);
+            }
+        }
+    }
+
+    Err(CalcError::PiecewiseConditionsAreFalse)
 }
 
 #[cfg(test)]

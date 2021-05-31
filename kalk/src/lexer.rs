@@ -25,6 +25,8 @@ pub enum TokenKind {
 
     UnitKeyword,
     ToKeyword,
+    IfKeyword,
+    OtherwiseKeyword,
 
     Pipe,
     OpenCeil,
@@ -35,6 +37,8 @@ pub enum TokenKind {
     ClosedParenthesis,
     OpenBracket,
     ClosedBracket,
+    OpenBrace,
+    ClosedBrace,
     Comma,
     Semicolon,
 
@@ -119,6 +123,8 @@ impl<'a> Lexer<'a> {
             ')' => build(TokenKind::ClosedParenthesis, "", span),
             '[' => build(TokenKind::OpenBracket, "", span),
             ']' => build(TokenKind::ClosedBracket, "", span),
+            '{' => build(TokenKind::OpenBrace, "", span),
+            '}' => build(TokenKind::ClosedBrace, "", span),
             '!' => build(TokenKind::Exclamation, "", span),
             '=' => build(TokenKind::Equals, "", span),
             '>' => build(TokenKind::GreaterThan, "", span),
@@ -222,6 +228,8 @@ impl<'a> Lexer<'a> {
         let kind = match value.as_ref() {
             "unit" => TokenKind::UnitKeyword,
             "to" => TokenKind::ToKeyword,
+            "if" => TokenKind::IfKeyword,
+            "otherwise" => TokenKind::OtherwiseKeyword,
             _ => TokenKind::Identifier,
         };
 
@@ -254,8 +262,8 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
     if let Some(c) = c {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
-            | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<' | '>' | '≠'
-            | '≥' | '≤' => false,
+            | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
+            | '>' | '≠' | '≥' | '≤' => false,
             _ => !c.is_digit(10),
         }
     } else {
