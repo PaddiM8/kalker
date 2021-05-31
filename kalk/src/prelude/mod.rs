@@ -89,6 +89,7 @@ lazy_static! {
         m.insert("abs", (UnaryFuncInfo(abs, Other), ""));
         m.insert("cbrt", (UnaryFuncInfo(cbrt, Other), ""));
         m.insert("ceil", (UnaryFuncInfo(ceil, Other), ""));
+        m.insert("iverson", (UnaryFuncInfo(inverson, Other), ""));
         m.insert("exp", (UnaryFuncInfo(exp, Other), ""));
         m.insert("floor", (UnaryFuncInfo(floor, Other), ""));
         m.insert("frac", (UnaryFuncInfo(frac, Other), ""));
@@ -504,6 +505,18 @@ pub mod funcs {
 
     pub fn im(x: KalkNum) -> KalkNum {
         KalkNum::new_with_imaginary(x.value, "", KalkNum::default().value)
+    }
+
+    pub fn inverson(x: KalkNum) -> KalkNum {
+        KalkNum::from(if let Some(boolean_value) = x.boolean_value {
+            if boolean_value {
+                1
+            } else {
+                0
+            }
+        } else {
+            1
+        })
     }
 
     pub fn log(x: KalkNum) -> KalkNum {

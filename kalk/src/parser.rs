@@ -149,7 +149,9 @@ pub fn eval(
 ) -> Result<Option<KalkNum>, CalcError> {
     // Variable and function declaration parsers will set this to false
     // if the equal sign is for one of those instead.
-    context.contains_equation_equal_sign = input.contains("=");
+    // It also should not contain an iverson bracket, since equal signs in there
+    // mean something else. This is not super reliable, and should probably be improved in the future.
+    context.contains_equation_equal_sign = input.contains("=") && !input.contains("[");
     let statements = parse(context, input)?;
 
     let mut interpreter = interpreter::Context::new(
@@ -302,13 +304,14 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 }
 
 fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
-    Ok(parse_equation(context)?)
+    Ok(parse_equality(context)?)
 }
 
-fn parse_equation(context: &mut Context) -> Result<Expr, CalcError> {
-    let left = parse_to(context)?;
+fn parse_equality(context: &mut Context) -> Result<Expr, CalcError> {
+    let mut left = parse_to(context)?;
 
-    if match_token(context, TokenKind::Equals) {
+    // Equation
+    if match_token(context, TokenKind::Equals) && context.contains_equation_equal_sign {
         advance(context);
         let right = parse_to(context)?;
         let var_name = if let Some(var_name) = &context.equation_variable {
@@ -333,7 +336,23 @@ fn parse_equation(context: &mut Context) -> Result<Expr, CalcError> {
             Identifier::from_full_name(var_name),
             Box::new(inverted.clone()),
         ));
+
         return Ok(inverted);
+    }
+
+    // Equality check
+    while match_token(context, TokenKind::Equals)
+        || match_token(context, TokenKind::NotEquals)
+        || match_token(context, TokenKind::GreaterThan)
+        || match_token(context, TokenKind::LessThan)
+        || match_token(context, TokenKind::GreaterOrEquals)
+        || match_token(context, TokenKind::LessOrEquals)
+    {
+        let op = peek(context).kind;
+        advance(context);
+        let right = parse_to(context)?;
+
+        left = Expr::Binary(Box::new(left), op, Box::new(right));
     }
 
     Ok(left)
@@ -462,7 +481,9 @@ fn parse_factorial(context: &mut Context) -> Result<Expr, CalcError> {
 fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
     let expr = match peek(context).kind {
         TokenKind::OpenParenthesis => parse_group(context)?,
-        TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
+        TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor | TokenKind::OpenBracket => {
+            parse_group_fn(context)?
+        }
         TokenKind::Identifier => parse_identifier(context)?,
         TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
         _ => return Err(CalcError::UnableToParseExpression),
@@ -484,6 +505,7 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
         TokenKind::Pipe => "abs",
         TokenKind::OpenCeil => "ceil",
         TokenKind::OpenFloor => "floor",
+        TokenKind::OpenBracket => "iverson",
         _ => unreachable!(),
     };
 

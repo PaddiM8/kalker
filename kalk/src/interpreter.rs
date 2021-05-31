@@ -156,6 +156,12 @@ fn eval_binary_expr(
         TokenKind::Slash => left.div(context, right),
         TokenKind::Percent => left.rem(context, right),
         TokenKind::Power => left.pow(context, right),
+        TokenKind::Equals => left.eq(context, right),
+        TokenKind::NotEquals => left.not_eq(context, right),
+        TokenKind::GreaterThan => left.greater_than(context, right),
+        TokenKind::LessThan => left.less_than(context, right),
+        TokenKind::GreaterOrEquals => left.greater_or_equals(context, right),
+        TokenKind::LessOrEquals => left.less_or_equals(context, right),
         _ => KalkNum::from(1),
     };
 
@@ -468,12 +474,54 @@ mod tests {
         let mul = Stmt::Expr(binary(literal(2f64), Star, literal(3f64)));
         let div = Stmt::Expr(binary(literal(2f64), Slash, literal(4f64)));
         let pow = Stmt::Expr(binary(literal(2f64), Power, literal(3f64)));
+        let equals = Stmt::Expr(binary(literal(2f64), Equals, literal(3f64)));
+        let not_equals = Stmt::Expr(binary(literal(2f64), NotEquals, literal(3f64)));
+        let greater_than = Stmt::Expr(binary(literal(2f64), GreaterThan, literal(3f64)));
+        let less_than = Stmt::Expr(binary(literal(2f64), LessThan, literal(3f64)));
+        let greater_or_equals = Stmt::Expr(binary(literal(2f64), GreaterOrEquals, literal(3f64)));
+        let less_or_equals = Stmt::Expr(binary(literal(2f64), LessOrEquals, literal(3f64)));
 
         assert_eq!(interpret(add).unwrap().unwrap().to_f64(), 5f64);
         assert_eq!(interpret(sub).unwrap().unwrap().to_f64(), -1f64);
         assert_eq!(interpret(mul).unwrap().unwrap().to_f64(), 6f64);
         assert_eq!(interpret(div).unwrap().unwrap().to_f64(), 0.5f64);
         assert_eq!(interpret(pow).unwrap().unwrap().to_f64(), 8f64);
+
+        let result = interpret(equals).unwrap().unwrap();
+        assert_eq!(
+            (result.to_f64(), result.boolean_value.unwrap()),
+            (3f64, false)
+        );
+
+        let result = interpret(not_equals).unwrap().unwrap();
+        assert_eq!(
+            (result.to_f64(), result.boolean_value.unwrap()),
+            (3f64, true)
+        );
+
+        let result = interpret(greater_than).unwrap().unwrap();
+        assert_eq!(
+            (result.to_f64(), result.boolean_value.unwrap()),
+            (3f64, false)
+        );
+
+        let result = interpret(less_than).unwrap().unwrap();
+        assert_eq!(
+            (result.to_f64(), result.boolean_value.unwrap()),
+            (3f64, true)
+        );
+
+        let result = interpret(greater_or_equals).unwrap().unwrap();
+        assert_eq!(
+            (result.to_f64(), result.boolean_value.unwrap()),
+            (3f64, false)
+        );
+
+        let result = interpret(less_or_equals).unwrap().unwrap();
+        assert_eq!(
+            (result.to_f64(), result.boolean_value.unwrap()),
+            (3f64, true)
+        );
     }
 
     #[test]
