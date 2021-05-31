@@ -574,6 +574,8 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     let identifier = Identifier::from_full_name(&advance(context).value);
+    let exists_as_fn = context.symbol_table.contains_fn(&identifier.pure_name)
+        || context.current_function.as_ref() == Some(&identifier.pure_name);
 
     // Eg. sqrt64
     if match_token(context, TokenKind::Literal)
@@ -582,7 +584,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         || peek(context).value == "ϕ"
     {
         // If there is a function with this name, parse it as a function, with the next token as the argument.
-        if context.symbol_table.contains_fn(&identifier.pure_name) {
+        if exists_as_fn {
             let parameter = if identifier.full_name == "√" {
                 parse_exponent(context)?
             } else {
@@ -594,7 +596,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
 
     let parse_as_var_instead = match_token(context, TokenKind::OpenParenthesis)
         && !context.parsing_identifier_stmt
-        && !context.symbol_table.contains_fn(&identifier.pure_name);
+        && !exists_as_fn;
 
     // Eg. sqrt(64)
     // If the function doesn't exist, parse it as a variable and multiplication instead.
