@@ -409,13 +409,19 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
         || match_token(context, TokenKind::Identifier)
         || match_token(context, TokenKind::Literal)
         || match_token(context, TokenKind::OpenParenthesis)
+        || match_token(context, TokenKind::OpenCeil)
+        || match_token(context, TokenKind::OpenFloor)
+        || match_token(context, TokenKind::OpenBracket)
     {
         // If the token is an identifier, literal, or open parenthesis,
         // assume it's multiplication. Eg. 3y or (3x + 2)(2 + 3)
         let op = match peek(context).kind {
-            TokenKind::Identifier | TokenKind::Literal | TokenKind::OpenParenthesis => {
-                TokenKind::Star
-            }
+            TokenKind::Identifier
+            | TokenKind::Literal
+            | TokenKind::OpenParenthesis
+            | TokenKind::OpenCeil
+            | TokenKind::OpenFloor
+            | TokenKind::OpenBracket => TokenKind::Star,
             _ => advance(context).kind,
         };
 
