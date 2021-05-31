@@ -384,12 +384,19 @@ pub(crate) fn eval_fn_call_expr(
             // Initialise the arguments as their own variables.
             let mut new_argument_values = Vec::new();
             for (i, argument) in arguments.iter().enumerate() {
-                let identifier_parts: Vec<&str> = argument.split('-').collect();
+                let argument_identifier = if argument.contains("-") {
+                    let identifier_parts: Vec<&str> = argument.split('-').collect();
+                    Identifier::parameter_from_name(identifier_parts[1], identifier_parts[0])
+                } else {
+                    Identifier::from_full_name(argument)
+                };
                 let var_decl = Stmt::VarDecl(
-                    Identifier::parameter_from_name(identifier_parts[1], identifier_parts[0]),
-                    Box::new(Expr::Literal(
-                        eval_expr(context, &expressions[i], "")?.to_f64(),
-                    )),
+                    argument_identifier,
+                    Box::new(crate::ast::build_literal_ast(&eval_expr(
+                        context,
+                        &expressions[i],
+                        "",
+                    )?)),
                 );
 
                 // Don't set these values just yet, since
