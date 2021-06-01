@@ -143,10 +143,9 @@ fn eval_binary_expr(
     let left = eval_expr(context, left_expr, "")?;
     let mut right = eval_expr(context, right_expr, "")?;
     if let Expr::Unary(TokenKind::Percent, _) = right_expr {
+        right = right.mul(context, left.clone());
         if let TokenKind::Star = op {
-            right = right.mul(context, KalkNum::from(0.01));
-        } else {
-            right = right.mul(context, left.clone());
+            return Ok(right);
         }
     }
 
