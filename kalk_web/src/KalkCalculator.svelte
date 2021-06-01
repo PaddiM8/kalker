@@ -48,14 +48,13 @@
     let hasBeenInteractedWith = false;
 
     function setText(text: string) {
-        inputElement.value = text;
         const highlighted = highlight(text);
         setHtml(highlighted);
     }
 
     function setHtml(html: string) {
         highlightedTextElement.innerHTML = html;
-        inputElement.value = highlightedTextElement.textContent;
+        inputElement.value = highlightedTextElement.innerText;
 
         if (!html) {
             highlightedTextElement.innerHTML = `<span class='placeholder'>${hinttext}</div>`;
@@ -72,7 +71,7 @@
     ): [result: string, success: boolean] {
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
-            const result = kalkContext.evaluate(input);
+            const result = kalkContext.evaluate(input.replaceAll(/\s+/g, " "));
 
             return [result?.toPrettyString(), true];
         } catch (err) {
@@ -80,9 +79,28 @@
         }
     }
 
+    function hasUnevenAmountOfBraces(input: string): boolean {
+        let openCount = 0;
+        let closedCount = 0;
+        for (const char of input) {
+            if (char == "{") openCount++;
+            if (char == "}") closedCount++;
+        }
+
+        return openCount > closedCount;
+    }
+
     function handleKeyDown(event: KeyboardEvent, kalk: Kalk) {
         hasBeenInteractedWith = true;
         if (event.key == "Enter") {
+            if (
+                hasUnevenAmountOfBraces(
+                    (event.target as HTMLTextAreaElement).value
+                )
+            ) {
+                return;
+            }
+
             selectedLineOffset = 0;
             const input = inputElement.value;
             let output: string;
@@ -157,13 +175,7 @@
 
     function handleInput(event: Event) {
         const target = event.target as HTMLInputElement;
-        // Make sure it doesn't mess with the HTML.
-        target.value = target.value
-            .replaceAll("\n", "")
-            .replaceAll("  ", " ")
-            .replaceAll("&", "")
-            .replaceAll("<", "");
-        setText(target.value);
+        setText(target.value == "\n" ? "" : target.value);
     }
 
     function handleTouchLine(event: Event) {
@@ -236,8 +248,22 @@
         if (!input) return "";
         let result = input;
         result = result.replace(
-            /(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈]+(_\d+)?)|(?<op>[+\-/*%^!≈])/g,
-            (substring, identifier, _, op) => {
+            /(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤]+(_\d+)?))/g,
+            (substring, _, html, _2, op, identifier) => {
+                if (html) {
+                    if (substring == "<") return "&lt;";
+                    if (substring == ">") return "&gt;";
+                    if (substring == "&") return "&amp;";
+                    if (substring.match(/\s+/)) return "&nbsp;";
+                    if (substring.startsWith("\n")) {
+                        if (substring.endsWith("}")) {
+                            return "<br />}";
+                        } else {
+                            return "<br />&nbsp;&nbsp;";
+                        }
+                    }
+                }
+
                 if (identifier) {
                     let newSubstring: string = substring;
                     switch (substring) {
@@ -412,6 +438,7 @@
             width: 100%;
             color: white;
             word-wrap: anywhere;
+            line-height: 1;
             z-index: 1;
         }
 
@@ -420,11 +447,14 @@
             position: absolute;
             top: 0;
             left: 0;
+            height: 100%;
             width: 100%;
             border: 0;
             font-size: inherit;
             font-family: inherit;
 
+            line-height: 1;
+            overflow: hidden;
             cursor: text;
             color: transparent;
             background: transparent;
