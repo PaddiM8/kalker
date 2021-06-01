@@ -310,25 +310,42 @@ pub(crate) fn eval_fn_call_expr(
 
     // Special functions
     match identifier.full_name.as_ref() {
-        "sum" | "Σ" => {
+        "sum" | "Σ" | "∑" | "prod" | "∏" => {
             // Make sure exactly 3 arguments were supplied.
             if expressions.len() != 3 {
                 return Err(CalcError::IncorrectAmountOfArguments(
                     3,
-                    "sum".into(),
+                    "sum/prod".into(),
                     expressions.len(),
                 ));
             }
 
             let start = eval_expr(context, &expressions[0], "")?.to_f64() as i128;
             let end = eval_expr(context, &expressions[1], "")?.to_f64() as i128;
-            let mut sum = KalkNum::default();
+            let sum_else_prod = match identifier.full_name.as_ref() {
+                "sum" => true,
+                "Σ" => true,
+                "∑" => true,
+                "prod" => false,
+                "∏" => false,
+                _ => unreachable!(),
+            };
+            let mut sum = if sum_else_prod {
+                KalkNum::default()
+            } else {
+                KalkNum::from(1f64)
+            };
 
             for n in start..=end {
                 context.sum_n_value = Some(n);
                 let eval = eval_expr(context, &expressions[2], "")?;
-                sum.value += eval.value;
-                sum.imaginary_value += eval.imaginary_value;
+                if sum_else_prod {
+                    sum.value += eval.value;
+                    sum.imaginary_value += eval.imaginary_value;
+                } else {
+                    sum.value *= eval.value;
+                    sum.imaginary_value *= eval.imaginary_value;
+                }
             }
 
             context.sum_n_value = None;

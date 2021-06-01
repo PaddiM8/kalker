@@ -161,6 +161,9 @@ impl BinaryFuncInfo {
 pub fn is_prelude_func(identifier: &str) -> bool {
     identifier == "sum"
         || identifier == "Σ"
+        || identifier == "∑"
+        || identifier == "prod"
+        || identifier == "∏"
         || identifier == "integrate"
         || identifier == "integral"
         || identifier == "∫"
