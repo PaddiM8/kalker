@@ -115,6 +115,7 @@ lazy_static! {
         m.insert("floor", "⌊⌋");
         m.insert("gamma", "Γ");
         m.insert("sum", "Σ()");
+        m.insert("prod", "∏()");
         m.insert("integrate", "∫()");
         m.insert("integral", "∫()");
         m.insert("phi", "ϕ");
@@ -152,6 +153,7 @@ impl Completer for RLHelper {
         line.insert_str(line.pos(), elected);
         line.move_forward(match elected {
             "Σ()" => 2,
+            "∏()" => 2,
             "∫()" => 2,
             _ => 1,
         });

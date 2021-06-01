@@ -143,6 +143,7 @@ impl<'a> Lexer<'a> {
             'τ' => build(TokenKind::Identifier, "τ", span),
             'ϕ' => build(TokenKind::Identifier, "ϕ", span),
             'Γ' => build(TokenKind::Identifier, "Γ", span),
+            '∏' => build(TokenKind::Identifier, "Γ", span),
             _ => build(TokenKind::Unknown, "", span),
         };
 

@@ -33,7 +33,7 @@
         "π",
         ",",
         "%",
-        "Σ",
+        "∑",
         "⌊",
         "⌈",
         "∫",
@@ -272,7 +272,11 @@
                             break;
                         }
                         case "sum": {
-                            newSubstring = "Σ";
+                            newSubstring = "∑";
+                            break;
+                        }
+                        case "prod": {
+                            newSubstring = "∏";
                             break;
                         }
                         case "integrate": {
