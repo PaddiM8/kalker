@@ -213,7 +213,6 @@ mod tests {
             KalkNum::new_with_imaginary(KalkNum::from(2f64).value, "", KalkNum::from(3f64).value),
         )
         .unwrap();
-        println!("{}", result.to_f64());
         assert!(cmp(result.to_f64(), -4.5f64) || cmp(result.to_f64(), -4.499999f64));
         assert!(cmp(result.imaginary_to_f64(), 18f64));
     }
