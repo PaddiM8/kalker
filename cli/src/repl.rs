@@ -27,7 +27,7 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
 
     // If in tty, print the welcome message
     if atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout) {
-        println!("kalk");
+        println!("kalker");
         println!(
             "{}",
             ansi_term::Color::Fixed(246).paint("Type 'help' for instructions.")

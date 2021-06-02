@@ -2,6 +2,6 @@ target
 */target
 Cargo.lock
 kalk/Cargo.lock
-kalk_cli/Cargo.lock
-kalk_cli/test
+cli/Cargo.lock
+cli/test
 .vscode/

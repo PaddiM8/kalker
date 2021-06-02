@@ -1,8 +1,8 @@
-# Kalk Web Component
+# Kalker Web Component
 ![npm](https://img.shields.io/npm/v/@paddim8/kalk-component)
 ![license](https://img.shields.io/npm/l/@paddim8/kalk-component)
 
-A web component built with Svelte that uses kalk (WebAssembly).
+A web component built with Svelte that uses the kalk library (WebAssembly).
 
 ![preview](preview.png)
 
@@ -26,7 +26,7 @@ I am not aware of a better way.
 ```html
 <div class="kalk"> <!-- Apply css rules for position/size/font/etc. to this -->
     <kalk-calculator>
-        <console-line>kalk</console-line>
+        <console-line>kalker</console-line>
         <console-line>
             <span class="hint">Type 'help' for instructions.</span>
         </console-line>

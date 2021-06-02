@@ -1,6 +1,6 @@
 {
-  "appId": "net.strct.kalk",
-  "appName": "Kalk",
+  "appId": "net.strct.kalker",
+  "appName": "Kalker",
   "bundledWebRuntime": true,
   "npmClient": "npm",
   "webDir": "www",
