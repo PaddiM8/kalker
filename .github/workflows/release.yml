@@ -54,6 +54,7 @@ jobs:
 
   publish_kalk_web:
     name: publish kalk_web
+    if: always()
     runs-on: ubuntu-latest
     needs: [publish_npm]
     steps:
