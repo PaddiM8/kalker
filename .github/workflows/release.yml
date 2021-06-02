@@ -20,7 +20,7 @@ jobs:
         continue-on-error: true
         run: cargo publish --manifest-path kalk/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
       - name: Publish CLI
-        run: sleep 20 && cargo publish --manifest-path kalker/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
+        run: sleep 20 && cargo publish --manifest-path cli/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
 
   publish_npm:
     name: publish to npm
