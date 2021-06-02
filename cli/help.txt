@@ -1,6 +1,6 @@
 Overview of features
     Operators: +, -, *, /, !, %
-    Groups: (), ⌈⌉, ⌋⌊
+    Groups: (), ⌈⌉, ⌊⌋, []
     Pre-defined functions and constants
     User-defined functions and variables
     User-defined units (experimental and limited)
