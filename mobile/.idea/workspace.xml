@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f715975d-940d-4ed4-9dbe-0bcb3d72e51d" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/../kalk_web/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../kalk_web/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../web/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../web/package.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

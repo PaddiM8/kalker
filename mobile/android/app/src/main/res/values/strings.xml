@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kalker</string>
+    <string name="title_activity_main">Kalker</string>
+    <string name="package_name">net.strct.kalker</string>
+    <string name="custom_url_scheme">net.strct.kalker</string>
+</resources>

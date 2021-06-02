@@ -107,7 +107,7 @@
 
             if (input.trim() == "help") {
                 output = `<a style="color: ${linkcolor}"
-                             href="https://kalk.strct.net/#usage"
+                             href="https://kalker.strct.net/#usage"
                              target="blank">Link to usage guide</a>`;
             } else if (input.trim() == "clear") {
                 outputLines = [];

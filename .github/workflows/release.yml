@@ -20,7 +20,7 @@ jobs:
         continue-on-error: true
         run: cargo publish --manifest-path kalk/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
       - name: Publish CLI
-        run: sleep 20 && cargo publish --manifest-path kalk_cli/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
+        run: sleep 20 && cargo publish --manifest-path kalker/Cargo.toml --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --verbose
 
   publish_npm:
     name: publish to npm
@@ -64,13 +64,13 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - name: build
         run: |
-          cd kalk_web
+          cd web
           npm install
       - name: publish
         run: echo success
       - name: publish
         run: |
-          cd kalk_web
+          cd web
           sudo apt install expect
           /usr/bin/expect <<EOD
           spawn npm adduser
@@ -92,11 +92,11 @@ jobs:
       - name: Compile
         run: |
           cargo build --release --verbose
-          cp target/release/kalk target/release/kalk-linux
+          cp target/release/kalker target/release/kalker-linux
       - uses: actions/upload-artifact@v2
         with:
           name: binaries
-          path: target/release/kalk-linux
+          path: target/release/kalker-linux
 
   release_mac:
     name: release mac
@@ -113,11 +113,11 @@ jobs:
       - name: Compile
         run: |
           cargo build --release --verbose
-          zip -r kalk-macOS.zip target/release/kalk
+          zip -r kalker-macOS.zip target/release/kalker
       - uses: actions/upload-artifact@v2
         with:
           name: binaries
-          path: kalk-macOS.zip
+          path: kalker-macOS.zip
 
   release_windows:
     name: release windows
@@ -133,8 +133,8 @@ jobs:
             C:\Users\runneradmin\.cargo\registry\index
             C:\Users\runneradmin\.cargo\registry\cache
             C:\Users\runneradmin\.cargo\registry\cache
-            D:\a\kalk\kalk\target
-            C:\msys64\home\paddi\kalk\target
+            D:\a\kalker\kalker\target
+            C:\msys64\home\paddi\kalker\target
       - uses: msys2/setup-msys2@v2
         with:
           update: true
@@ -157,13 +157,13 @@ jobs:
       - shell: msys2 {0}
         run: |
           [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix
-          cd kalk_cli
+          cd cli
           cargo wix --no-build --nocapture
-          mv target/wix/*.msi target/wix/kalk-windows.msi
+          mv target/wix/*.msi target/wix/kalker-windows.msi
       - uses: actions/upload-artifact@v2
         with:
           name: binaries
-          path: kalk_cli/target/wix/kalk-windows.msi
+          path: cli/target/wix/kalker-windows.msi
 
   release_android:
     name: release android
@@ -171,16 +171,16 @@ jobs:
     needs: [publish_kalk_web]
     defaults:
       run:
-        working-directory: ./kalk_mobile
+        working-directory: ./mobile
 
     steps:
       - uses: actions/checkout@master
       - uses: actions/cache@v2
         with:
           path: |
-            kalk_mobile/android/.gradle
-            kalk_mobile/android/build
-            kalk_mobile/android/app/build
+            mobile/android/.gradle
+            mobile/android/build
+            mobile/android/app/build
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
       - name: npm
         run: |
@@ -190,21 +190,21 @@ jobs:
         run: |
           npx cap sync
           cd android
-          version=$(cat ../../kalk_web/package.json | grep version | head -1  | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+          version=$(cat ../../web/package.json | grep version | head -1  | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
           APP_VERSION_NAME=$version ./gradlew assembleRelease
       - uses: r0adkll/sign-android-release@v1
         name: sign apk
         with:
-          releaseDirectory: kalk_mobile/android/app/build/outputs/apk/release
+          releaseDirectory: mobile/android/app/build/outputs/apk/release
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
-      - run: mv $(ls -Art android/app/build/outputs/apk/release/*.apk | tail -n 1) ../kalk-android.apk
+      - run: mv $(ls -Art android/app/build/outputs/apk/release/*.apk | tail -n 1) ../kalker-android.apk
       - uses: actions/upload-artifact@v2
         with:
           name: binaries
-          path: kalk-android.apk
+          path: kalker-android.apk
 
   create_release:
     name: Create Release

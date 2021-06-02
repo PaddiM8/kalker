@@ -6,14 +6,10 @@ description = "A calculator that supports user-defined functions, variables and 
 edition = "2018"
 keywords = ["math", "calculator", "cli", "command-line"]
 license = "MIT"
-name = "kalk_cli"
+name = "kalker"
 readme = "../README.md"
-repository = "https://github.com/PaddiM8/kalk"
+repository = "https://github.com/PaddiM8/kalker"
 version = "0.5.4"
-
-[[bin]]
-name = "kalk"
-path = "src/main.rs"
 
 [dependencies]
 ansi_term = "0.12.1"
@@ -29,9 +25,9 @@ winres = "0.1"
 
 [package.metadata.bundle]
 icon = ["../res/icon*"]
-identifier = "net.strct.kalk"
-name = "kalk"
+identifier = "net.strct.kalker"
+name = "kalker"
 short_description = "A calculator that supports user-defined functions, variables and units, and can handle fairly ambiguous syntax."
 
-[package.metadata.bundle.bin.kalk]
-name = "kalk"
+[package.metadata.bundle.bin.kalker]
+name = "kalker"
