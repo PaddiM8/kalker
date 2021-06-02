@@ -67,8 +67,6 @@ jobs:
           cd web
           npm install
       - name: publish
-        run: echo success
-      - name: publish
         run: |
           cd web
           sudo apt install expect
