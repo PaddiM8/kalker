@@ -10,16 +10,17 @@ Kalker (or "kalk") is a calculator program/website that supports user-defined va
 
 ## Features
 
-* Operators: +, -, \*, /, !
-* Groups: (), ⌈⌉, ⌊⌋, []
+* Operators: `+`, `-`, `*`, `/`, `!`
+* Groups: `()`, `⌈ceil⌉`, `⌊floor⌋`, `[iverson]`
 * [Pre-defined functions and constants](https://github.com/PaddiM8/kalker/blob/master/kalk/src/prelude.rs)
 * User-defined functions and variables. `f(x, y) = xy`, `x = 5`
 * Derivative of functions (derivatives of noisy functions or of higher order can be a bit inaccurate). `f'(2)`, `sin'(-pi)`
-* Integration. `∫(0, pi, sin(x) dx)` or `∫(0, π, sin(x) dx)`
+* Integration. `∫(0, pi, sin(x) dx)` or `∫(0, π, sin(x) dx)`, maybe sometimes be slightly off
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
 * Syntax highlighting
 * Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
 * Sum function: `sum(start, to, expression)` Eg. `sum(1, 3, 2n+1)` is the same as `2*1+1 + 2*2+1 + 2*3+1` = `15`
+* Piecewise functions: `f(x) = { f(x + 1) if x <= 1; x otherwise }`, pressing enter before typing the final `}` will make a new line without submitting.
 * Load a file including predefined functions and constants. For example, if you're going to use kalker for physics, you load up your file with physics functions/constants when starting kalker. `-i file`
 * Misc: separate expressions by a semicolon to write them on the same line, use the `ans` variable to get the value of the previously calculated expression.
 
