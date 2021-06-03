@@ -10,7 +10,7 @@ f(a, 2)
 
 ## Features
 * Operators: +, -, \*, /, !
-* Groups: (), ⌈⌉, ⌋⌊
+* Groups: (), ⌈⌉, ⌊⌋, []
 * [Pre-defined functions and constants](https://github.com/PaddiM8/kalk/blob/master/kalk/src/prelude.rs)
 * User-defined functions and variables. `f(x, y) = xy`, `x = 5`
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
