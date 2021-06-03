@@ -569,13 +569,14 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
     };
 
     let expr = parse_expr(context)?;
-    advance(context);
 
     if peek(context).kind == TokenKind::EOF {
         return Err(CalcError::Expected(String::from(
             "Closing group symbol, eg. ⌋",
         )));
     }
+
+    advance(context);
 
     Ok(Expr::FnCall(Identifier::from_full_name(name), vec![expr]))
 }
