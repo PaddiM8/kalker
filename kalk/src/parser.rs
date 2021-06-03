@@ -97,6 +97,7 @@ impl Default for Context {
 /// Error that occured during parsing or evaluation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalcError {
+    Expected(String),
     ExpectedDx,
     ExpectedIf,
     IncorrectAmountOfArguments(usize, String, usize),
@@ -118,6 +119,7 @@ pub enum CalcError {
 impl ToString for CalcError {
     fn to_string(&self) -> String {
         match self {
+            CalcError::Expected(description) => format!("Expected: {}", description),
             CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
             CalcError::ExpectedIf => format!("Expected 'if', with a condition after it."),
             CalcError::IncorrectAmountOfArguments(expected, func, got) => format!(
@@ -569,6 +571,12 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
     let expr = parse_expr(context)?;
     advance(context);
 
+    if peek(context).kind == TokenKind::EOF {
+        return Err(CalcError::Expected(String::from(
+            "Closing group symbol, eg. ⌋",
+        )));
+    }
+
     Ok(Expr::FnCall(Identifier::from_full_name(name), vec![expr]))
 }
 
@@ -769,7 +777,11 @@ fn build_var(context: &Context, name: &str) -> Expr {
 }
 
 fn peek(context: &Context) -> &Token {
-    &context.tokens[context.pos]
+    if context.pos >= context.tokens.len() {
+        &context.tokens.last().unwrap() // EOF
+    } else {
+        &context.tokens[context.pos]
+    }
 }
 
 fn peek_next(context: &Context) -> &Token {
