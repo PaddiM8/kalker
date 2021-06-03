@@ -192,7 +192,22 @@ impl Hinter for RLHelper {
 
 impl Validator for RLHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
-        self.validator.validate(ctx)
+        let mut group_symbol_count = vec![0i32, 0i32, 0i32];
+
+        for c in ctx.input().chars() {
+            match c {
+                '⌈' | '⌉' => group_symbol_count[0] += 1,
+                '⌊' | '⌋' => group_symbol_count[1] += 1,
+                '|' => group_symbol_count[2] += 1,
+                _ => (),
+            }
+        }
+
+        if !group_symbol_count.into_iter().all(|x| x % 2 == 0) {
+            Ok(ValidationResult::Incomplete)
+        } else {
+            self.validator.validate(ctx)
+        }
     }
 
     fn validate_while_typing(&self) -> bool {
