@@ -217,10 +217,12 @@
         let offset = 0;
         if (input == "(") {
             input += ")";
+            offset = -1;
         } else if (input == "=") {
             input = " = ";
         } else if (input == "∑") {
             input += "()";
+            offset = -1;
         } else if (input == "∫") {
             input += "()";
             offset = -1;
@@ -240,8 +242,9 @@
             inputElement.selectionEnd,
             "end"
         );
-        inputElement.selectionEnd += offset;
         setText(inputElement.value);
+        inputElement.selectionStart += offset;
+        inputElement.selectionEnd = inputElement.selectionStart;
         inputElement.focus({ preventScroll: true });
     }
 
