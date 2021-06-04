@@ -51,8 +51,7 @@
         const [highlighted, offset] = highlight(text);
         const prevCursorPos = inputElement.selectionStart;
         setHtml(highlighted);
-        inputElement.selectionStart = prevCursorPos + offset;
-        inputElement.selectionEnd = inputElement.selectionStart;
+        setCaret(prevCursorPos + offset);
     }
 
     function setHtml(html: string) {
@@ -66,6 +65,15 @@
 
     function getHtml(): string {
         return highlightedTextElement.innerHTML;
+    }
+
+    function setCaret(pos: number) {
+        inputElement.selectionStart = pos;
+        inputElement.selectionEnd = inputElement.selectionStart;
+    }
+
+    function offsetCaret(offset: number) {
+        setCaret(inputElement.selectionStart + offset);
     }
 
     function calculate(
@@ -179,9 +187,15 @@
         }
     }
 
-    function handleInput(event: Event) {
+    function handleInput(e: Event) {
+        const event = e as InputEvent;
         const target = event.target as HTMLInputElement;
         setText(target.value == "\n" ? "" : target.value);
+
+        if (event.data == "(") {
+            insertText(")");
+            offsetCaret(-1);
+        }
     }
 
     function handleTouchLine(event: Event) {
@@ -208,8 +222,7 @@
     function handleArrowClick(event: Event, left: boolean) {
         const length = inputElement.value.length;
         const selection = inputElement.selectionEnd + (left ? -1 : 1);
-        inputElement.selectionEnd = Math.min(Math.max(selection, 0), length);
-        inputElement.selectionStart = inputElement.selectionEnd;
+        setCaret(Math.min(Math.max(selection, 0), length));
         inputElement.focus({ preventScroll: true });
     }
 
@@ -243,8 +256,7 @@
             "end"
         );
         setText(inputElement.value);
-        inputElement.selectionStart += offset;
-        inputElement.selectionEnd = inputElement.selectionStart;
+        offsetCaret(offset);
         inputElement.focus({ preventScroll: true });
     }
 
@@ -257,7 +269,7 @@
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤]+(_\d+)?))/g,
+            /(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤]+(_\d+)?)\(?)/g,
             (substring, _, html, _2, op, identifier) => {
                 if (html) {
                     if (substring == "<") return "&lt;";
@@ -277,22 +289,34 @@
                 }
 
                 if (identifier) {
-                    let newSubstring: string = substring;
-                    switch (substring) {
+                    let substringWithoutParen = substring.endsWith("(")
+                        ? substring.slice(0, -1)
+                        : substring;
+                    let newSubstring: string = substringWithoutParen;
+                    let addParen = false;
+                    switch (substringWithoutParen) {
                         case "sqrt": {
                             newSubstring = "√";
                             break;
                         }
                         case "sum": {
                             newSubstring = "∑";
+                            addParen = true;
                             break;
                         }
                         case "prod": {
                             newSubstring = "∏";
+                            addParen = true;
+                            break;
+                        }
+                        case "integral": {
+                            newSubstring = "∫";
+                            addParen = true;
                             break;
                         }
                         case "integrate": {
                             newSubstring = "∫";
+                            addParen = true;
                             break;
                         }
                         case "pi": {
@@ -318,8 +342,16 @@
                     }
 
                     offset -= substring.length - newSubstring.length;
+                    let parenthesis = "";
+                    if (substring.endsWith("(")) {
+                        parenthesis = "(";
+                        offset += 1;
+                    } else if (addParen) {
+                        parenthesis = "()";
+                        offset += 1;
+                    }
 
-                    return `<span style="color: ${identifiercolor}">${newSubstring}</span>`;
+                    return `<span style="color: ${identifiercolor}">${newSubstring}</span>${parenthesis}`;
                 }
 
                 if (op) {
