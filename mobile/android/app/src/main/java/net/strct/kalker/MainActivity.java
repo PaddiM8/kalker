@@ -1,4 +1,4 @@
-package net.strct.kalk;
+package net.strct.kalker;
 
 import android.os.Bundle;
 

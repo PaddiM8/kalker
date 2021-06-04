@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="f715975d-940d-4ed4-9dbe-0bcb3d72e51d" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/../web/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../web/package.json" afterDir="false" />
-    </list>
+    <list default="true" id="f715975d-940d-4ed4-9dbe-0bcb3d72e51d" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -23,6 +24,7 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/android" />
   </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="SvnConfiguration">
     <configuration />
   </component>
@@ -37,9 +39,13 @@
     <servers />
   </component>
   <component name="WindowStateProjectService">
-    <state x="1063" y="445" width="424" height="476" key="FileChooserDialogImpl" timestamp="1614028832581">
+    <state x="738" y="345" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1622829848954">
       <screen x="0" y="0" width="2560" height="1440" />
     </state>
-    <state x="1063" y="445" width="424" height="476" key="FileChooserDialogImpl/0.0.2560.1440/2560.0.1920.1080@0.0.2560.1440" timestamp="1614028832581" />
+    <state x="738" y="345" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.2560.1440/2560.0.1920.1080@0.0.2560.1440" timestamp="1622829848954" />
+    <state x="1063" y="445" width="424" height="476" key="FileChooserDialogImpl" timestamp="1622829905435">
+      <screen x="0" y="0" width="2560" height="1440" />
+    </state>
+    <state x="1063" y="445" width="424" height="476" key="FileChooserDialogImpl/0.0.2560.1440/2560.0.1920.1080@0.0.2560.1440" timestamp="1622829905435" />
   </component>
 </project>
