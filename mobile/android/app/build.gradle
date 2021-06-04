@@ -16,7 +16,7 @@ android {
     def code = (major + minor + patch) as Integer
 
     defaultConfig {
-        applicationId "net.strct.kalk"
+        applicationId "net.strct.kalker"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode code
