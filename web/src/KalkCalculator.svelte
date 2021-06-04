@@ -48,8 +48,11 @@
     let hasBeenInteractedWith = false;
 
     function setText(text: string) {
-        const highlighted = highlight(text);
+        const [highlighted, offset] = highlight(text);
+        const prevCursorPos = inputElement.selectionStart;
         setHtml(highlighted);
+        inputElement.selectionStart = prevCursorPos + offset;
+        inputElement.selectionEnd = inputElement.selectionStart;
     }
 
     function setHtml(html: string) {
@@ -117,7 +120,7 @@
                 const [result, success] = calculate(kalk, input);
 
                 output = success
-                    ? highlight(result)
+                    ? highlight(result)[0]
                     : `<span style="color: ${errorcolor}">${result}</span>`;
             }
 
@@ -145,6 +148,9 @@
         // of the input field. This piece of code will put the cursor at the end,
         // which therefore will need to be done afterwards, so that it doesn't just get moved back again.
         if (event.key == "ArrowUp" || event.key == "ArrowDown") {
+            // Don't do anything if it's multi-line
+            if (inputElement.value.match(/\r|\r\n|\n/)) return;
+
             const change = event.key == "ArrowUp" ? 1 : -1;
             selectedLineOffset += change;
 
@@ -213,9 +219,8 @@
             input += ")";
         } else if (input == "=") {
             input = " = ";
-        } else if (input == "Σ") {
+        } else if (input == "∑") {
             input += "()";
-            offset = -1;
         } else if (input == "∫") {
             input += "()";
             offset = -1;
@@ -244,9 +249,10 @@
         if (autofocus) element.focus();
     }
 
-    function highlight(input: string): string {
-        if (!input) return "";
+    function highlight(input: string): [string, number] {
+        if (!input) return ["", 0];
         let result = input;
+        let offset = 0;
         result = result.replace(
             /(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤]+(_\d+)?))/g,
             (substring, _, html, _2, op, identifier) => {
@@ -254,13 +260,16 @@
                     if (substring == "<") return "&lt;";
                     if (substring == ">") return "&gt;";
                     if (substring == "&") return "&amp;";
-                    if (substring.match(/\s+/)) return "&nbsp;";
                     if (substring.startsWith("\n")) {
                         if (substring.endsWith("}")) {
                             return "<br />}";
                         } else {
+                            if (!substring.match(/\n\s\s/)) offset += 2;
                             return "<br />&nbsp;&nbsp;";
                         }
+                    }
+                    if (substring.match(/\s+/)) {
+                        return "&nbsp;".repeat(substring.length);
                     }
                 }
 
@@ -305,6 +314,8 @@
                         }
                     }
 
+                    offset -= substring.length - newSubstring.length;
+
                     return `<span style="color: ${identifiercolor}">${newSubstring}</span>`;
                 }
 
@@ -316,7 +327,7 @@
             }
         );
 
-        return result;
+        return [result, offset];
     }
 </script>
 
