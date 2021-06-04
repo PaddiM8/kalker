@@ -1,7 +1,7 @@
 'use strict';
 
 import { task, src, dest, watch, series } from 'gulp';
-import sass, { compiler, logError } from 'gulp-sass';
+import sass, { compiler, logError } from 'gulp-dart-sass';
 
 compiler = require('sass');
 
