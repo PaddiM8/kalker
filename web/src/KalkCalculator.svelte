@@ -277,11 +277,17 @@
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤]+(_\d+)?)\(?)/g,
-            (substring, _, html, _2, op, identifier) => {
-                if (html) {
+            /(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤]+(_\d+)?)\(?)/g,
+            (substring, _, comparison, _2, html, _3, op, identifier) => {
+                if (comparison) {
+                    if (substring == "<=") return "≤";
+                    if (substring == ">=") return "≥";
+                    if (substring == "!=") return "≠";
                     if (substring == "<") return "&lt;";
                     if (substring == ">") return "&gt;";
+                }
+
+                if (html) {
                     if (substring == "&") return "&amp;";
                     if (substring.startsWith("\n")) {
                         if (substring.endsWith("}")) {
