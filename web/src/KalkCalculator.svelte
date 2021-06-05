@@ -46,6 +46,7 @@
     let inputElement: HTMLTextAreaElement;
     let highlightedTextElement: HTMLElement;
     let hasBeenInteractedWith = false;
+    let ignoreNextInput = false;
 
     function setText(text: string) {
         const [highlighted, offset] = highlight(text);
@@ -188,6 +189,11 @@
     }
 
     function handleInput(e: Event) {
+        if (ignoreNextInput) {
+            ignoreNextInput = false;
+            return;
+        }
+
         const event = e as InputEvent;
         const target = event.target as HTMLInputElement;
         setText(target.value == "\n" ? "" : target.value);
@@ -249,6 +255,7 @@
             input = ", ";
         }
 
+        ignoreNextInput = true;
         inputElement.setRangeText(
             input,
             inputElement.selectionStart,
@@ -256,6 +263,7 @@
             "end"
         );
         setText(inputElement.value);
+        ignoreNextInput = false;
         offsetCaret(offset);
         inputElement.focus({ preventScroll: true });
     }
