@@ -19,6 +19,7 @@ regex = "1"
 rustyline = "7.1.0"
 seahorse = "1.1.1"
 atty = "0.2.14"
+dirs = "3.0.2"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

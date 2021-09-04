@@ -4,6 +4,7 @@ use kalk::parser;
 use lazy_static::lazy_static;
 use regex::Captures;
 use regex::Regex;
+use rustyline::config::Configurer;
 use rustyline::completion::Completer;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
@@ -17,6 +18,7 @@ use std::borrow::Cow;
 use std::borrow::Cow::Owned;
 use std::collections::HashMap;
 use std::process;
+use std::fs;
 
 pub fn start(mut parser: &mut parser::Context, precision: u32) {
     let mut editor = Editor::<RLHelper>::new();
@@ -24,6 +26,20 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
         highlighter: LineHighlighter {},
         validator: MatchingBracketValidator::new(),
     }));
+    editor.set_max_history_size(30);
+
+    // Load history
+    let mut history_path = None;
+    if let Some(config_path) = dirs::config_dir() {
+        let mut config_path = config_path.clone();
+        config_path.push("kalker");
+        if let Ok(_) = fs::create_dir_all(config_path.as_path()) {
+            config_path.push("history.txt");
+            let history = config_path.into_os_string().into_string().unwrap();
+            editor.load_history(&history).ok();
+            history_path = Some(history)
+        }
+    }
 
     // If in tty, print the welcome message
     if atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout) {
@@ -50,6 +66,10 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
             Err(ReadlineError::Interrupted) => break,
             _ => break,
         }
+    }
+
+    if let Some(history_path) = history_path {
+        editor.save_history(&history_path).ok();
     }
 }
 
