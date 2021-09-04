@@ -16,7 +16,7 @@ fn main() {
         .action(default_action)
         .flag(
             Flag::new("input-file", FlagType::String)
-                .description("Load a file with predefined variables and functions")
+                .description("Load a file with predefined variables and functions. End lines with a semicolon.")
                 .alias("i"),
         )
         .flag(
