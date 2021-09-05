@@ -24,15 +24,15 @@ Kalker (or "kalk") is a calculator program/website that supports user-defined va
 * Load a file including predefined functions and constants. For example, if you're going to use kalker for physics, you load up your file with physics functions/constants when starting kalker. `-i file`
 * Misc: separate expressions by a semicolon to write them on the same line, use the `ans` variable to get the value of the previously calculated expression.
 
-## Libraries
-
-There are currently three different libraries related to kalker.
-
-* [kalk](https://crates.io/crates/kalk): The Rust crate that powers it all.
-* [@paddim8/kalk](https://www.npmjs.com/package/@paddim8/kalk): JavaScript bindings for `kalk`. This lets you use it in the browser thanks to WebAssembly.
-* [@paddim8/kalk-component](https://www.npmjs.com/package/@paddim8/kalk-component): A web component that runs `@paddim8/kalk`, which let's you use kalk in the browser with a command line-like interface.
-
 ## Installation
+
+### Package managers
+
+#### macOS
+`brew install kalker`
+
+#### Arch Linux
+`kalker` in the AUR, eg. `yay -S kalker`
 
 ### Binaries
 
@@ -51,6 +51,14 @@ Run `cargo install kalker`
 1. Go into the `cli` directory.
 2. Run `cargo build --release`
 3. Grab the binary from `targets/release`
+
+## Libraries
+
+There are currently three different libraries related to kalker.
+
+* [kalk](https://crates.io/crates/kalk): The Rust crate that powers it all.
+* [@paddim8/kalk](https://www.npmjs.com/package/@paddim8/kalk): JavaScript bindings for `kalk`. This lets you use it in the browser thanks to WebAssembly.
+* [@paddim8/kalk-component](https://www.npmjs.com/package/@paddim8/kalk-component): A web component that runs `@paddim8/kalk`, which let's you use kalk in the browser with a command line-like interface.
 
 ## Syntax
 
