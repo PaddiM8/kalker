@@ -699,7 +699,11 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
             }
         }
 
-        split_into_variables(context, &identifier)
+        if identifier.pure_name.len() > 1 {
+            split_into_variables(context, &identifier)
+        } else {
+            Err(CalcError::UndefinedVar(identifier.full_name))
+        }
     }
 }
 
