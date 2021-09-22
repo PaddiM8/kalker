@@ -1,14 +1,10 @@
 {
-  description = "A very basic flake";
+  description = "A calculator program/website";
 
   outputs = { self, nixpkgs }:
     let
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        #"aarch64-darwin" # currently not building due to gmp
-      ];
+      systems =
+        [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
 
@@ -25,7 +21,7 @@
 
           src = self;
 
-          nativeBuildInputs = with final; [ m4 ];
+          nativeBuildInputs = with final; [ gcc ];
 
           outputs = [ "out" "lib" ];
 
@@ -35,21 +31,23 @@
 
           cargoLock = { lockFile = self + "/Cargo.lock"; };
 
-        }
-        # FIXME: fix aarch64-darwin builds
-        /* // (if (final.stdenv.isDarwin && final.stdenv.isAarch64) then {
-             CARGO_FEATURE_USE_SYSTEM_LIBS = "1";
-             RUST_BACKTRACE = "1";
-             buildInputs = with final; [ gmp mpfr libmpc ];
-           } else
-             { })
-        */
-        ;
+          buildInputs = with final; [ gmp mpfr libmpc ];
+
+          CARGO_FEATURE_USE_SYSTEM_LIBS = "1";
+        };
       };
 
       packages = forAllSystems (system: nixpkgsFor.${system});
 
       defaultPackage = forAllSystems (system: self.packages.${system}.kalker);
 
+      apps = forAllSystems (system: {
+        kalker = {
+          type = "app";
+          program = "${self.packages.${system}.kalker}/bin/kalker";
+        };
+      });
+
+      defaultApp = forAllSystems (system: self.apps.${system}.kalker);
     };
 }
