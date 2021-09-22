@@ -86,7 +86,7 @@ impl SymbolTable {
     }
 
     pub fn contains_var(&self, identifier: &str) -> bool {
-        prelude::CONSTANTS.contains_key(identifier)
+        prelude::is_constant(identifier)
             || identifier == "i"
             || self.hashmap.contains_key(&format!("var.{}", identifier))
     }
