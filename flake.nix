@@ -40,5 +40,14 @@
       packages = forAllSystems (system: nixpkgsFor.${system});
 
       defaultPackage = forAllSystems (system: self.packages.${system}.kalker);
+
+      apps = forAllSystems (system: {
+        kalker = {
+          type = "app";
+          program = "${self.packages.${system}.kalker}/bin/kalker";
+        };
+      });
+
+      defaultApp = forAllSystems (system: self.apps.${system}.kalker);
     };
 }
