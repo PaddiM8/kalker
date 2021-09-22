@@ -16,10 +16,11 @@ pub struct KalkNum {
 
 impl KalkNum {
     pub fn new(value: Float, unit: &str) -> Self {
+        let precision = value.prec();
         Self {
             value,
             unit: unit.to_string(),
-            imaginary_value: Float::with_val(63, 0),
+            imaginary_value: Float::with_val(precision, 0),
             boolean_value: None,
         }
     }
@@ -39,7 +40,7 @@ impl KalkNum {
 
     pub fn from_imaginary(value: Float) -> Self {
         Self {
-            value: Float::with_val(63, 0),
+            value: Float::with_val(value.prec(), 0),
             unit: String::new(),
             imaginary_value: value,
             boolean_value: None,
