@@ -112,6 +112,7 @@ pub enum CalcError {
     UndefinedVar(String),
     UnableToInvert(String),
     UnableToSolveEquation,
+    UnableToOverrideConstant(String),
     UnableToParseExpression,
     Unknown,
 }
@@ -140,6 +141,7 @@ impl ToString for CalcError {
             CalcError::UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
             CalcError::UnableToParseExpression => format!("Unable to parse expression."),
             CalcError::UnableToSolveEquation => format!("Unable to solve equation."),
+            CalcError::UnableToOverrideConstant(name) => format!("Unable to override constant: '{}'.", name),
             CalcError::Unknown => format!("Unknown error."),
         }
     }
@@ -315,6 +317,10 @@ fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let expr = parse_expr(context)?;
     if inverter::contains_var(&context.symbol_table, &expr, &identifier.value) {
         return Err(CalcError::VariableReferencesItself);
+    }
+
+    if prelude::is_constant(&identifier.value) {
+        return Err(CalcError::UnableToOverrideConstant(identifier.value.into()));
     }
 
     Ok(Stmt::VarDecl(

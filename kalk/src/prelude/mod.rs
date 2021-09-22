@@ -171,6 +171,10 @@ pub fn is_prelude_func(identifier: &str) -> bool {
         || BINARY_FUNCS.contains_key(identifier)
 }
 
+pub fn is_constant(identifier: &str) -> bool {
+    CONSTANTS.contains_key(identifier)
+}
+
 pub fn call_unary_func(
     context: &mut interpreter::Context,
     name: &str,
