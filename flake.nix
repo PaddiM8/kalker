@@ -37,7 +37,8 @@
         };
       };
 
-      packages = forAllSystems (system: nixpkgsFor.${system});
+      packages =
+        forAllSystems (system: { inherit (nixpkgsFor.${system}) kalker; });
 
       defaultPackage = forAllSystems (system: self.packages.${system}.kalker);
 
