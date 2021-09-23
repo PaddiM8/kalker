@@ -1,3 +1,6 @@
+[patch.crates-io]
+gmp-mpfr-sys = { git = "https://gitlab.com/tspiteri/gmp-mpfr-sys.git" }
+
 [workspace]
 members = ["kalk", "cli"]
 
