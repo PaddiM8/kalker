@@ -21,15 +21,19 @@
 
           src = self;
 
-          nativeBuildInputs = with final; [ gcc ];
-
           outputs = [ "out" "lib" ];
 
           postInstall = ''
             moveToOutput "lib" "$lib"
           '';
 
-          cargoLock = { lockFile = self + "/Cargo.lock"; };
+          cargoLock = {
+            lockFile = self + "/Cargo.lock";
+            outputHashes = {
+              "gmp-mpfr-sys-1.4.7" =
+                "sha256-zHpGbEgh3MgAUVdlWrXq4Clj1boybi6DMOcsjgZbAh0=";
+            };
+          };
 
           buildInputs = with final; [ gmp mpfr libmpc ];
 
