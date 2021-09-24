@@ -18,6 +18,7 @@
         kalker = final.rustPlatform.buildRustPackage {
           pname = "kalker";
           version = "unstable";
+          description = "A CLI calculator";
 
           src = self;
 
