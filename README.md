@@ -34,6 +34,10 @@ Kalker (or "kalk") is a calculator program/website that supports user-defined va
 #### Arch Linux
 `kalker` in the AUR, eg. `yay -S kalker`
 
+#### Nix/NixOS
+Kalker is available through [`nixpkgs`](https://search.nixos.org/packages?channel=unstable&show=kalker&from=0&size=50&sort=relevance&type=packages&query=kalker).
+The most up to date version is also available as a [`flake`](https://search.nixos.org/flakes?channel=unstable&show=kalker&from=0&size=50&sort=relevance&type=packages&query=kalker).
+
 ### Binaries
 
 Pre-compiled binaries for Linux, Windows, and macOS (64-bit) are available in the [releases page](https://github.com/PaddiM8/kalker/releases).
