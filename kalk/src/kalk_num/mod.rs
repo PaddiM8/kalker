@@ -17,6 +17,8 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
+const ACCEPTABLE_COMPARISON_MARGIN: f64 = 0.00000001;
+
 lazy_static! {
     static ref CONSTANTS: HashMap<&'static str, &'static str> = {
         let mut m = HashMap::new();
@@ -319,15 +321,13 @@ impl KalkNum {
     }
 
     pub(crate) fn eq(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
-        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        right.boolean_value = Some(self.value == right.value);
-        right
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        self.eq_without_unit(&right)
     }
 
     pub(crate) fn not_eq(self, context: &mut crate::interpreter::Context, rhs: KalkNum) -> KalkNum {
-        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        right.boolean_value = Some(self.value != right.value);
-        right
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        self.not_eq_without_unit(&right)
     }
 
     pub(crate) fn greater_than(
@@ -335,9 +335,8 @@ impl KalkNum {
         context: &mut crate::interpreter::Context,
         rhs: KalkNum,
     ) -> KalkNum {
-        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        right.boolean_value = Some(self.value > right.value);
-        right
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        self.greater_than_without_unit(&right)
     }
 
     pub(crate) fn less_than(
@@ -345,9 +344,8 @@ impl KalkNum {
         context: &mut crate::interpreter::Context,
         rhs: KalkNum,
     ) -> KalkNum {
-        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        right.boolean_value = Some(self.value < right.value);
-        right
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        self.less_than_without_unit(&right)
     }
 
     pub(crate) fn greater_or_equals(
@@ -355,9 +353,13 @@ impl KalkNum {
         context: &mut crate::interpreter::Context,
         rhs: KalkNum,
     ) -> KalkNum {
-        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        right.boolean_value = Some(self.value >= right.value);
-        right
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs.clone());
+        let greater = self
+            .greater_than_without_unit(&right)
+            .boolean_value
+            .unwrap();
+        let equal = self.eq_without_unit(&right).boolean_value.unwrap();
+        KalkNum::from_bool(greater || equal)
     }
 
     pub(crate) fn less_or_equals(
@@ -365,9 +367,10 @@ impl KalkNum {
         context: &mut crate::interpreter::Context,
         rhs: KalkNum,
     ) -> KalkNum {
-        let mut right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        right.boolean_value = Some(self.value <= right.value);
-        right
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs.clone());
+        let less = self.less_than_without_unit(&right).boolean_value.unwrap();
+        let equal = self.eq_without_unit(&right).boolean_value.unwrap();
+        KalkNum::from_bool(less || equal)
     }
 
     pub(crate) fn add_without_unit(self, rhs: KalkNum) -> KalkNum {
@@ -414,6 +417,25 @@ impl KalkNum {
         }
     }
 
+    pub(crate) fn eq_without_unit(&self, rhs: &KalkNum) -> KalkNum {
+        KalkNum::from_bool(
+            (self.value.clone() - rhs.value.clone()).abs() < ACCEPTABLE_COMPARISON_MARGIN,
+        )
+    }
+
+    pub(crate) fn not_eq_without_unit(&self, rhs: &KalkNum) -> KalkNum {
+        KalkNum::from_bool(
+            (self.value.clone() - rhs.value.clone()).abs() > ACCEPTABLE_COMPARISON_MARGIN,
+        )
+    }
+
+    pub(crate) fn greater_than_without_unit(&self, rhs: &KalkNum) -> KalkNum {
+        KalkNum::from_bool(self.value.clone() - rhs.value.clone() > ACCEPTABLE_COMPARISON_MARGIN)
+    }
+
+    pub(crate) fn less_than_without_unit(&self, rhs: &KalkNum) -> KalkNum {
+        KalkNum::from_bool(self.value.clone() - rhs.value.clone() < -ACCEPTABLE_COMPARISON_MARGIN)
+    }
     pub fn get_conjugate(&self) -> KalkNum {
         KalkNum::new_with_imaginary(
             self.value.clone(),
