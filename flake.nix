@@ -55,5 +55,10 @@
       });
 
       defaultApp = forAllSystems (system: self.apps.${system}.kalker);
+
+      devShell = forAllSystems (system:
+        nixpkgs.legacyPackages.${system}.mkShell {
+          inputsFrom = builtins.attrValues (packages);
+        });
     };
 }
