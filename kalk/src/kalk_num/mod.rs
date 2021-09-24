@@ -418,24 +418,41 @@ impl KalkNum {
     }
 
     pub(crate) fn eq_without_unit(&self, rhs: &KalkNum) -> KalkNum {
+        if self.has_imaginary() || rhs.has_imaginary() {
+            return KalkNum::from(f64::NAN);
+        }
+
         KalkNum::from_bool(
             (self.value.clone() - rhs.value.clone()).abs() < ACCEPTABLE_COMPARISON_MARGIN,
         )
     }
 
     pub(crate) fn not_eq_without_unit(&self, rhs: &KalkNum) -> KalkNum {
+        if self.has_imaginary() || rhs.has_imaginary() {
+            return KalkNum::from(f64::NAN);
+        }
+
         KalkNum::from_bool(
             (self.value.clone() - rhs.value.clone()).abs() > ACCEPTABLE_COMPARISON_MARGIN,
         )
     }
 
     pub(crate) fn greater_than_without_unit(&self, rhs: &KalkNum) -> KalkNum {
+        if self.has_imaginary() || rhs.has_imaginary() {
+            return KalkNum::from(f64::NAN);
+        }
+
         KalkNum::from_bool(self.value.clone() - rhs.value.clone() > ACCEPTABLE_COMPARISON_MARGIN)
     }
 
     pub(crate) fn less_than_without_unit(&self, rhs: &KalkNum) -> KalkNum {
+        if self.has_imaginary() || rhs.has_imaginary() {
+            return KalkNum::from(f64::NAN);
+        }
+
         KalkNum::from_bool(self.value.clone() - rhs.value.clone() < -ACCEPTABLE_COMPARISON_MARGIN)
     }
+
     pub fn get_conjugate(&self) -> KalkNum {
         KalkNum::new_with_imaginary(
             self.value.clone(),
