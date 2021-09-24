@@ -558,37 +558,37 @@ mod tests {
         let result = interpret(equals).unwrap().unwrap();
         assert_eq!(
             (result.to_f64(), result.boolean_value.unwrap()),
-            (3f64, false)
+            (0f64, false)
         );
 
         let result = interpret(not_equals).unwrap().unwrap();
         assert_eq!(
             (result.to_f64(), result.boolean_value.unwrap()),
-            (3f64, true)
+            (0f64, true)
         );
 
         let result = interpret(greater_than).unwrap().unwrap();
         assert_eq!(
             (result.to_f64(), result.boolean_value.unwrap()),
-            (3f64, false)
+            (0f64, false)
         );
 
         let result = interpret(less_than).unwrap().unwrap();
         assert_eq!(
             (result.to_f64(), result.boolean_value.unwrap()),
-            (3f64, true)
+            (0f64, true)
         );
 
         let result = interpret(greater_or_equals).unwrap().unwrap();
         assert_eq!(
             (result.to_f64(), result.boolean_value.unwrap()),
-            (3f64, false)
+            (0f64, false)
         );
 
         let result = interpret(less_or_equals).unwrap().unwrap();
         assert_eq!(
             (result.to_f64(), result.boolean_value.unwrap()),
-            (3f64, true)
+            (0f64, true)
         );
     }
 
