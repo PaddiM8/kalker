@@ -13,7 +13,7 @@
           inherit system;
           overlays = [ self.overlay ];
         });
-    in {
+    in rec {
       overlay = final: prev: {
         kalker = final.rustPlatform.buildRustPackage {
           pname = "kalker";
@@ -58,7 +58,7 @@
 
       devShell = forAllSystems (system:
         nixpkgs.legacyPackages.${system}.mkShell {
-          inputsFrom = builtins.attrValues (packages);
+          inputsFrom = builtins.attrValues (packages.${system});
         });
     };
 }
