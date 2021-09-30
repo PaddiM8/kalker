@@ -98,6 +98,8 @@ lazy_static! {
         m.insert("max", (BinaryFuncInfo(max, Other), ""));
         m.insert("min", (BinaryFuncInfo(min, Other), ""));
         m.insert("hypot", (BinaryFuncInfo(hypot, Other), ""));
+        m.insert("gcd", (BinaryFuncInfo(gcd, Other), ""));
+        m.insert("lcm", (BinaryFuncInfo(lcm, Other), ""));
         m.insert("log", (BinaryFuncInfo(logx, Other), ""));
         m.insert("root", (BinaryFuncInfo(nth_root, Other), ""));
         m
@@ -498,6 +500,34 @@ pub mod funcs {
         KalkNum::new_with_imaginary(x.value.fract(), &x.unit, x.imaginary_value.fract())
     }
 
+    pub fn gcd(x: KalkNum, y: KalkNum) -> KalkNum {
+        if x.has_imaginary() || y.has_imaginary() {
+            if x.imaginary_value.fract() != 0 || y.imaginary_value.fract() != 0 {
+                // Not a Gaussian integer!
+            }
+
+            // TODO
+            todo!();
+        }
+
+        if x.value < 0f64 || y.value < 0f64 {
+            return gcd(KalkNum::new(x.value.abs(), &x.unit), KalkNum::new(y.value.abs(), &y.unit));
+        }
+
+        // Euclidean GCD algorithm
+        let mut x_a = x.clone();
+        let mut y_a = y.clone();
+        while !y_a.value.eq(&0) {
+            let t = y_a.value.clone();
+            y_a.value = x_a.value % y_a.value;
+            x_a.value = t;
+        }
+
+        // Usually we'd need to return max(x, -x), but since we've handled negative
+        // values above, that is unnecessary.
+        return x_a;
+    }
+
     pub fn im(x: KalkNum) -> KalkNum {
         KalkNum::new_with_imaginary(x.value, "", KalkNum::default().value)
     }
@@ -512,6 +542,16 @@ pub mod funcs {
         } else {
             1
         })
+    }
+
+    //              ⎛           ⎞
+    //              ⎜    ⎜a⎜    ⎟
+    // lcm(a, b) =  ⎜ ───────── ⎟ × ⎜b⎜
+    //              ⎜ gcd(a, b) ⎟
+    //              ⎝           ⎠
+    pub fn lcm(x: KalkNum, y: KalkNum) -> KalkNum {
+        let gcd = gcd(x.clone(), y.clone());
+        return abs(x).div_without_unit(gcd).mul_without_unit(y);
     }
 
     pub fn log(x: KalkNum) -> KalkNum {
