@@ -179,7 +179,7 @@ dependencies = [
 
 [[package]]
 name = "kalk"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "lazy_static",
  "regex",
@@ -191,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "kalker"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ansi_term",
  "atty",
