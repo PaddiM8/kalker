@@ -309,7 +309,7 @@ pub(crate) fn eval_fn_call_expr(
 
     // Special functions
     match identifier.full_name.as_ref() {
-        "sum" | "Σ" | "∑" | "prod" | "∏" => {
+        "sum" | "prod" => {
             // Make sure exactly 3 arguments were supplied.
             if expressions.len() != 3 {
                 return Err(CalcError::IncorrectAmountOfArguments(
@@ -323,10 +323,7 @@ pub(crate) fn eval_fn_call_expr(
             let end = eval_expr(context, &expressions[1], "")?.to_f64() as i128;
             let sum_else_prod = match identifier.full_name.as_ref() {
                 "sum" => true,
-                "Σ" => true,
-                "∑" => true,
                 "prod" => false,
-                "∏" => false,
                 _ => unreachable!(),
             };
             let mut sum = if sum_else_prod {
@@ -352,7 +349,7 @@ pub(crate) fn eval_fn_call_expr(
 
             return Ok(sum);
         }
-        "integrate" | "integral" | "∫" => {
+        "integrate" => {
             // Make sure either 3 or 4 arguments were supplied.
             if expressions.len() < 3 || expressions.len() > 4 {}
 
