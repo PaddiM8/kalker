@@ -138,12 +138,12 @@ impl<'a> Lexer<'a> {
             '≤' => build(TokenKind::LessOrEquals, "", span),
             // Some of the special symbols will be lexed here,
             // so that they don't merge with other symbols.
-            'π' => build(TokenKind::Identifier, "π", span),
-            '√' => build(TokenKind::Identifier, "√", span),
-            'τ' => build(TokenKind::Identifier, "τ", span),
-            'ϕ' => build(TokenKind::Identifier, "ϕ", span),
-            'Γ' => build(TokenKind::Identifier, "Γ", span),
-            '∏' => build(TokenKind::Identifier, "Γ", span),
+            'π' => build(TokenKind::Identifier, "pi", span),
+            '√' => build(TokenKind::Identifier, "sqrt", span),
+            'τ' => build(TokenKind::Identifier, "tau", span),
+            'ϕ' => build(TokenKind::Identifier, "phi", span),
+            'Γ' => build(TokenKind::Identifier, "gamma", span),
+            '∏' => build(TokenKind::Identifier, "prod", span),
             _ => build(TokenKind::Unknown, "", span),
         };
 
@@ -234,9 +234,12 @@ impl<'a> Lexer<'a> {
             _ => TokenKind::Identifier,
         };
 
-        if &value == "°" {
-            value = String::from("deg");
-        }
+        let value = match value.as_ref() {
+            "Σ" | "∑" => String::from("sum"),
+            "∫" => String::from("integrate"),
+            "°" => String::from("deg"),
+            _ => value,
+        };
 
         build(kind, &value, (start, end))
     }
