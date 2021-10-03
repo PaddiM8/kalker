@@ -504,6 +504,8 @@ pub mod funcs {
         if x.has_imaginary() || y.has_imaginary() {
             if x.imaginary_value.fract() != 0 || y.imaginary_value.fract() != 0 {
                 // Not a Gaussian integer!
+                // TODO: throw an actual error instead of returning NaN
+                return KalkNum::from(NaNf64);
             }
 
             // TODO
