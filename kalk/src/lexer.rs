@@ -236,6 +236,7 @@ impl<'a> Lexer<'a> {
 
         let value = match value.as_ref() {
             "Σ" | "∑" => String::from("sum"),
+            "∏" => String::from("prod"),
             "∫" => String::from("integrate"),
             "°" => String::from("deg"),
             _ => value,
