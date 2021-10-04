@@ -592,7 +592,9 @@ pub mod funcs {
     //              ⎝           ⎠
     pub fn lcm(x: KalkNum, y: KalkNum) -> KalkNum {
         let gcd = gcd(x.clone(), y.clone());
-        return abs(x).div_without_unit(gcd).mul_without_unit(y);
+        let absx = KalkNum::new_with_imaginary(x.value.abs(), &x.unit, x.imaginary_value);
+        let absy = KalkNum::new_with_imaginary(y.value.abs(), &y.unit, y.imaginary_value);
+        return absx.div_without_unit(gcd).mul_without_unit(absy);
     }
 
     pub fn log(x: KalkNum) -> KalkNum {
