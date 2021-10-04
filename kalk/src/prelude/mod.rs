@@ -513,33 +513,60 @@ pub mod funcs {
     }
 
     pub fn gcd(x: KalkNum, y: KalkNum) -> KalkNum {
+        // Find the norm of a Gaussian integer
+        fn norm(x: KalkNum) -> KalkNum {
+            KalkNum::new((x.value.clone() * x.value) + (x.imaginary_value.clone() * x.imaginary_value), &x.unit)
+        }
+
         if x.has_imaginary() || y.has_imaginary() {
-            if x.imaginary_value.fract() != 0 || y.imaginary_value.fract() != 0 {
+            if x.value.clone().fract() != 0 || y.value.clone().fract() != 0
+            || x.imaginary_value.clone().fract() != 0 || y.imaginary_value.clone().fract() != 0 {
                 // Not a Gaussian integer!
                 // TODO: throw an actual error instead of returning NaN
-                return KalkNum::from(NaNf64);
+                return KalkNum::from(f64::NAN);
             }
 
-            // TODO
-            todo!();
-        }
+            // Partially derived from:
+            // https://stackoverflow.com/a/52692832
 
-        if x.value < 0f64 || y.value < 0f64 {
-            return gcd(KalkNum::new(x.value.abs(), &x.unit), KalkNum::new(y.value.abs(), &y.unit));
-        }
+            let a;
+            let b;
 
-        // Euclidean GCD algorithm
-        let mut x_a = x.clone();
-        let mut y_a = y.clone();
-        while !y_a.value.eq(&0) {
-            let t = y_a.value.clone();
-            y_a.value = x_a.value % y_a.value;
-            x_a.value = t;
-        }
+            // Ensure a > b
+            if norm(x.clone()).value < norm(y.clone()).value {
+                a = y;
+                b = x;
+            } else {
+                a = x;
+                b = y;
+            }
 
-        // Usually we'd need to return max(x, -x), but since we've handled negative
-        // values above, that is unnecessary.
-        return x_a;
+            let mut c = a.clone().div_without_unit(b.clone());
+            if c.imaginary_value.clone().fract() == 0 {
+                KalkNum::new_with_imaginary(b.value.abs(), &b.unit, b.imaginary_value)
+            } else {
+                c.value = c.value.round();
+                c.imaginary_value = c.imaginary_value.round();
+                gcd(a.sub_without_unit(b.clone().mul_without_unit(c)), b)
+            }
+        } else {
+            if x.value < 0f64 || y.value < 0f64 {
+                return gcd(KalkNum::new(x.value.abs(), &x.unit), KalkNum::new(y.value.abs(), &y.unit));
+            }
+
+            // Euclidean GCD algorithm, but with modulus
+            let mut x_a = x.clone();
+            let mut y_a = y.clone();
+            while !y_a.value.eq(&0) {
+                let t = y_a.value.clone();
+                y_a.value = x_a.value % y_a.value;
+                x_a.value = t;
+            }
+
+            // Usually we'd need to return max(x, -x), but since we've handled negative
+            // values above, that is unnecessary.
+            x_a
+        }
     }
 
     pub fn im(x: KalkNum) -> KalkNum {
