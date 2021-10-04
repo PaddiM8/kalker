@@ -712,7 +712,7 @@ mod tests {
     use crate::test_helpers::cmp;
 
     #[test]
-    fn test_funcs() {
+    fn test_unary_funcs() {
         let in_out = vec![
             (abs as fn(KalkNum) -> KalkNum, (3f64, 4f64), (5f64, 0f64)),
             (abs, (-3f64, 4f64), (5f64, 0f64)),
@@ -726,6 +726,38 @@ mod tests {
                 "",
                 KalkNum::from(input.1).value,
             ));
+
+            println!(
+                "{} | expected: {}, {}",
+                i, expected_output.0, expected_output.1
+            );
+            println!(
+                "{} | got: {}, {}",
+                i,
+                actual_output.to_f64(),
+                actual_output.imaginary_to_f64()
+            );
+            assert!(cmp(expected_output.0, actual_output.to_f64()));
+            assert!(cmp(expected_output.1, actual_output.imaginary_to_f64()));
+        }
+    }
+
+    #[test]
+    fn test_binary_funcs() {
+        let in_out = vec![
+            (gcd, ((12f64,  0f64), (18f64,  0f64)), (6f64,  0f64)),
+            (gcd, ((30f64,  0f64), (18f64,  0f64)), (6f64,  0f64)),
+            (gcd, (( 5f64,  0f64), ( 2f64,  1f64)), (2f64,  1f64)),
+            (gcd, ((18f64,  4f64), (30f64,  0f64)), (4f64,  2f64)),
+            (gcd, (( 3f64,  1f64), ( 1f64, -1f64)), (1f64, -1f64)),
+            (gcd, ((12f64, -8f64), ( 6f64,  4f64)), (2f64,  0f64)),
+        ];
+
+        for (i, (func, input, expected_output)) in in_out.iter().enumerate() {
+            let actual_output = func(
+                KalkNum::new_with_imaginary(KalkNum::from(input.0.0).value, "", KalkNum::from(input.0.1).value),
+                KalkNum::new_with_imaginary(KalkNum::from(input.1.0).value, "", KalkNum::from(input.1.1).value),
+            );
 
             println!(
                 "{} | expected: {}, {}",
