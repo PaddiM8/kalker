@@ -149,6 +149,10 @@ lazy_static! {
         m.insert("*", "×");
         m.insert("/", "÷");
         m.insert("cbrt", "∛");
+        m.insert("^2", "²");
+        m.insert("^3", "³");
+        m.insert("^4", "⁴");
+        m.insert("^5", "⁵");
         m
     };
 }
