@@ -146,6 +146,9 @@ lazy_static! {
         m.insert("!=", "≠");
         m.insert(">=", "≥");
         m.insert("<=", "≤");
+        m.insert("*", "×");
+        m.insert("/", "÷");
+        m.insert("cbrt", "∛");
         m
     };
 }
