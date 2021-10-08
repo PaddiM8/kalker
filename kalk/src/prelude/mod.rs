@@ -507,8 +507,8 @@ pub mod funcs {
         }
 
         if x.has_imaginary() || y.has_imaginary() {
-            if x.value.clone().fract() != 0 || y.value.clone().fract() != 0
-            || x.imaginary_value.clone().fract() != 0 || y.imaginary_value.clone().fract() != 0 {
+            if x.value.clone().fract() != 0f64 || y.value.clone().fract() != 0f64
+            || x.imaginary_value.clone().fract() != 0f64 || y.imaginary_value.clone().fract() != 0f64 {
                 // Not a Gaussian integer!
                 // TODO: throw an actual error instead of returning NaN
                 return KalkNum::from(f64::NAN);
@@ -530,7 +530,7 @@ pub mod funcs {
             }
 
             let mut c = a.clone().div_without_unit(b.clone());
-            if c.imaginary_value.clone().fract() == 0 {
+            if c.imaginary_value.clone().fract() == 0f64 {
                 KalkNum::new_with_imaginary(b.value.abs(), &b.unit, b.imaginary_value)
             } else {
                 c.value = c.value.round();
@@ -545,7 +545,7 @@ pub mod funcs {
             // Euclidean GCD algorithm, but with modulus
             let mut x_a = x.clone();
             let mut y_a = y.clone();
-            while !y_a.value.eq(&0) {
+            while !y_a.value.eq(&0f64) {
                 let t = y_a.value.clone();
                 y_a.value = x_a.value % y_a.value;
                 x_a.value = t;
