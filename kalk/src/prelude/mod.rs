@@ -98,6 +98,8 @@ lazy_static! {
         m.insert("max", (BinaryFuncInfo(max, Other), ""));
         m.insert("min", (BinaryFuncInfo(min, Other), ""));
         m.insert("hypot", (BinaryFuncInfo(hypot, Other), ""));
+        m.insert("gcd", (BinaryFuncInfo(gcd, Other), ""));
+        m.insert("lcm", (BinaryFuncInfo(lcm, Other), ""));
         m.insert("log", (BinaryFuncInfo(logx, Other), ""));
         m.insert("root", (BinaryFuncInfo(nth_root, Other), ""));
         m
@@ -498,6 +500,63 @@ pub mod funcs {
         KalkNum::new_with_imaginary(x.value.fract(), &x.unit, x.imaginary_value.fract())
     }
 
+    pub fn gcd(x: KalkNum, y: KalkNum) -> KalkNum {
+        // Find the norm of a Gaussian integer
+        fn norm(x: KalkNum) -> KalkNum {
+            KalkNum::new((x.value.clone() * x.value) + (x.imaginary_value.clone() * x.imaginary_value), &x.unit)
+        }
+
+        if x.has_imaginary() || y.has_imaginary() {
+            if x.value.clone().fract() != 0f64 || y.value.clone().fract() != 0f64
+            || x.imaginary_value.clone().fract() != 0f64 || y.imaginary_value.clone().fract() != 0f64 {
+                // Not a Gaussian integer!
+                // TODO: throw an actual error instead of returning NaN
+                return KalkNum::from(f64::NAN);
+            }
+
+            // Partially derived from:
+            // https://stackoverflow.com/a/52692832
+
+            let a;
+            let b;
+
+            // Ensure a > b
+            if norm(x.clone()).value < norm(y.clone()).value {
+                a = y;
+                b = x;
+            } else {
+                a = x;
+                b = y;
+            }
+
+            let mut c = a.clone().div_without_unit(b.clone());
+            if c.imaginary_value.clone().fract() == 0f64 {
+                KalkNum::new_with_imaginary(b.value.abs(), &b.unit, b.imaginary_value)
+            } else {
+                c.value = c.value.round();
+                c.imaginary_value = c.imaginary_value.round();
+                gcd(a.sub_without_unit(b.clone().mul_without_unit(c)), b)
+            }
+        } else {
+            if x.value < 0f64 || y.value < 0f64 {
+                return gcd(KalkNum::new(x.value.abs(), &x.unit), KalkNum::new(y.value.abs(), &y.unit));
+            }
+
+            // Euclidean GCD algorithm, but with modulus
+            let mut x_a = x.clone();
+            let mut y_a = y.clone();
+            while !y_a.value.eq(&0f64) {
+                let t = y_a.value.clone();
+                y_a.value = x_a.value % y_a.value;
+                x_a.value = t;
+            }
+
+            // Usually we'd need to return max(x, -x), but since we've handled negative
+            // values above, that is unnecessary.
+            x_a
+        }
+    }
+
     pub fn im(x: KalkNum) -> KalkNum {
         KalkNum::new_with_imaginary(x.value, "", KalkNum::default().value)
     }
@@ -512,6 +571,18 @@ pub mod funcs {
         } else {
             1
         })
+    }
+
+    //              ⎛           ⎞
+    //              ⎜    ⎜a⎜    ⎟
+    // lcm(a, b) =  ⎜ ───────── ⎟ × ⎜b⎜
+    //              ⎜ gcd(a, b) ⎟
+    //              ⎝           ⎠
+    pub fn lcm(x: KalkNum, y: KalkNum) -> KalkNum {
+        let gcd = gcd(x.clone(), y.clone());
+        let absx = KalkNum::new_with_imaginary(x.value.abs(), &x.unit, x.imaginary_value);
+        let absy = KalkNum::new_with_imaginary(y.value.abs(), &y.unit, y.imaginary_value);
+        return absx.div_without_unit(gcd).mul_without_unit(absy);
     }
 
     pub fn log(x: KalkNum) -> KalkNum {
@@ -643,7 +714,7 @@ mod tests {
     use crate::test_helpers::cmp;
 
     #[test]
-    fn test_funcs() {
+    fn test_unary_funcs() {
         let in_out = vec![
             (abs as fn(KalkNum) -> KalkNum, (3f64, 4f64), (5f64, 0f64)),
             (abs, (-3f64, 4f64), (5f64, 0f64)),
@@ -657,6 +728,40 @@ mod tests {
                 "",
                 KalkNum::from(input.1).value,
             ));
+
+            println!(
+                "{} | expected: {}, {}",
+                i, expected_output.0, expected_output.1
+            );
+            println!(
+                "{} | got: {}, {}",
+                i,
+                actual_output.to_f64(),
+                actual_output.imaginary_to_f64()
+            );
+            assert!(cmp(expected_output.0, actual_output.to_f64()));
+            assert!(cmp(expected_output.1, actual_output.imaginary_to_f64()));
+        }
+    }
+
+    #[test]
+    fn test_binary_funcs() {
+        let in_out = vec![
+            (gcd as fn(KalkNum, KalkNum) -> KalkNum, ((12f64,  0f64), (18f64,  0f64)), ( 6f64,  0f64)),
+            (gcd, ((30f64,  0f64), (18f64,  0f64)), ( 6f64,  0f64)),
+            (gcd, (( 5f64,  0f64), ( 2f64,  1f64)), ( 2f64,  1f64)),
+            (gcd, ((18f64,  4f64), (30f64,  0f64)), ( 4f64,  2f64)),
+            (gcd, (( 3f64,  1f64), ( 1f64, -1f64)), ( 1f64, -1f64)),
+            (gcd, ((12f64, -8f64), ( 6f64,  4f64)), ( 2f64,  0f64)),
+            (lcm, ((12f64, -8f64), ( 6f64,  4f64)), (52f64,  0f64)),
+            (lcm, (( 1f64, -2f64), ( 3f64,  1f64)), ( 5f64, -5f64)),
+        ];
+
+        for (i, (func, input, expected_output)) in in_out.iter().enumerate() {
+            let actual_output = func(
+                KalkNum::new_with_imaginary(KalkNum::from(input.0.0).value, "", KalkNum::from(input.0.1).value),
+                KalkNum::new_with_imaginary(KalkNum::from(input.1.0).value, "", KalkNum::from(input.1.1).value),
+            );
 
             println!(
                 "{} | expected: {}, {}",
