@@ -45,7 +45,6 @@
     let calculatorElement: HTMLElement;
     let inputElement: HTMLTextAreaElement;
     let highlightedTextElement: HTMLElement;
-    let hasBeenInteractedWith = false;
     let ignoreNextInput = false;
 
     function setText(text: string) {
@@ -103,7 +102,6 @@
     }
 
     function handleKeyDown(event: KeyboardEvent, kalk: Kalk) {
-        hasBeenInteractedWith = true;
         if (event.key == "Enter") {
             if (
                 hasUnevenAmountOfBraces(
@@ -119,7 +117,7 @@
 
             if (input.trim() == "help") {
                 output = `<a style="color: ${linkcolor}"
-                             href="https://kalker.strct.net/#usage"
+                             href="https://kalker.xyz/#usage"
                              target="blank">Link to usage guide</a>`;
             } else if (input.trim() == "clear") {
                 outputLines = [];
@@ -132,6 +130,10 @@
                     ? highlight(result)[0]
                     : `<span style="color: ${errorcolor}">${result}</span>`;
             }
+
+            // Highlight
+            const target = event.target as HTMLInputElement;
+            setText(target.value);
 
             outputLines = output
                 ? [...outputLines, [getHtml(), true], [output, false]]
@@ -277,7 +279,7 @@
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤]+(_\d+)?)\(?)/g,
+            /(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)\(?)/g,
             (substring, _, comparison, _2, html, _3, op, identifier) => {
                 if (comparison) {
                     if (substring == "<=") return "≤";
@@ -300,6 +302,11 @@
                     if (substring.match(/\s+/)) {
                         return "&nbsp;".repeat(substring.length);
                     }
+                }
+
+                if (op) {
+                    if (substring == "*") return "×";
+                    if (substring == "/") return "÷";
                 }
 
                 if (identifier) {
@@ -353,6 +360,80 @@
                             newSubstring = "⌈⌉";
                             break;
                         }
+                        case "asin": {
+                            newSubstring = "sin⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "acos": {
+                            newSubstring = "cos⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "atan": {
+                            newSubstring = "tan⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "acot": {
+                            newSubstring = "cot⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "acosec": {
+                            newSubstring = "cosec⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "asec": {
+                            newSubstring = "sec⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "asinh": {
+                            newSubstring = "sinh⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "acosh": {
+                            newSubstring = "cosh⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "acoth": {
+                            newSubstring = "coth⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "acosech": {
+                            newSubstring = "cosech⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "asech": {
+                            newSubstring = "sech⁻¹";
+                            addParen = true;
+                            break;
+                        }
+                        case "cbrt": {
+                            newSubstring = "∛";
+                            break;
+                        }
+                    }
+
+                    let underscoreIndex = newSubstring.lastIndexOf("_");
+                    if (underscoreIndex != -1) {
+                        let subscript = "";
+                        for (
+                            let i = underscoreIndex + 1;
+                            i < newSubstring.length;
+                            i++
+                        ) {
+                            subscript += digitToSubscript(newSubstring[i]);
+                        }
+
+                        newSubstring =
+                            newSubstring.slice(0, underscoreIndex) + subscript;
                     }
 
                     offset -= substring.length - newSubstring.length;
@@ -376,7 +457,53 @@
             }
         );
 
+        result = result.replace(/([_₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]\d+)/g, (substring) => {
+            let newSubstring = substring
+                .replace("_", "")
+                .replace(/\d/, digitToSubscript);
+            offset -= substring.length - newSubstring.length;
+
+            return newSubstring;
+        });
+
         return [result, offset];
+    }
+
+    function digitToSubscript(input: string): string {
+        switch (input) {
+            case "0":
+                return "₀";
+            case "1":
+                return "₁";
+            case "2":
+                return "₂";
+            case "3":
+                return "₃";
+            case "4":
+                return "₄";
+            case "5":
+                return "₅";
+            case "6":
+                return "₆";
+            case "7":
+                return "₇";
+            case "8":
+                return "₈";
+            case "9":
+                return "₉";
+            case "+":
+                return "₊";
+            case "-":
+                return "₋";
+            case "=":
+                return "₌";
+            case "(":
+                return "₍";
+            case ")":
+                return "₎";
+        }
+
+        return input;
     }
 </script>
 

@@ -4,8 +4,8 @@ use kalk::parser;
 use lazy_static::lazy_static;
 use regex::Captures;
 use regex::Regex;
-use rustyline::config::Configurer;
 use rustyline::completion::Completer;
+use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
@@ -17,8 +17,8 @@ use rustyline::{Editor, Helper};
 use std::borrow::Cow;
 use std::borrow::Cow::Owned;
 use std::collections::HashMap;
-use std::process;
 use std::fs;
+use std::process;
 
 pub fn start(mut parser: &mut parser::Context, precision: u32) {
     let mut editor = Editor::<RLHelper>::new();
@@ -96,8 +96,8 @@ impl Highlighter for LineHighlighter {
 
         let reg = Regex::new(
             r"(?x)
-            (?P<op>([+\-/*%^!]|if|otherwise)) |
-            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}≠≥≤]+(_\d+)?)",
+            (?P<op>([+\-/*%^!×÷]|if|otherwise)) |
+            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)",
         )
         .unwrap();
 
@@ -146,6 +146,21 @@ lazy_static! {
         m.insert("!=", "≠");
         m.insert(">=", "≥");
         m.insert("<=", "≤");
+        m.insert("*", "×");
+        m.insert("/", "÷");
+        m.insert("asin", "sin⁻¹()");
+        m.insert("acos", "cos⁻¹()");
+        m.insert("atan", "tan⁻¹()");
+        m.insert("acot", "cot⁻¹()");
+        m.insert("acosec", "cosec⁻¹()");
+        m.insert("asec", "sec⁻¹()");
+        m.insert("asinh", "sinh⁻¹()");
+        m.insert("acosh", "cosh⁻¹()");
+        m.insert("atanh", "tanh⁻¹()");
+        m.insert("acoth", "coth⁻¹()");
+        m.insert("acosech", "cosech⁻¹()");
+        m.insert("asech", "sech⁻¹()");
+        m.insert("cbrt", "∛");
         m
     };
 }
@@ -159,9 +174,24 @@ impl Completer for RLHelper {
         _ctx: &rustyline::Context<'_>,
     ) -> Result<(usize, Vec<Self::Candidate>), ReadlineError> {
         for key in COMPLETION_FUNCS.keys() {
-            if line[..pos].ends_with(key) {
+            let slice = &line[..pos];
+            if slice.ends_with(key) {
                 let value = *COMPLETION_FUNCS.get(key).unwrap();
                 return Ok((pos - key.len(), vec![value.to_string()]));
+            }
+
+            let mut subscript_digits = String::new();
+            for c in slice.chars().rev() {
+                if c.is_digit(10) {
+                    subscript_digits.insert(0, c);
+                } else {
+                    break;
+                }
+            }
+
+            if subscript_digits.len() > 0 {
+                let value = kalk::text_utils::digits_to_subscript(subscript_digits.chars());
+                return Ok((pos - subscript_digits.chars().count() - 1, vec![value]));
             }
         }
 
@@ -171,11 +201,10 @@ impl Completer for RLHelper {
     fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
         line.backspace(line.pos() - start);
         line.insert_str(line.pos(), elected);
-        line.move_forward(match elected {
-            "Σ()" => 2,
-            "∏()" => 2,
-            "∫()" => 2,
-            _ => 1,
+        line.move_forward(if elected.ends_with(")") {
+            elected.chars().count() - 1
+        } else {
+            elected.chars().count()
         });
     }
 }
