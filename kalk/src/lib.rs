@@ -8,3 +8,4 @@ pub mod parser;
 mod prelude;
 mod symbol_table;
 mod test_helpers;
+pub mod text_utils;

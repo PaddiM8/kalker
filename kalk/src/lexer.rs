@@ -1,3 +1,4 @@
+use crate::text_utils::{is_subscript, is_superscript};
 use std::iter::Peekable;
 use std::str;
 use std::str::Chars;
@@ -111,8 +112,8 @@ impl<'a> Lexer<'a> {
         let token = match c {
             '+' => build(TokenKind::Plus, "", span),
             '-' => build(TokenKind::Minus, "", span),
-            '*' => build(TokenKind::Star, "", span),
-            '/' => build(TokenKind::Slash, "", span),
+            '*' | '×' => build(TokenKind::Star, "", span),
+            '/' | '÷' => build(TokenKind::Slash, "", span),
             '^' => build(TokenKind::Power, "", span),
             '|' => build(TokenKind::Pipe, "", span),
             '⌈' => build(TokenKind::OpenCeil, "", span),
@@ -217,7 +218,13 @@ impl<'a> Lexer<'a> {
 
             // Only allow identifiers with a special character to have *one* character. No more.
             // Break the loop if it isn't the first run and the current character is a special character.
-            if end - start > 0 && !(c.is_ascii_alphabetic() || c == '\'' || c == '_') {
+            if end - start > 0
+                && !(c.is_ascii_alphabetic()
+                    || c == '\''
+                    || c == '_'
+                    || is_superscript(&c)
+                    || is_subscript(&c))
+            {
                 break;
             }
 
@@ -237,9 +244,22 @@ impl<'a> Lexer<'a> {
         let value = match value.as_ref() {
             "Σ" | "∑" => String::from("sum"),
             "∏" => String::from("prod"),
-            "∫" => String::from("integrate"),
+            "∫" | "integral" => String::from("integrate"),
+            "sin⁻¹" => String::from("asin"),
+            "cos⁻¹" => String::from("acos"),
+            "tan⁻¹" => String::from("atan"),
+            "cot⁻¹" => String::from("acot"),
+            "cosec⁻¹" => String::from("acosec"),
+            "sec⁻¹" => String::from("asec"),
+            "sinh⁻¹" => String::from("asinh"),
+            "cosh⁻¹" => String::from("acosh"),
+            "tanh⁻¹" => String::from("atanh"),
+            "coth⁻¹" => String::from("acoth"),
+            "cosech⁻¹" => String::from("acosech"),
+            "sech⁻¹" => String::from("asech"),
+            "∛" => String::from("cbrt"),
             "°" => String::from("deg"),
-            _ => value,
+            _ => value, // things like log₂ are handled in the parser
         };
 
         build(kind, &value, (start, end))
@@ -268,8 +288,8 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
-            | '>' | '≠' | '≥' | '≤' => false,
-            _ => !c.is_digit(10),
+            | '>' | '≠' | '≥' | '≤' | '×' | '÷' => false,
+            _ => !c.is_digit(10) || is_superscript(c) || is_subscript(c),
         }
     } else {
         false

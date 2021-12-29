@@ -114,6 +114,7 @@ pub enum CalcError {
     UnableToSolveEquation,
     UnableToOverrideConstant(String),
     UnableToParseExpression,
+    UnrecognizedLogBase,
     Unknown,
 }
 
@@ -142,6 +143,7 @@ impl ToString for CalcError {
             CalcError::UnableToParseExpression => format!("Unable to parse expression."),
             CalcError::UnableToSolveEquation => format!("Unable to solve equation."),
             CalcError::UnableToOverrideConstant(name) => format!("Unable to override constant: '{}'.", name),
+            CalcError::UnrecognizedLogBase => format!("Unrecognized log base."),
             CalcError::Unknown => format!("Unknown error."),
         }
     }
@@ -589,8 +591,19 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     let identifier = Identifier::from_full_name(&advance(context).value);
+
+    let mut log_base = None;
+    if identifier.full_name.starts_with("log") {
+        if let Some(c) = identifier.full_name.chars().nth(3) {
+            if crate::text_utils::is_subscript(&c) {
+                log_base = Some(parse_log_base(&identifier)?);
+            }
+        }
+    }
+
     let exists_as_fn = context.symbol_table.contains_fn(&identifier.pure_name)
-        || context.current_function.as_ref() == Some(&identifier.pure_name);
+        || context.current_function.as_ref() == Some(&identifier.pure_name)
+        || log_base.is_some();
 
     // Eg. sqrt64
     if exists_as_fn
@@ -602,6 +615,14 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         } else {
             parse_factor(context)?
         };
+
+        if let Some(log_base) = log_base {
+            return Ok(Expr::FnCall(
+                Identifier::from_full_name("log"),
+                vec![parameter, log_base],
+            ));
+        }
+
         return Ok(Expr::FnCall(identifier, vec![parameter]));
     }
 
@@ -635,6 +656,11 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
 
         if is_integral {
             context.is_in_integral = false;
+        }
+
+        if let Some(log_base) = log_base {
+            parameters.push(log_base);
+            return Ok(Expr::FnCall(Identifier::from_full_name("log"), parameters));
         }
 
         return Ok(Expr::FnCall(identifier, parameters));
@@ -710,6 +736,15 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         } else {
             Err(CalcError::UndefinedVar(identifier.full_name))
         }
+    }
+}
+
+fn parse_log_base(identifier: &Identifier) -> Result<Expr, CalcError> {
+    let subscript = identifier.full_name.chars().skip(3);
+    if let Some(base) = crate::text_utils::parse_subscript(subscript) {
+        Ok(Expr::Literal(base))
+    } else {
+        Err(CalcError::UnrecognizedLogBase)
     }
 }
 
