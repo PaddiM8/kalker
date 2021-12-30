@@ -114,7 +114,7 @@ pub enum CalcError {
     UnableToSolveEquation,
     UnableToOverrideConstant(String),
     UnableToParseExpression,
-    UnrecognizedLogBase,
+    UnrecognizedBase,
     Unknown,
 }
 
@@ -143,7 +143,7 @@ impl ToString for CalcError {
             CalcError::UnableToParseExpression => format!("Unable to parse expression."),
             CalcError::UnableToSolveEquation => format!("Unable to solve equation."),
             CalcError::UnableToOverrideConstant(name) => format!("Unable to override constant: '{}'.", name),
-            CalcError::UnrecognizedLogBase => format!("Unrecognized log base."),
+            CalcError::UnrecognizedBase => format!("Unrecognized base."),
             CalcError::Unknown => format!("Unknown error."),
         }
     }
@@ -596,7 +596,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     if identifier.full_name.starts_with("log") {
         if let Some(c) = identifier.full_name.chars().nth(3) {
             if crate::text_utils::is_subscript(&c) {
-                log_base = Some(parse_log_base(&identifier)?);
+                log_base = Some(Expr::Literal(get_base(&identifier.full_name)? as f64));
             }
         }
     }
@@ -739,15 +739,6 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     }
 }
 
-fn parse_log_base(identifier: &Identifier) -> Result<Expr, CalcError> {
-    let subscript = identifier.full_name.chars().skip(3);
-    if let Some(base) = crate::text_utils::parse_subscript(subscript) {
-        Ok(Expr::Literal(base))
-    } else {
-        Err(CalcError::UnrecognizedLogBase)
-    }
-}
-
 fn split_into_variables(context: &mut Context, identifier: &Identifier) -> Result<Expr, CalcError> {
     let mut chars: Vec<char> = identifier.pure_name.chars().collect();
     let mut left = Expr::Var(Identifier::from_full_name(&chars[0].to_string()));
@@ -864,10 +855,26 @@ fn is_at_end(context: &Context) -> bool {
 }
 
 fn string_to_num(value: &str) -> Result<f64, CalcError> {
-    if let Ok(result) = value.replace(" ", "").parse::<f64>() {
+    let base = get_base(value)?;
+    if let Some(result) = crate::radix::parse_float_radix(value.replace(" ", ""), base) {
         Ok(result)
     } else {
         Err(CalcError::InvalidNumberLiteral(value.into()))
+    }
+}
+
+fn get_base(value: &str) -> Result<u8, CalcError> {
+    let underscore_pos = if let Some(i) = value.find('_') {
+        i
+    } else {
+        return Ok(10);
+    };
+
+    let subscript = value.chars().skip(underscore_pos + 1usize);
+    if let Some(base) = crate::text_utils::parse_subscript(subscript) {
+        Ok(base)
+    } else {
+        Err(CalcError::UnrecognizedBase)
     }
 }
 
