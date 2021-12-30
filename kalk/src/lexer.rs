@@ -175,9 +175,11 @@ impl<'a> Lexer<'a> {
     }
 
     fn next_number_literal(&mut self) -> Token {
-        let start = self.index;
+        let mut start = self.index;
         let mut end = start;
         let mut value = String::new();
+        let mut leading_zero = self.peek().unwrap_or(&'\0') == &'0';
+        let mut base = 10u32;
 
         loop {
             let c = if let Some(c) = self.peek() {
@@ -186,13 +188,53 @@ impl<'a> Lexer<'a> {
                 break;
             };
 
-            if !c.is_digit(10) && c != '.' && !c.is_whitespace() || c == '\n' || c == '\r' {
+            // If at the second character and
+            // the first character is a zero,
+            // allow a letter
+            if end - start == 1 && leading_zero {
+                base = match c {
+                    'b' => 2,
+                    'o' => 8,
+                    'x' => 16,
+                    _ => 10,
+                };
+
+                // Don't include eg. 0x in the value
+                start += 2;
+                end += 1;
+                self.advance();
+                value.clear();
+                leading_zero = false;
+                continue;
+            }
+
+            if !c.is_digit(base) && c != '.' && c != '_' && !c.is_whitespace()
+                || c == '\n'
+                || c == '\r'
+            {
                 break;
             }
 
             end += 1;
             value.push(c);
             self.advance();
+        }
+
+        // Subscript unicode symbols after the literal, eg. 11₂
+        let mut base_str = String::new();
+        while crate::text_utils::is_subscript(self.peek().unwrap_or(&'\0')) {
+            base_str.push(*self.peek().unwrap());
+            self.advance();
+        }
+
+        if base_str != "" {
+            base = crate::text_utils::subscript_to_digits(base_str.chars())
+                .parse::<u32>()
+                .unwrap_or(10);
+        }
+
+        if base != 10 {
+            value.push_str(&format!("_{}", base));
         }
 
         build(TokenKind::Literal, &value, (start, end))

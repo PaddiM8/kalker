@@ -16,8 +16,8 @@ pub fn is_subscript(c: &char) -> bool {
     }
 }
 
-pub fn parse_subscript(chars: impl Iterator<Item = char>) -> Option<f64> {
-    if let Ok(result) = subscript_to_digits(chars).parse::<f64>() {
+pub fn parse_subscript(chars: impl Iterator<Item = char>) -> Option<u8> {
+    if let Ok(result) = subscript_to_digits(chars).parse::<u8>() {
         Some(result)
     } else {
         None
