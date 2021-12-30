@@ -200,12 +200,14 @@ impl<'a> Lexer<'a> {
                 };
 
                 // Don't include eg. 0x in the value
-                start += 2;
-                end += 1;
-                self.advance();
-                value.clear();
-                leading_zero = false;
-                continue;
+                if base != 10 {
+                    start += 2;
+                    end += 1;
+                    self.advance();
+                    value.clear();
+                    leading_zero = false;
+                    continue;
+                }
             }
 
             if !c.is_digit(base) && c != '.' && c != '_' && !c.is_whitespace()
