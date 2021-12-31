@@ -33,6 +33,7 @@ pub struct Context {
     is_in_integral: bool,
     current_function: Option<String>,
     current_function_parameters: Option<Vec<String>>,
+    other_radix: Option<u8>,
 }
 
 #[wasm_bindgen]
@@ -53,6 +54,7 @@ impl Context {
             is_in_integral: false,
             current_function: None,
             current_function_parameters: None,
+            other_radix: None,
         };
 
         parse(&mut context, crate::prelude::INIT).unwrap();
@@ -176,17 +178,25 @@ pub fn eval(
             None
         },
     );
-    interpreter.interpret(statements)
+    let result = interpreter.interpret(statements);
+    if let Ok(Some(mut num)) = result {
+        num.other_radix = context.other_radix;
+        Ok(Some(num))
+    } else {
+        result
+    }
 }
 
 /// Parse expressions/declarations and return a syntax tree.
 ///
 /// `None` will be returned if the last statement is a declaration.
 pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError> {
-    context.tokens = Lexer::lex(input);
+    let mut lexer = Lexer::new(input);
+    context.tokens = lexer.lex();
     context.pos = 0;
     context.parsing_unit_decl = false;
     context.unit_decl_base_unit = None;
+    context.other_radix = lexer.get_other_radix();
 
     let mut statements: Vec<Stmt> = Vec::new();
     while !is_at_end(context) {
@@ -856,7 +866,7 @@ fn is_at_end(context: &Context) -> bool {
 
 fn string_to_num(value: &str) -> Result<f64, CalcError> {
     let base = get_base(value)?;
-    if let Some(result) = crate::radix::parse_float_radix(value.replace(" ", ""), base) {
+    if let Some(result) = crate::radix::parse_float_radix(&value.replace(" ", ""), base) {
         Ok(result)
     } else {
         Err(CalcError::InvalidNumberLiteral(value.into()))

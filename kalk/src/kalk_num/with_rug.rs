@@ -12,6 +12,7 @@ pub struct KalkNum {
     pub(crate) unit: String,
     pub(crate) imaginary_value: Float,
     pub(crate) boolean_value: Option<bool>,
+    pub(crate) other_radix: Option<u8>,
 }
 
 impl KalkNum {
@@ -22,6 +23,7 @@ impl KalkNum {
             unit: unit.to_string(),
             imaginary_value: Float::with_val(precision, 0),
             boolean_value: None,
+            other_radix: None,
         }
     }
 
@@ -35,6 +37,7 @@ impl KalkNum {
                 imaginary_value
             },
             boolean_value: None,
+            other_radix: None,
         }
     }
 
@@ -44,6 +47,7 @@ impl KalkNum {
             unit: String::new(),
             imaginary_value: value,
             boolean_value: None,
+            other_radix: None,
         }
     }
 
@@ -53,6 +57,7 @@ impl KalkNum {
             unit: String::new(),
             imaginary_value: Float::with_val(63, 0),
             boolean_value: Some(value),
+            other_radix: None,
         }
     }
 
