@@ -91,10 +91,15 @@ lazy_static! {
         m.insert("sqrt", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("√", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("trunc", (UnaryFuncInfo(trunc, Other), ""));
+        m.insert("bitcmp", (UnaryFuncInfo(bitcmp, Other), ""));
         m
     };
     pub static ref BINARY_FUNCS: HashMap<&'static str, (BinaryFuncInfo, &'static str)> = {
         let mut m = HashMap::new();
+        m.insert("bitand", (BinaryFuncInfo(bitand, Other), ""));
+        m.insert("bitor", (BinaryFuncInfo(bitor, Other), ""));
+        m.insert("bitxor", (BinaryFuncInfo(bitxor, Other), ""));
+        m.insert("bitshift", (BinaryFuncInfo(bitshift, Other), ""));
         m.insert("max", (BinaryFuncInfo(max, Other), ""));
         m.insert("min", (BinaryFuncInfo(min, Other), ""));
         m.insert("hypot", (BinaryFuncInfo(hypot, Other), ""));

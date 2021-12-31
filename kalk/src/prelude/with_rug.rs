@@ -18,6 +18,41 @@ pub(crate) mod funcs {
         KalkNum::new(x.value.gamma(), &x.unit)
     }
 
+    pub fn bitcmp(x: KalkNum) -> KalkNum {
+        KalkNum::from(!x.value.to_i32_saturating().unwrap_or(i32::MAX))
+    }
+
+    pub fn bitand(x: KalkNum, y: KalkNum) -> KalkNum {
+        KalkNum::from(
+            x.value.to_i32_saturating().unwrap_or(i32::MAX)
+                & y.value.to_i32_saturating().unwrap_or(i32::MAX),
+        )
+    }
+
+    pub fn bitor(x: KalkNum, y: KalkNum) -> KalkNum {
+        KalkNum::from(
+            x.value.to_i32_saturating().unwrap_or(i32::MAX)
+                | y.value.to_i32_saturating().unwrap_or(i32::MAX),
+        )
+    }
+
+    pub fn bitxor(x: KalkNum, y: KalkNum) -> KalkNum {
+        KalkNum::from(
+            x.value.to_i32_saturating().unwrap_or(i32::MAX)
+                ^ y.value.to_i32_saturating().unwrap_or(i32::MAX),
+        )
+    }
+
+    pub fn bitshift(x: KalkNum, y: KalkNum) -> KalkNum {
+        let x = x.value.to_i32_saturating().unwrap_or(i32::MAX) as i32;
+        let y = y.value.to_i32_saturating().unwrap_or(i32::MAX) as i32;
+        if y < 0 {
+            KalkNum::from(x >> y.abs())
+        } else {
+            KalkNum::from(x << y)
+        }
+    }
+
     pub fn hypot(x: KalkNum, y: KalkNum) -> KalkNum {
         if x.has_imaginary() || y.has_imaginary() {
             let abs_x = abs(x);
