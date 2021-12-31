@@ -50,6 +50,32 @@ pub(crate) mod funcs {
         2f64.sqrt() * pi.sqrt() * t.powf(x - 0.5f64) * (-t).exp() * a
     }
 
+    pub fn bitcmp(x: KalkNum, y: KalkNum) -> KalkNum {
+        KalkNum::from(!x.value.round() as i32)
+    }
+
+    pub fn bitand(x: KalkNum, y: KalkNum) -> KalkNum {
+        KalkNum::from(x.value.round() as i32 & y.value.round() as i32)
+    }
+
+    pub fn bitor(x: KalkNum, y: KalkNum) -> KalkNum {
+        KalkNum::from(x.value.round() as i32 | y.value.round() as i32)
+    }
+
+    pub fn bitxor(x: KalkNum, y: KalkNum) -> KalkNum {
+        KalkNum::from(x.value.round() as i32 ^ y.value.round() as i32)
+    }
+
+    pub fn bitshift(x: KalkNum, y: KalkNum) -> KalkNum {
+        let x = x.value.round() as i32;
+        let y = y.value.round() as i32;
+        if y < 0 {
+            KalkNum::from((x >> y.abs()))
+        } else {
+            KalkNum::from((x << y))
+        }
+    }
+
     pub fn hypot(x: KalkNum, y: KalkNum) -> KalkNum {
         if x.has_imaginary() || y.has_imaginary() {
             let abs_x = abs(x);
