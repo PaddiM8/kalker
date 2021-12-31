@@ -53,7 +53,7 @@ lazy_static! {
 #[derive(Clone)]
 pub struct ScientificNotation {
     pub negative: bool,
-    pub(crate) digits: String,
+    pub value: f64,
     pub exponent: i32,
     pub imaginary: bool,
 }
@@ -69,20 +69,12 @@ pub enum ComplexNumberType {
 impl ScientificNotation {
     #[wasm_bindgen(js_name = toString)]
     pub fn to_string(&self) -> String {
-        if self.digits == "" {
-            return String::from("0");
-        }
-
         let sign = if self.negative { "-" } else { "" };
-        let mut digits_and_mul = if self.digits == "1" {
+        let digits_and_mul = if self.value == 1f64 {
             String::new()
         } else {
-            format!("{}×", &self.digits)
+            format!("{}×", format_number(self.value))
         };
-
-        if self.digits.len() > 1 {
-            digits_and_mul.insert(1usize, '.');
-        }
 
         format!(
             "{}{}10^{} {}",
@@ -107,31 +99,17 @@ impl KalkNum {
         &self,
         complex_number_type: ComplexNumberType,
     ) -> ScientificNotation {
-        let value_string = match complex_number_type {
-            ComplexNumberType::Real => self.to_string_real(10),
-            ComplexNumberType::Imaginary => self.to_string_imaginary(10, false),
-        }
-        .trim_start_matches("-")
-        .to_string();
-        let trimmed = if value_string.contains(".") {
-            value_string.trim_end_matches("0")
-        } else {
-            &value_string
-        };
         let value = match complex_number_type {
-            ComplexNumberType::Real => &self.value,
-            ComplexNumberType::Imaginary => &self.imaginary_value,
+            ComplexNumberType::Real => self.to_f64(),
+            ComplexNumberType::Imaginary => self.imaginary_to_f64(),
         };
+        let exponent = value.clone().abs().log10().floor() as i32 + 1;
 
         ScientificNotation {
-            negative: value < &0f64,
-            digits: trimmed
-                .to_string()
-                .replace(".", "")
-                .trim_start_matches("0")
-                .to_string(),
+            negative: value < 0f64,
+            value: value / (10f64.pow(exponent - 1) as f64),
             // I... am not sure what else to do...
-            exponent: KalkNum::new(value.clone().abs().log10() + 1f64, "").to_i32(),
+            exponent,
             imaginary: complex_number_type == ComplexNumberType::Imaginary,
         }
     }
