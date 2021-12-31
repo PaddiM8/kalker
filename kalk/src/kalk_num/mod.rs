@@ -107,7 +107,7 @@ impl KalkNum {
 
         ScientificNotation {
             negative: value < 0f64,
-            value: value / (10f64.pow(exponent - 1) as f64),
+            value: value / (10f64.powf(exponent as f64 - 1f64) as f64),
             // I... am not sure what else to do...
             exponent,
             imaginary: complex_number_type == ComplexNumberType::Imaginary,
