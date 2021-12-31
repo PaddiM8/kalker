@@ -13,6 +13,7 @@ pub mod regular;
 pub use regular::*;
 
 use crate::ast::Expr;
+use crate::radix;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -76,7 +77,7 @@ impl ScientificNotation {
         let mut digits_and_mul = if self.digits == "1" {
             String::new()
         } else {
-            format!("{}*", &self.digits)
+            format!("{}×", &self.digits)
         };
 
         if self.digits.len() > 1 {
@@ -107,8 +108,8 @@ impl KalkNum {
         complex_number_type: ComplexNumberType,
     ) -> ScientificNotation {
         let value_string = match complex_number_type {
-            ComplexNumberType::Real => self.to_string_real(),
-            ComplexNumberType::Imaginary => self.to_string_imaginary(false),
+            ComplexNumberType::Real => self.to_string_real(10),
+            ComplexNumberType::Imaginary => self.to_string_imaginary(10, false),
         }
         .trim_start_matches("-")
         .to_string();
@@ -170,12 +171,12 @@ impl KalkNum {
         }
     }
 
-    pub fn to_string_real(&self) -> String {
-        format_number(self.to_f64())
+    pub fn to_string_real(&self, radix: u8) -> String {
+        radix::to_radix_pretty(self.to_f64(), radix)
     }
 
-    pub fn to_string_imaginary(&self, include_i: bool) -> String {
-        let value = format_number(self.imaginary_to_f64());
+    pub fn to_string_imaginary(&self, radix: u8, include_i: bool) -> String {
+        let value = radix::to_radix_pretty(self.imaginary_to_f64(), radix);
         if include_i && value == "1" {
             String::from("i")
         } else if include_i && value == "-1" {
@@ -187,7 +188,7 @@ impl KalkNum {
         }
     }
 
-    pub fn to_string_pretty(&self) -> String {
+    fn to_string_pretty_radix(&self, radix: u8) -> String {
         if let Some(boolean_value) = self.boolean_value {
             return boolean_value.to_string();
         }
@@ -205,12 +206,16 @@ impl KalkNum {
         let sci_notation_real = self.to_scientific_notation(ComplexNumberType::Real);
         let mut adjusted_num = self.clone();
         let result_str = if (-6..8).contains(&sci_notation_real.exponent) || self.value == 0f64 {
-            self.to_string_real()
+            self.to_string_real(radix)
         } else if sci_notation_real.exponent <= -14 {
             adjusted_num.value = KalkNum::from(0f64).value;
             String::from("0")
         } else {
-            sci_notation_real.to_string().trim().to_string()
+            if radix == 10 {
+                sci_notation_real.to_string().trim().to_string()
+            } else {
+                return String::new();
+            }
         };
 
         let sci_notation_imaginary = self.to_scientific_notation(ComplexNumberType::Imaginary);
@@ -218,12 +223,16 @@ impl KalkNum {
             || self.imaginary_value == 0f64
             || self.imaginary_value == 1f64
         {
-            self.to_string_imaginary(true)
+            self.to_string_imaginary(radix, true)
         } else if sci_notation_imaginary.exponent <= -14 {
             adjusted_num.imaginary_value = KalkNum::from(0f64).value;
             String::from("0")
         } else {
-            format!("{}", sci_notation_imaginary.to_string().trim())
+            if radix == 10 {
+                format!("{}", sci_notation_imaginary.to_string().trim())
+            } else {
+                return String::new();
+            }
         };
 
         let mut output = result_str;
@@ -256,12 +265,23 @@ impl KalkNum {
         }
 
         if let Some(estimate) = adjusted_num.estimate() {
-            if estimate != output {
+            if estimate != output && radix == 10 {
                 output.push_str(&format!(" ≈ {}", estimate));
             }
         }
 
         output
+    }
+
+    pub fn to_string_pretty(&self) -> String {
+        if let Some(other_radix) = self.other_radix {
+            let with_other_radix = self.to_string_pretty_radix(other_radix);
+            if with_other_radix != "" {
+                return format!("{}\n{}", self.to_string_pretty_radix(10), with_other_radix);
+            }
+        }
+
+        self.to_string_pretty_radix(10)
     }
 
     pub fn is_too_big(&self) -> bool {
@@ -474,13 +494,13 @@ impl KalkNum {
         if let Some(value) = rounded_real {
             output.push_str(&value);
         } else if self.has_real() {
-            output.push_str(&self.to_string_real());
+            output.push_str(&self.to_string_real(10));
         }
 
         let imaginary_value = if let Some(value) = rounded_imaginary {
             Some(value)
         } else if self.has_imaginary() {
-            Some(self.to_string_imaginary(false))
+            Some(self.to_string_imaginary(10, false))
         } else {
             None
         };
@@ -520,7 +540,9 @@ impl KalkNum {
     fn estimate_one_value(&self, complex_number_type: ComplexNumberType) -> Option<String> {
         let (value, value_string) = match complex_number_type {
             ComplexNumberType::Real => (&self.value, self.to_string()),
-            ComplexNumberType::Imaginary => (&self.imaginary_value, self.to_string_imaginary(true)),
+            ComplexNumberType::Imaginary => {
+                (&self.imaginary_value, self.to_string_imaginary(10, true))
+            }
         };
 
         let fract = value.clone().fract().abs();
@@ -679,7 +701,7 @@ impl KalkNum {
     }
 }
 
-fn format_number(input: f64) -> String {
+pub fn format_number(input: f64) -> String {
     let rounded = format!("{:.1$}", input, 10);
     if rounded.contains(".") {
         rounded

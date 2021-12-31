@@ -56,18 +56,23 @@ pub struct Token {
 pub struct Lexer<'a> {
     chars: Peekable<Chars<'a>>,
     index: usize,
+    other_radix: Option<u8>,
 }
 
 impl<'a> Lexer<'a> {
-    pub fn lex(source: &str) -> Vec<Token> {
-        let mut lexer = Lexer {
+    pub fn new(source: &'a str) -> Self {
+        Lexer {
             chars: source.chars().peekable(),
             index: 0,
-        };
+            other_radix: None,
+        }
+    }
+
+    pub fn lex(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
 
         loop {
-            let next = lexer.next();
+            let next = self.next();
 
             if let TokenKind::EOF = next.kind {
                 tokens.push(next);
@@ -78,6 +83,10 @@ impl<'a> Lexer<'a> {
         }
 
         tokens
+    }
+
+    pub fn get_other_radix(&self) -> Option<u8> {
+        self.other_radix
     }
 
     fn next(&mut self) -> Token {
@@ -179,7 +188,7 @@ impl<'a> Lexer<'a> {
         let mut end = start;
         let mut value = String::new();
         let mut leading_zero = self.peek().unwrap_or(&'\0') == &'0';
-        let mut base = 10u32;
+        let mut base = 10u8;
 
         loop {
             let c = if let Some(c) = self.peek() {
@@ -210,7 +219,7 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            if !c.is_digit(base) && c != '.' && c != '_' && !c.is_whitespace()
+            if !c.is_digit(base as u32) && c != '.' && c != '_' && !c.is_whitespace()
                 || c == '\n'
                 || c == '\r'
             {
@@ -231,12 +240,21 @@ impl<'a> Lexer<'a> {
 
         if base_str != "" {
             base = crate::text_utils::subscript_to_digits(base_str.chars())
-                .parse::<u32>()
+                .parse::<u8>()
                 .unwrap_or(10);
         }
 
         if base != 10 {
             value.push_str(&format!("_{}", base));
+            if let Some(other_radix) = self.other_radix {
+                // Don't bother keeping track of radixes
+                // if several different ones are used
+                if other_radix != base {
+                    self.other_radix = None;
+                }
+            } else {
+                self.other_radix = Some(base);
+            }
         }
 
         build(TokenKind::Literal, &value, (start, end))
@@ -358,7 +376,7 @@ mod tests {
     #[test]
     #[wasm_bindgen_test]
     fn test_token_kinds() {
-        let tokens = Lexer::lex("+-*/%^()|=!,");
+        let tokens = Lexer::new("+-*/%^()|=!,").lex();
         let expected = vec![
             TokenKind::Plus,
             TokenKind::Minus,
@@ -381,7 +399,7 @@ mod tests {
     #[test]
     #[wasm_bindgen_test]
     fn test_brackets() {
-        let tokens = Lexer::lex("[1 < 2]");
+        let tokens = Lexer::new("[1 < 2]").lex();
         let expected = vec![
             TokenKind::OpenBracket,
             TokenKind::Literal,
@@ -401,7 +419,7 @@ mod tests {
         let test_cases = vec![" ", "     ", "test ", " test     "];
 
         for input in test_cases {
-            let tokens = Lexer::lex(input);
+            let tokens = Lexer::new(input).lex();
 
             if regex::Regex::new(r"^\s*$").unwrap().is_match(input) {
                 let expected = vec![TokenKind::EOF];
@@ -417,7 +435,7 @@ mod tests {
     #[test_case("24")]
     #[test_case("56.4")]
     fn test_number_literal(input: &str) {
-        let tokens = Lexer::lex(input);
+        let tokens = Lexer::new(input).lex();
         let expected = vec![TokenKind::Literal, TokenKind::EOF];
 
         assert_eq!(&tokens[0].value, input);
@@ -427,7 +445,7 @@ mod tests {
     #[test_case("x")]
     #[test_case("xy")]
     fn test_identifier(input: &str) {
-        let tokens = Lexer::lex(input);
+        let tokens = Lexer::new(input).lex();
         let expected = vec![TokenKind::Identifier, TokenKind::EOF];
 
         assert_eq!(&tokens[0].value, input);
@@ -436,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_function_call() {
-        let tokens = Lexer::lex("f(x)");
+        let tokens = Lexer::new("f(x)").lex();
         let expected = vec![
             TokenKind::Identifier,
             TokenKind::OpenParenthesis,
