@@ -127,7 +127,7 @@
                 const [result, success] = calculate(kalk, input);
 
                 output = success
-                    ? highlight(result)[0]
+                    ? highlight(result, true)[0]
                     : `<span style="color: ${errorcolor}">${result}</span>`;
             }
 
@@ -274,13 +274,26 @@
         if (autofocus) element.focus();
     }
 
-    function highlight(input: string): [string, number] {
+    function highlight(
+        input: string,
+        isOutput: boolean = false
+    ): [string, number] {
         if (!input) return ["", 0];
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)\(?)/g,
-            (substring, _, comparison, _2, html, _3, op, identifier) => {
+            /(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)\(?)/g,
+            (
+                substring,
+                _radix,
+                _,
+                comparison,
+                _2,
+                html,
+                _3,
+                op,
+                identifier
+            ) => {
                 if (comparison) {
                     if (substring == "<=") return "≤";
                     if (substring == ">=") return "≥";
@@ -296,7 +309,7 @@
                             return "<br />}";
                         } else {
                             if (!substring.match(/\n\s\s/)) offset += 2;
-                            return "<br />&nbsp;&nbsp;";
+                            return isOutput ? "<br />" : "<br />&nbsp;&nbsp;";
                         }
                     }
                     if (substring.match(/\s+/)) {

@@ -97,6 +97,7 @@ impl Highlighter for LineHighlighter {
         let reg = Regex::new(
             r"(?x)
             (?P<op>([+\-/*%^!×÷]|if|otherwise)) |
+            (?P<radix>0[box][a-zA-Z0-9]+) |
             (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)",
         )
         .unwrap();
