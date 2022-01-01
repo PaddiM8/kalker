@@ -107,6 +107,10 @@ lazy_static! {
         m.insert("lcm", (BinaryFuncInfo(lcm, Other), ""));
         m.insert("log", (BinaryFuncInfo(logx, Other), ""));
         m.insert("root", (BinaryFuncInfo(nth_root, Other), ""));
+        m.insert("nCr", (BinaryFuncInfo(ncr, Other), ""));
+        m.insert("comb", (BinaryFuncInfo(ncr, Other), ""));
+        m.insert("nPr", (BinaryFuncInfo(npr, Other), ""));
+        m.insert("perm", (BinaryFuncInfo(npr, Other), ""));
         m
     };
 }
@@ -222,6 +226,7 @@ fn from_angle_unit(context: &mut interpreter::Context, x: KalkNum, angle_unit: &
 pub mod funcs {
     #[cfg(not(feature = "rug"))]
     pub use super::regular::funcs::*;
+    use super::special_funcs::factorial;
     #[cfg(feature = "rug")]
     pub use super::with_rug::funcs::*;
     use crate::kalk_num::KalkNum;
@@ -713,6 +718,16 @@ pub mod funcs {
 
     pub fn trunc(x: KalkNum) -> KalkNum {
         KalkNum::new_with_imaginary(x.value.trunc(), &x.unit, x.imaginary_value.trunc())
+    }
+
+    pub fn ncr(x: KalkNum, y: KalkNum) -> KalkNum {
+        factorial(x.clone()).div_without_unit(
+            factorial(y.clone()).mul_without_unit(factorial(x.sub_without_unit(y))),
+        )
+    }
+
+    pub fn npr(x: KalkNum, y: KalkNum) -> KalkNum {
+        factorial(x.clone()).div_without_unit(factorial(x.sub_without_unit(y)))
     }
 
     fn multiply_with_i(z: KalkNum) -> KalkNum {
