@@ -47,7 +47,7 @@ pub fn subscript_to_digits(chars: impl Iterator<Item = char>) -> String {
         });
     }
 
-    return regular;
+    return regular.trim().to_string();
 }
 
 pub fn digits_to_subscript(chars: impl Iterator<Item = char>) -> String {
