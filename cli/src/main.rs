@@ -9,10 +9,10 @@ use std::io::Read;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let app = App::new("kalk")
+    let app = App::new("kalker")
         .author(env!("CARGO_PKG_AUTHORS"))
         .version(env!("CARGO_PKG_VERSION"))
-        .usage("kalk [options] [input]")
+        .usage("kalker [options] [input]")
         .action(default_action)
         .flag(
             Flag::new("input-file", FlagType::String)
@@ -55,6 +55,10 @@ fn default_action(context: &Context) {
         .int_flag("precision")
         .unwrap_or(output::DEFAULT_PRECISION as isize) as u32;
 
+    if let Some(input_file_path) = get_input_file_by_name("default") {
+        load_input_file(&input_file_path, precision, &mut parser_context);
+    }
+
     if let Ok(input_file_path) = context.string_flag("input-file") {
         load_input_file(&input_file_path, precision, &mut parser_context);
     }
@@ -68,7 +72,20 @@ fn default_action(context: &Context) {
     }
 }
 
-fn load_input_file(file_name: &str, precision: u32, parser_context: &mut parser::Context) {
+pub(crate) fn get_input_file_by_name(name: &str) -> Option<String> {
+    let mut path = dirs::config_dir()?;
+    path.push("kalker");
+    path.push(name);
+    path.set_extension("kalker");
+
+    if path.exists() {
+        Some(path.to_str()?.to_string())
+    } else {
+        None
+    }
+}
+
+pub fn load_input_file(file_name: &str, precision: u32, parser_context: &mut parser::Context) {
     let mut file_content = String::new();
     File::open(&file_name)
         .expect("Couldn't find file.")
@@ -77,7 +94,9 @@ fn load_input_file(file_name: &str, precision: u32, parser_context: &mut parser:
 
     // Parse the input file content, resulting in the symbol table being filled out.
     // Output is not needed here.
-    parser::eval(parser_context, &file_content, precision).expect("Failed to parse input file.");
+    if let Err(error) = parser::eval(parser_context, &file_content, precision) {
+        eprintln!("{}", error.to_string());
+    }
 }
 
 fn get_env_angle_unit() -> String {

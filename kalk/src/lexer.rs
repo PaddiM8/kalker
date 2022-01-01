@@ -42,6 +42,7 @@ pub enum TokenKind {
     ClosedBrace,
     Comma,
     Semicolon,
+    Newline,
 
     EOF,
 }
@@ -97,7 +98,7 @@ impl<'a> Lexer<'a> {
             return eof;
         };
 
-        while c == ' ' || c == '\t' || c == '\r' || c == '\n' {
+        while c == ' ' || c == '\t' || c == '\r' {
             if let None = self.advance() {
                 return eof;
             }
@@ -141,6 +142,7 @@ impl<'a> Lexer<'a> {
             '<' => build(TokenKind::LessThan, "", span),
             ',' => build(TokenKind::Comma, "", span),
             ';' => build(TokenKind::Semicolon, "", span),
+            '\n' => build(TokenKind::Newline, "", span),
             '%' => build(TokenKind::Percent, "", span),
             '\'' => build(TokenKind::Tick, "", span),
             '≠' => build(TokenKind::NotEquals, "", span),
@@ -350,7 +352,7 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
-            | '>' | '≠' | '≥' | '≤' | '×' | '÷' => false,
+            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '\n' => false,
             _ => !c.is_digit(10) || is_superscript(c) || is_subscript(c),
         }
     } else {
