@@ -317,7 +317,7 @@
                     }
                 }
 
-                if (op) {
+                if (op && !isOutput) {
                     if (substring == "*") return "×";
                     if (substring == "/") return "÷";
                 }
