@@ -39,18 +39,12 @@ jobs:
           yarn install
           cd kalk
           wasm-pack build --scope paddim8 -- --no-default-features
-      - name: Publish
-        run: |
-          sudo apt install expect
-          /usr/bin/expect <<EOD
-          spawn npm adduser
-          expect {
-            "Username:" {send "paddim8\r"; exp_continue}
-            "Password:" {send "${{ secrets.NPM_PASSWORD }}\r"; exp_continue}
-            "Email: (this IS public)" {send "bakk@tuta.io\r"; exp_continue}
-          }
-          EOD
-          wasm-pack publish -a public
+          cd ..
+      - uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: ./kalk/pkg/package.json
+          access: public
 
   publish_kalk_web:
     name: publish kalk_web
@@ -67,20 +61,12 @@ jobs:
         run: |
           cd web
           npm install
-      - name: publish
-        run: |
-          cd web
-          sudo apt install expect
-          /usr/bin/expect <<EOD
-          spawn npm adduser
-          expect {
-            "Username:" {send "paddim8\r"; exp_continue}
-            "Password:" {send "${{ secrets.NPM_PASSWORD }}\r"; exp_continue}
-            "Email: (this IS public)" {send "bakk@tuta.io\r"; exp_continue}
-          }
-          EOD
-          npm publish
-
+          cd ..
+      - uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: ./web/package.json
+          access: public
 
   release_linux:
     name: release linux
