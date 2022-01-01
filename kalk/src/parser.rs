@@ -205,6 +205,8 @@ pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError>
         if match_token(context, TokenKind::Semicolon) {
             advance(context);
         }
+
+        skip_newlines(context);
     }
 
     Ok(statements)
@@ -283,6 +285,7 @@ fn parse_identifier_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 
 fn parse_piecewise(context: &mut Context) -> Result<Expr, CalcError> {
     advance(context);
+    skip_newlines(context);
 
     let mut pieces = Vec::new();
     let mut reached_otherwise = false;
@@ -314,9 +317,17 @@ fn parse_piecewise(context: &mut Context) -> Result<Expr, CalcError> {
             return Err(CalcError::ExpectedIf);
         }
 
-        advance(context);
-        previous(context).kind == TokenKind::Semicolon && !reached_otherwise
+        if match_token(context, TokenKind::Semicolon) {
+            advance(context);
+        }
+        skip_newlines(context);
+
+        (previous(context).kind == TokenKind::Semicolon
+            || previous(context).kind == TokenKind::Newline)
+            && !reached_otherwise
     } {}
+
+    advance(context);
 
     Ok(Expr::Piecewise(pieces))
 }
@@ -862,6 +873,12 @@ fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, CalcError> 
 
 fn is_at_end(context: &Context) -> bool {
     context.pos >= context.tokens.len() || peek(context).kind == TokenKind::EOF
+}
+
+fn skip_newlines(context: &mut Context) {
+    while match_token(context, TokenKind::Newline) {
+        advance(context);
+    }
 }
 
 fn string_to_num(value: &str) -> Result<f64, CalcError> {

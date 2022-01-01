@@ -74,6 +74,16 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
 }
 
 fn eval_repl(parser: &mut parser::Context, input: &str, precision: u32) {
+    if input.starts_with("load ") {
+        let file_name = &input[5..];
+        if let Some(file_path) = crate::get_input_file_by_name(file_name) {
+            crate::load_input_file(&file_path, precision, parser);
+        } else {
+            println!("Unable to find '{}'", file_name);
+        }
+        return;
+    }
+
     match input {
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
@@ -96,7 +106,7 @@ impl Highlighter for LineHighlighter {
 
         let reg = Regex::new(
             r"(?x)
-            (?P<op>([+\-/*%^!×÷]|if|otherwise)) |
+            (?P<op>([+\-/*%^!×÷]|if|otherwise|load|exit|clear|help)) |
             (?P<radix>0[box][a-zA-Z0-9]+) |
             (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)",
         )
