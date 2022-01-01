@@ -1,5 +1,6 @@
 pub mod ast;
 mod calculus;
+mod integration_testing;
 mod interpreter;
 mod inverter;
 pub mod kalk_num;
