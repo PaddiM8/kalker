@@ -60,7 +60,7 @@ pub fn float_to_radix(value: f64, radix: u8) -> String {
 
 pub fn to_radix_pretty(value: f64, radix: u8) -> String {
     if radix == 10 {
-        crate::kalk_num::format_number(value)
+        crate::kalk_value::format_number(value)
     } else {
         format!(
             "{}{}",

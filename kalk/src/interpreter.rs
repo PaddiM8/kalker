@@ -1,12 +1,13 @@
 use crate::ast::Identifier;
 use crate::ast::{Expr, Stmt};
-use crate::calculus;
-use crate::kalk_num::KalkNum;
+use crate::calculation_result::CalculationResult;
+use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
 use crate::parser::DECL_UNIT;
-use crate::prelude;
 use crate::symbol_table::SymbolTable;
+use crate::{as_number_or_zero, calculus};
+use crate::{float, prelude};
 
 pub struct Context<'a> {
     pub symbol_table: &'a mut SymbolTable,
@@ -40,16 +41,19 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<Option<KalkNum>, CalcError> {
+    pub fn interpret(
+        &mut self,
+        statements: Vec<Stmt>,
+    ) -> Result<Option<CalculationResult>, CalcError> {
         for (i, stmt) in statements.iter().enumerate() {
             let num = eval_stmt(self, stmt)?;
 
             // Insert the last value into the `ans` variable.
-            self.symbol_table.set(if (&num.unit).len() > 0 {
+            self.symbol_table.set(if num.has_unit() {
                 Stmt::VarDecl(
                     Identifier::from_full_name("ans"),
                     Box::new(Expr::Unit(
-                        num.unit.clone(),
+                        num.get_unit().clone(),
                         Box::new(crate::ast::build_literal_ast(&num)),
                     )),
                 )
@@ -62,7 +66,7 @@ impl<'a> Context<'a> {
 
             if i == statements.len() - 1 {
                 if let Stmt::Expr(_) = stmt {
-                    return Ok(Some(num));
+                    return Ok(Some(CalculationResult::new(num, 10)));
                 }
             }
         }
@@ -71,7 +75,7 @@ impl<'a> Context<'a> {
     }
 }
 
-fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<KalkNum, CalcError> {
+fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<KalkValue, CalcError> {
     match stmt {
         Stmt::VarDecl(_, _) => eval_var_decl_stmt(context, stmt),
         Stmt::FnDecl(_, _, _) => eval_fn_decl_stmt(),
@@ -80,20 +84,20 @@ fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<KalkNum, CalcError> {
     }
 }
 
-fn eval_var_decl_stmt(context: &mut Context, stmt: &Stmt) -> Result<KalkNum, CalcError> {
+fn eval_var_decl_stmt(context: &mut Context, stmt: &Stmt) -> Result<KalkValue, CalcError> {
     context.symbol_table.insert(stmt.clone());
-    Ok(KalkNum::from(1))
+    Ok(KalkValue::from(1))
 }
 
-fn eval_fn_decl_stmt() -> Result<KalkNum, CalcError> {
-    Ok(KalkNum::from(1)) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
+fn eval_fn_decl_stmt() -> Result<KalkValue, CalcError> {
+    Ok(KalkValue::from(1)) // Nothing needs to happen here, since the parser will already have added the FnDecl's to the symbol table.
 }
 
-fn eval_unit_decl_stmt() -> Result<KalkNum, CalcError> {
-    Ok(KalkNum::from(1))
+fn eval_unit_decl_stmt() -> Result<KalkValue, CalcError> {
+    Ok(KalkValue::from(1))
 }
 
-fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<KalkNum, CalcError> {
+fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<KalkValue, CalcError> {
     eval_expr(context, &expr, "")
 }
 
@@ -101,7 +105,7 @@ pub(crate) fn eval_expr(
     context: &mut Context,
     expr: &Expr,
     unit: &str,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     #[cfg(not(target_arch = "wasm32"))]
     if let (Ok(elapsed), Some(timeout)) = (context.start_time.elapsed(), context.timeout) {
         if elapsed.as_millis() >= timeout {
@@ -129,12 +133,12 @@ fn eval_binary_expr(
     op: &TokenKind,
     right_expr: &Expr,
     unit: &str,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     if let TokenKind::ToKeyword = op {
         // TODO: When the unit conversion function takes a Float instead of Expr,
         // move this to the match statement further down.
         if let Expr::Var(right_unit) = right_expr {
-            let left_unit = eval_expr(context, left_expr, "")?.unit;
+            let left_unit = eval_expr(context, left_expr, "")?.get_unit();
             return convert_unit(context, left_expr, &left_unit, &right_unit.full_name);
             // TODO: Avoid evaluating this twice.
         }
@@ -149,7 +153,7 @@ fn eval_binary_expr(
         }
     }
 
-    let mut result = match op {
+    let result = match op {
         TokenKind::Plus => left.add(context, right),
         TokenKind::Minus => left.sub(context, right),
         TokenKind::Star => left.mul(context, right),
@@ -162,11 +166,13 @@ fn eval_binary_expr(
         TokenKind::LessThan => left.less_than(context, right),
         TokenKind::GreaterOrEquals => left.greater_or_equals(context, right),
         TokenKind::LessOrEquals => left.less_or_equals(context, right),
-        _ => KalkNum::from(1),
+        _ => KalkValue::from(1),
     };
 
     if unit.len() > 0 {
-        result.unit = unit.to_string();
+        if let KalkValue::Number(real, imaginary, _) = result {
+            return Ok(KalkValue::Number(real, imaginary, unit.to_string()));
+        }
     };
 
     Ok(result)
@@ -177,12 +183,12 @@ fn eval_unary_expr(
     op: &TokenKind,
     expr: &Expr,
     unit: &str,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     let num = eval_expr(context, &expr, unit)?;
 
     match op {
-        TokenKind::Minus => Ok(num.mul(context, KalkNum::from(-1f64))),
-        TokenKind::Percent => Ok(num.mul(context, KalkNum::from(0.01f64))),
+        TokenKind::Minus => Ok(num.mul(context, KalkValue::from(-1f64))),
+        TokenKind::Percent => Ok(num.mul(context, KalkValue::from(0.01f64))),
         TokenKind::Exclamation => Ok(prelude::special_funcs::factorial(num)),
         _ => Err(CalcError::InvalidOperator),
     }
@@ -192,7 +198,7 @@ fn eval_unit_expr(
     context: &mut Context,
     identifier: &str,
     expr: &Expr,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     let angle_unit = &context.angle_unit.clone();
     if (identifier == "rad" || identifier == "deg") && angle_unit != identifier {
         return convert_unit(context, expr, identifier, angle_unit);
@@ -206,7 +212,7 @@ pub fn convert_unit(
     expr: &Expr,
     from_unit: &str,
     to_unit: &str,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     if let Some(Stmt::UnitDecl(_, _, unit_def)) =
         context.symbol_table.get_unit(to_unit, from_unit).cloned()
     {
@@ -215,12 +221,8 @@ pub fn convert_unit(
             Box::new(expr.clone()),
         ));
 
-        let num = eval_expr(context, &unit_def, "")?;
-        Ok(KalkNum::new_with_imaginary(
-            num.value,
-            to_unit.into(),
-            num.imaginary_value,
-        ))
+        let (real, imaginary, _) = as_number_or_zero!(eval_expr(context, &unit_def, "")?);
+        Ok(KalkValue::Number(real, imaginary, to_unit.into()))
     } else {
         Err(CalcError::InvalidUnit)
     }
@@ -230,7 +232,7 @@ fn eval_var_expr(
     context: &mut Context,
     identifier: &Identifier,
     unit: &str,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     // If there is a constant with this name, return a literal expression with its value
     if let Some(value) = prelude::CONSTANTS.get(identifier.full_name.as_ref() as &str) {
         return eval_expr(context, &Expr::Literal(*value), unit);
@@ -238,7 +240,7 @@ fn eval_var_expr(
 
     if identifier.full_name == "n" {
         if let Some(value) = context.sum_n_value {
-            return Ok(KalkNum::from(value));
+            return Ok(KalkValue::from(value));
         }
     }
 
@@ -254,17 +256,33 @@ fn eval_var_expr(
 }
 
 #[allow(unused_variables)]
-fn eval_literal_expr(context: &mut Context, value: f64, unit: &str) -> Result<KalkNum, CalcError> {
-    let mut num: KalkNum = value.into();
-    num.unit = unit.into();
+#[cfg(feature = "rug")]
+fn eval_literal_expr(
+    context: &mut Context,
+    value: f64,
+    unit: &str,
+) -> Result<KalkValue, CalcError> {
+    let mut float = float!(value);
+    float.set_prec(context.precision);
 
-    #[cfg(feature = "rug")]
-    num.value.set_prec(context.precision);
-
-    Ok(num)
+    Ok(KalkValue::Number(float, float!(0), unit.to_string()))
 }
 
-fn eval_group_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkNum, CalcError> {
+#[allow(unused_variables)]
+#[cfg(not(feature = "rug"))]
+fn eval_literal_expr(
+    context: &mut Context,
+    value: f64,
+    unit: &str,
+) -> Result<KalkValue, CalcError> {
+    Ok(KalkValue::Number(
+        float!(value),
+        float!(0),
+        unit.to_string(),
+    ))
+}
+
+fn eval_group_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkValue, CalcError> {
     eval_expr(context, expr, unit)
 }
 
@@ -273,7 +291,7 @@ pub(crate) fn eval_fn_call_expr(
     identifier: &Identifier,
     expressions: &[Expr],
     unit: &str,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     // Prelude
     let prelude_func = match expressions.len() {
         1 => {
@@ -327,27 +345,26 @@ pub(crate) fn eval_fn_call_expr(
                 _ => unreachable!(),
             };
             let mut sum = if sum_else_prod {
-                KalkNum::default()
+                KalkValue::from(0f64)
             } else {
-                KalkNum::from(1f64)
+                KalkValue::from(1f64)
             };
 
             for n in start..=end {
                 context.sum_n_value = Some(n);
                 let eval = eval_expr(context, &expressions[2], "")?;
                 if sum_else_prod {
-                    sum.value += eval.value;
-                    sum.imaginary_value += eval.imaginary_value;
+                    sum = sum.add(context, eval);
                 } else {
-                    sum.value *= eval.value;
-                    sum.imaginary_value *= eval.imaginary_value;
+                    sum = sum.mul(context, eval);
                 }
             }
 
             context.sum_n_value = None;
-            sum.unit = unit.into();
+            let (sum_real, sum_imaginary, _) = as_number_or_zero!(sum);
 
-            return Ok(sum);
+            // Set the unit as well
+            return Ok(KalkValue::Number(sum_real, sum_imaginary, unit.to_string()));
         }
         "integrate" => {
             return match expressions.len() {
@@ -447,9 +464,9 @@ fn eval_piecewise(
     context: &mut Context,
     pieces: &Vec<crate::ast::ConditionalPiece>,
     unit: &str,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     for piece in pieces {
-        if let Some(condition_is_true) = eval_expr(context, &piece.condition, unit)?.boolean_value {
+        if let KalkValue::Boolean(condition_is_true) = eval_expr(context, &piece.condition, unit)? {
             if condition_is_true {
                 return Ok(eval_expr(context, &piece.expr, unit)?);
             }
@@ -491,7 +508,7 @@ mod tests {
         );
     }
 
-    fn interpret_with_unit(stmt: Stmt) -> Result<Option<KalkNum>, CalcError> {
+    fn interpret_with_unit(stmt: Stmt) -> Result<Option<CalculationResult>, CalcError> {
         let mut symbol_table = SymbolTable::new();
         symbol_table
             .insert(DEG_RAD_UNIT.clone())
@@ -500,9 +517,9 @@ mod tests {
         context(&mut symbol_table, "rad").interpret(vec![stmt])
     }
 
-    fn interpret(stmt: Stmt) -> Result<Option<KalkNum>, CalcError> {
+    fn interpret(stmt: Stmt) -> Result<Option<KalkValue>, CalcError> {
         if let Some(result) = interpret_with_unit(stmt)? {
-            Ok(Some(result))
+            Ok(Some(result.get_value()))
         } else {
             Ok(None)
         }
@@ -518,8 +535,16 @@ mod tests {
         Context::new(symbol_table, angle_unit, None)
     }
 
-    fn cmp(x: KalkNum, y: f64) -> bool {
+    fn cmp(x: KalkValue, y: f64) -> bool {
         (x.to_f64() - y).abs() < 0.0001
+    }
+
+    fn bool(x: &KalkValue) -> bool {
+        if let KalkValue::Boolean(boolean_value) = x {
+            *boolean_value
+        } else {
+            false
+        }
     }
 
     #[test]
@@ -550,40 +575,28 @@ mod tests {
         assert_eq!(interpret(pow).unwrap().unwrap().to_f64(), 8f64);
 
         let result = interpret(equals).unwrap().unwrap();
-        assert_eq!(
-            (result.to_f64(), result.boolean_value.unwrap()),
-            (0f64, false)
-        );
+        assert_eq!(bool(&result), false);
+        assert!(result.to_f64().is_nan());
 
         let result = interpret(not_equals).unwrap().unwrap();
-        assert_eq!(
-            (result.to_f64(), result.boolean_value.unwrap()),
-            (0f64, true)
-        );
+        assert_eq!(bool(&result), true);
+        assert!(result.to_f64().is_nan());
 
         let result = interpret(greater_than).unwrap().unwrap();
-        assert_eq!(
-            (result.to_f64(), result.boolean_value.unwrap()),
-            (0f64, false)
-        );
+        assert_eq!(bool(&result), false);
+        assert!(result.to_f64().is_nan());
 
         let result = interpret(less_than).unwrap().unwrap();
-        assert_eq!(
-            (result.to_f64(), result.boolean_value.unwrap()),
-            (0f64, true)
-        );
+        assert_eq!(bool(&result), true);
+        assert!(result.to_f64().is_nan());
 
         let result = interpret(greater_or_equals).unwrap().unwrap();
-        assert_eq!(
-            (result.to_f64(), result.boolean_value.unwrap()),
-            (0f64, false)
-        );
+        assert_eq!(bool(&result), false);
+        assert!(result.to_f64().is_nan());
 
         let result = interpret(less_or_equals).unwrap().unwrap();
-        assert_eq!(
-            (result.to_f64(), result.boolean_value.unwrap()),
-            (0f64, true)
-        );
+        assert_eq!(bool(&result), true);
+        assert!(result.to_f64().is_nan());
     }
 
     #[test]
@@ -630,11 +643,16 @@ mod tests {
             rad_context
                 .interpret(vec![implicit.clone()])
                 .unwrap()
-                .unwrap(),
+                .unwrap()
+                .get_value(),
             0.84147098
         ));
         assert!(cmp(
-            deg_context.interpret(vec![implicit]).unwrap().unwrap(),
+            deg_context
+                .interpret(vec![implicit])
+                .unwrap()
+                .unwrap()
+                .get_value(),
             0.01745240
         ));
     }

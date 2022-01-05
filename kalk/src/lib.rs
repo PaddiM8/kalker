@@ -1,9 +1,10 @@
 pub mod ast;
+pub mod calculation_result;
 mod calculus;
 mod integration_testing;
 mod interpreter;
 mod inverter;
-pub mod kalk_num;
+pub mod kalk_value;
 mod lexer;
 pub mod parser;
 mod prelude;

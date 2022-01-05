@@ -68,19 +68,19 @@ impl Identifier {
     }
 }
 
-pub fn build_literal_ast(kalk_num: &crate::kalk_num::KalkNum) -> Expr {
-    if kalk_num.has_imaginary() {
+pub fn build_literal_ast(kalk_value: &crate::kalk_value::KalkValue) -> Expr {
+    if kalk_value.has_imaginary() {
         Expr::Binary(
-            Box::new(Expr::Literal(kalk_num.to_f64())),
+            Box::new(Expr::Literal(kalk_value.to_f64())),
             TokenKind::Plus,
             Box::new(Expr::Binary(
-                Box::new(Expr::Literal(kalk_num.imaginary_to_f64())),
+                Box::new(Expr::Literal(kalk_value.imaginary_to_f64())),
                 TokenKind::Star,
                 Box::new(Expr::Var(Identifier::from_full_name("i"))),
             )),
         )
     } else {
-        Expr::Literal(kalk_num.to_f64())
+        Expr::Literal(kalk_value.to_f64())
     }
 }
 
