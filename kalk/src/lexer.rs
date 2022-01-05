@@ -37,7 +37,9 @@ pub enum TokenKind {
     OpenParenthesis,
     ClosedParenthesis,
     OpenBracket,
+    OpenDoubleBracket,
     ClosedBracket,
+    ClosedDoubleBracket,
     OpenBrace,
     ClosedBrace,
     Comma,
@@ -134,6 +136,8 @@ impl<'a> Lexer<'a> {
             ')' => build(TokenKind::ClosedParenthesis, "", span),
             '[' => build(TokenKind::OpenBracket, "", span),
             ']' => build(TokenKind::ClosedBracket, "", span),
+            '⟦' => build(TokenKind::OpenDoubleBracket, "", span),
+            '⟧' => build(TokenKind::ClosedDoubleBracket, "", span),
             '{' => build(TokenKind::OpenBrace, "", span),
             '}' => build(TokenKind::ClosedBrace, "", span),
             '!' => build(TokenKind::Exclamation, "", span),
@@ -166,6 +170,14 @@ impl<'a> Lexer<'a> {
             (TokenKind::Star, Some('*')) => {
                 self.advance();
                 return build(TokenKind::Power, "", span);
+            }
+            (TokenKind::OpenBracket, Some('[')) => {
+                self.advance();
+                return build(TokenKind::OpenDoubleBracket, "", span);
+            }
+            (TokenKind::ClosedBracket, Some(']')) => {
+                self.advance();
+                return build(TokenKind::ClosedDoubleBracket, "", span);
             }
             (TokenKind::Exclamation, Some('=')) => {
                 self.advance();
@@ -370,7 +382,7 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
-            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '\n' => false,
+            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '\n' => false,
             _ => !c.is_digit(10) || is_superscript(c) || is_subscript(c),
         }
     } else {

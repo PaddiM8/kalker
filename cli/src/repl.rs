@@ -108,7 +108,7 @@ impl Highlighter for LineHighlighter {
             r"(?x)
             (?P<op>([+\-/*%^!×÷⋅]|if|otherwise|load|exit|clear|help)) |
             (?P<radix>0[box][a-zA-Z0-9]+) |
-            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)",
+            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)",
         )
         .unwrap();
 
@@ -154,6 +154,7 @@ lazy_static! {
         m.insert("sqrt", "√");
         m.insert("tau", "τ");
         m.insert("(", "()");
+        m.insert("[[", "⟦⟧");
         m.insert("!=", "≠");
         m.insert(">=", "≥");
         m.insert("<=", "≤");
@@ -212,7 +213,7 @@ impl Completer for RLHelper {
     fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
         line.backspace(line.pos() - start);
         line.insert_str(line.pos(), elected);
-        line.move_forward(if elected.ends_with(")") {
+        line.move_forward(if elected.ends_with(")") || elected.ends_with("⟧") {
             elected.chars().count() - 1
         } else {
             elected.chars().count()

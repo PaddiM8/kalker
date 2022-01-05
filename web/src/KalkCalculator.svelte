@@ -282,18 +282,27 @@
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷⋅]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)\(?)/g,
+            /(?<brackets>\[\[)|(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷⋅]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)\(?)/g,
             (
                 substring,
+                brackets,
                 _radix,
-                _,
-                comparison,
                 _2,
-                html,
+                comparison,
                 _3,
+                html,
+                _4,
                 op,
                 identifier
             ) => {
+                if (brackets) {
+                    if (substring == "[[") {
+                        offset -= 1;
+
+                        return "⟦⟧";
+                    }
+                }
+
                 if (comparison) {
                     if (substring == "<=") return "≤";
                     if (substring == ">=") return "≥";
