@@ -102,6 +102,21 @@ macro_rules! as_number_or_return {
 }
 
 #[macro_export]
+macro_rules! as_vector_or_return {
+    ($x:expr) => {{
+        if let KalkValue::Vector(values) = $x {
+            if values.len() == 0 {
+                return KalkValue::nan();
+            }
+
+            values
+        } else {
+            return KalkValue::nan();
+        }
+    }};
+}
+
+#[macro_export]
 macro_rules! as_number_or_zero {
     ($x:expr) => {{
         use crate::float;

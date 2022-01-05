@@ -73,8 +73,9 @@ lazy_static! {
         m.insert("atan", (UnaryFuncInfo(atan, InverseTrig), "rad"));
         m.insert("atanh", (UnaryFuncInfo(atanh, InverseTrig), "rad"));
 
-        m.insert("arg", (UnaryFuncInfo(arg, Other), ""));
         m.insert("abs", (UnaryFuncInfo(abs, Other), ""));
+        m.insert("arg", (UnaryFuncInfo(arg, Other), ""));
+        m.insert("average", (UnaryFuncInfo(average, Other), ""));
         m.insert("cbrt", (UnaryFuncInfo(cbrt, Other), ""));
         m.insert("ceil", (UnaryFuncInfo(ceil, Other), ""));
         m.insert("iverson", (UnaryFuncInfo(iverson, Other), ""));
@@ -86,6 +87,8 @@ lazy_static! {
         m.insert("Γ", (UnaryFuncInfo(gamma, Other), ""));
         m.insert("log", (UnaryFuncInfo(log, Other), ""));
         m.insert("ln", (UnaryFuncInfo(ln, Other), ""));
+        m.insert("max", (UnaryFuncInfo(max_vec, Other), ""));
+        m.insert("min", (UnaryFuncInfo(min_vec, Other), ""));
         m.insert("Re", (UnaryFuncInfo(re, Other), ""));
         m.insert("round", (UnaryFuncInfo(round, Other), ""));
         m.insert("sqrt", (UnaryFuncInfo(sqrt, Other), ""));
@@ -237,7 +240,7 @@ pub mod funcs {
     use super::special_funcs::factorial;
     #[cfg(feature = "rug")]
     pub use super::with_rug::funcs::*;
-    use crate::{as_number_or_return, float, kalk_value::KalkValue};
+    use crate::{as_number_or_return, as_vector_or_return, float, kalk_value::KalkValue};
 
     pub fn abs(x: KalkValue) -> KalkValue {
         let (real, imaginary, unit) = as_number_or_return!(x);
@@ -453,6 +456,21 @@ pub mod funcs {
         } else {
             KalkValue::Number(real.atanh(), float!(0), unit)
         }
+    }
+
+    pub fn average(x: KalkValue) -> KalkValue {
+        let values = as_vector_or_return!(x);
+        let count = values.len() as i64;
+        let mut sum_real = float!(0);
+        let mut sum_imaginary = float!(0);
+        for value in values {
+            let (real, imaginary, _) = as_number_or_return!(value);
+            sum_real += real;
+            sum_imaginary += imaginary;
+        }
+
+        KalkValue::Number(sum_real, sum_imaginary, String::new())
+            .div_without_unit(&KalkValue::from(count))
     }
 
     pub fn cbrt(x: KalkValue) -> KalkValue {
@@ -680,6 +698,34 @@ pub mod funcs {
         } else {
             KalkValue::Number(real.ln(), float!(0), unit)
         }
+    }
+
+    pub fn max_vec(x: KalkValue) -> KalkValue {
+        let values = as_vector_or_return!(x);
+        let mut max = &values[0];
+        for value in &values {
+            if let KalkValue::Boolean(greater) = value.greater_than_without_unit(&max) {
+                if greater {
+                    max = value;
+                }
+            }
+        }
+
+        max.clone()
+    }
+
+    pub fn min_vec(x: KalkValue) -> KalkValue {
+        let values = as_vector_or_return!(x);
+        let mut min = &values[0];
+        for value in &values {
+            if let KalkValue::Boolean(less) = value.less_than_without_unit(&min) {
+                if less {
+                    min = value;
+                }
+            }
+        }
+
+        min.clone()
     }
 
     pub fn nth_root(x: KalkValue, n: KalkValue) -> KalkValue {
