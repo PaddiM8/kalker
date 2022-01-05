@@ -241,7 +241,7 @@ impl<'a> Lexer<'a> {
         }
 
         if base_str != "" {
-            base = crate::text_utils::subscript_to_digits(base_str.chars())
+            base = crate::text_utils::subscript_to_normal(base_str.chars())
                 .parse::<u8>()
                 .unwrap_or(10);
         }
@@ -266,6 +266,7 @@ impl<'a> Lexer<'a> {
         let start = self.index;
         let mut end = start;
         let mut value = String::new();
+        let mut subscript = String::new();
 
         while is_valid_identifier(self.peek()) {
             let c = *self.peek().unwrap();
@@ -292,8 +293,13 @@ impl<'a> Lexer<'a> {
                 break;
             }
 
+            if is_subscript(&c) {
+                subscript.push(c);
+            } else {
+                value.push(c);
+            }
+
             end += 1;
-            value.push(c);
             self.advance();
         }
 
@@ -323,10 +329,22 @@ impl<'a> Lexer<'a> {
             "sech⁻¹" => String::from("asech"),
             "∛" => String::from("cbrt"),
             "°" => String::from("deg"),
-            _ => value, // things like log₂ are handled in the parser
+            _ => value, // things like log_2 are handled in the parser
         };
 
-        build(kind, &value, (start, end))
+        if subscript.len() > 0 {
+            build(
+                kind,
+                &format!(
+                    "{}_{}",
+                    value,
+                    crate::text_utils::subscript_to_normal(subscript.chars())
+                ),
+                (start, end),
+            )
+        } else {
+            build(kind, &value, (start, end))
+        }
     }
 
     fn peek(&mut self) -> Option<&char> {

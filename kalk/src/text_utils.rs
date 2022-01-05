@@ -9,22 +9,21 @@ pub fn is_superscript(c: &char) -> bool {
 
 pub fn is_subscript(c: &char) -> bool {
     match c {
-        '₀' | '₁' | '₂' | '₃' | '₄' | '₅' | '₆' | '₇' | '₈' | '₉' | '₊' | '₋' | '₌' | '₍' | '₎' => {
-            true
-        }
+        '₀' | '₁' | '₂' | '₃' | '₄' | '₅' | '₆' | '₇' | '₈' | '₉' | '₊' | '₋' | '₌' | '₍' | '₎'
+        | 'ₖ' | 'ₗ' | 'ₘ' | 'ₙ' | 'ₓ' => true,
         _ => false,
     }
 }
 
 pub fn parse_subscript(chars: impl Iterator<Item = char>) -> Option<u8> {
-    if let Ok(result) = subscript_to_digits(chars).parse::<u8>() {
+    if let Ok(result) = subscript_to_normal(chars).parse::<u8>() {
         Some(result)
     } else {
         None
     }
 }
 
-pub fn subscript_to_digits(chars: impl Iterator<Item = char>) -> String {
+pub fn subscript_to_normal(chars: impl Iterator<Item = char>) -> String {
     let mut regular = String::new();
     for c in chars {
         regular.push(match c {
@@ -43,6 +42,11 @@ pub fn subscript_to_digits(chars: impl Iterator<Item = char>) -> String {
             '₌' => '=',
             '₍' => '(',
             '₎' => ')',
+            'ₖ' => 'k',
+            'ₗ' => 'l',
+            'ₘ' => 'm',
+            'ₙ' => 'n',
+            'ₓ' => 'x',
             _ => c,
         });
     }
@@ -50,7 +54,7 @@ pub fn subscript_to_digits(chars: impl Iterator<Item = char>) -> String {
     return regular.trim().to_string();
 }
 
-pub fn digits_to_subscript(chars: impl Iterator<Item = char>) -> String {
+pub fn normal_to_subscript(chars: impl Iterator<Item = char>) -> String {
     let mut subscript = String::new();
     for c in chars {
         subscript.push(match c {
@@ -69,6 +73,11 @@ pub fn digits_to_subscript(chars: impl Iterator<Item = char>) -> String {
             '=' => '₌',
             '(' => '₍',
             ')' => '₎',
+            'k' => 'ₖ',
+            'l' => 'ₗ',
+            'm' => 'ₘ',
+            'n' => 'ₙ',
+            'x' => 'ₓ',
             _ => c,
         });
     }

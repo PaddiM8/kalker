@@ -65,7 +65,7 @@ pub fn to_radix_pretty(value: f64, radix: u8) -> String {
         format!(
             "{}{}",
             float_to_radix(value, radix),
-            crate::text_utils::digits_to_subscript(radix.to_string().chars())
+            crate::text_utils::normal_to_subscript(radix.to_string().chars())
         )
     }
 }
