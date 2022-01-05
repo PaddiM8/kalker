@@ -88,7 +88,7 @@ macro_rules! as_number_or_return {
         if let KalkValue::Number(real, imaginary, unit) = $x {
             (
                 real,
-                if imaginary == -0 {
+                if imaginary == -0f64 {
                     float!(0)
                 } else {
                     imaginary
