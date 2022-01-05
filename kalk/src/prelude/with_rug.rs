@@ -1,59 +1,82 @@
 pub mod special_funcs {
-    use crate::prelude::KalkNum;
+    use crate::{as_number_or_return, float, prelude::KalkValue};
 
-    pub fn factorial(x: KalkNum) -> KalkNum {
-        KalkNum::new((x.value + 1f64).gamma(), &x.unit)
+    pub fn factorial(x: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x);
+
+        KalkValue::Number((real + 1f64).gamma(), float!(0), unit)
     }
 }
 
 pub(crate) mod funcs {
-    use crate::kalk_num::KalkNum;
+    use crate::kalk_value::KalkValue;
     use crate::prelude::funcs::abs;
+    use crate::{as_number_or_return, float};
 
-    pub fn arg(x: KalkNum) -> KalkNum {
-        KalkNum::new(x.imaginary_value.atan2(&x.value), &x.unit)
+    pub fn arg(x: KalkValue) -> KalkValue {
+        let (real, imaginary, unit) = as_number_or_return!(x);
+
+        KalkValue::Number(imaginary.atan2(&real), float!(0), unit)
     }
 
-    pub fn gamma(x: KalkNum) -> KalkNum {
-        KalkNum::new(x.value.gamma(), &x.unit)
+    pub fn gamma(x: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x);
+
+        KalkValue::Number(real.gamma(), float!(0), unit)
     }
 
-    pub fn bitcmp(x: KalkNum) -> KalkNum {
-        KalkNum::from(!x.value.to_i32_saturating().unwrap_or(i32::MAX))
+    pub fn bitcmp(x: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+
+        KalkValue::from(!real.to_i32_saturating().unwrap_or(i32::MAX))
     }
 
-    pub fn bitand(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::from(
-            x.value.to_i32_saturating().unwrap_or(i32::MAX)
-                & y.value.to_i32_saturating().unwrap_or(i32::MAX),
+    pub fn bitand(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::from(
+            real.to_i32_saturating().unwrap_or(i32::MAX)
+                & real_rhs.to_i32_saturating().unwrap_or(i32::MAX),
         )
     }
 
-    pub fn bitor(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::from(
-            x.value.to_i32_saturating().unwrap_or(i32::MAX)
-                | y.value.to_i32_saturating().unwrap_or(i32::MAX),
+    pub fn bitor(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::from(
+            real.to_i32_saturating().unwrap_or(i32::MAX)
+                | real_rhs.to_i32_saturating().unwrap_or(i32::MAX),
         )
     }
 
-    pub fn bitxor(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::from(
-            x.value.to_i32_saturating().unwrap_or(i32::MAX)
-                ^ y.value.to_i32_saturating().unwrap_or(i32::MAX),
+    pub fn bitxor(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::from(
+            real.to_i32_saturating().unwrap_or(i32::MAX)
+                ^ real_rhs.to_i32_saturating().unwrap_or(i32::MAX),
         )
     }
 
-    pub fn bitshift(x: KalkNum, y: KalkNum) -> KalkNum {
-        let x = x.value.to_i32_saturating().unwrap_or(i32::MAX) as i32;
-        let y = y.value.to_i32_saturating().unwrap_or(i32::MAX) as i32;
+    pub fn bitshift(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        let x = real.to_i32_saturating().unwrap_or(i32::MAX) as i32;
+        let y = real_rhs.to_i32_saturating().unwrap_or(i32::MAX) as i32;
         if y < 0 {
-            KalkNum::from(x >> y.abs())
+            KalkValue::from(x >> y.abs())
         } else {
-            KalkNum::from(x << y)
+            KalkValue::from(x << y)
         }
     }
 
-    pub fn hypot(x: KalkNum, y: KalkNum) -> KalkNum {
+    pub fn hypot(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x.clone());
+        let (real_rhs, _, _) = as_number_or_return!(y.clone());
         if x.has_imaginary() || y.has_imaginary() {
             let abs_x = abs(x);
             let abs_y = abs(y);
@@ -64,15 +87,21 @@ pub(crate) mod funcs {
                     .add_without_unit(abs_y.clone().mul_without_unit(abs_y)),
             )
         } else {
-            KalkNum::new(x.value.hypot(&y.value), &x.unit)
+            KalkValue::Number(real.hypot(&real_rhs), float!(0), unit)
         }
     }
 
-    pub fn max(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::new(x.value.max(&y.value), &x.unit)
+    pub fn max(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::Number(real.max(&real_rhs), float!(0), unit)
     }
 
-    pub fn min(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::new(x.value.min(&y.value), &x.unit)
+    pub fn min(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::Number(real.min(&real_rhs), float!(0), unit)
     }
 }

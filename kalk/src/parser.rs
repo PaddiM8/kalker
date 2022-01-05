@@ -1,5 +1,5 @@
 use crate::ast::Identifier;
-use crate::kalk_num::KalkNum;
+use crate::calculation_result::CalculationResult;
 use crate::{
     ast::{Expr, Stmt},
     interpreter, inverter,
@@ -79,7 +79,7 @@ impl Context {
 
     #[wasm_bindgen(js_name = evaluate)]
     #[cfg(not(feature = "rug"))]
-    pub fn js_eval(&mut self, input: &str) -> Result<Option<KalkNum>, JsValue> {
+    pub fn js_eval(&mut self, input: &str) -> Result<Option<CalculationResult>, JsValue> {
         let result = eval(self, input);
 
         match result {
@@ -158,7 +158,7 @@ pub fn eval(
     context: &mut Context,
     input: &str,
     #[cfg(feature = "rug")] precision: u32,
-) -> Result<Option<KalkNum>, CalcError> {
+) -> Result<Option<CalculationResult>, CalcError> {
     // Variable and function declaration parsers will set this to false
     // if the equal sign is for one of those instead.
     // It also should not contain an iverson bracket, since equal signs in there
@@ -180,7 +180,7 @@ pub fn eval(
     );
     let result = interpreter.interpret(statements);
     if let Ok(Some(mut num)) = result {
-        num.other_radix = context.other_radix;
+        num.set_radix(context.other_radix.unwrap_or(10));
         Ok(Some(num))
     } else {
         result

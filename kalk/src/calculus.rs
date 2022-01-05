@@ -1,19 +1,21 @@
+use crate::as_number_or_zero;
 use crate::ast;
 use crate::ast::Expr;
 use crate::ast::Identifier;
 use crate::ast::Stmt;
+use crate::float;
 use crate::interpreter;
-use crate::kalk_num::KalkNum;
+use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
 use crate::parser::CalcError;
 
 pub fn derive_func(
     context: &mut interpreter::Context,
     name: &Identifier,
-    argument: KalkNum,
-) -> Result<KalkNum, CalcError> {
+    argument: KalkValue,
+) -> Result<KalkValue, CalcError> {
     const H: f64 = 0.000001;
-    let unit = &argument.unit.to_string();
+    let unit = &argument.get_unit();
 
     let argument_with_h = ast::build_literal_ast(&argument.clone().add_without_unit(H.into()));
     let argument_without_h = ast::build_literal_ast(&argument.sub_without_unit(H.into()));
@@ -34,7 +36,7 @@ pub fn integrate_with_unknown_variable(
     a: &Expr,
     b: &Expr,
     expr: &Expr,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     let mut integration_variable: Option<&str> = None;
 
     // integral(a, b, expr dx)
@@ -66,7 +68,7 @@ pub fn integrate(
     b: &Expr,
     expr: &Expr,
     integration_variable: &str,
-) -> Result<KalkNum, CalcError> {
+) -> Result<KalkValue, CalcError> {
     Ok(simpsons_rule(context, a, b, expr, integration_variable)?.round_if_needed())
 }
 
@@ -77,8 +79,9 @@ fn simpsons_rule(
     b_expr: &Expr,
     expr: &Expr,
     integration_variable: &str,
-) -> Result<KalkNum, CalcError> {
-    let mut result = KalkNum::default();
+) -> Result<KalkValue, CalcError> {
+    let mut result_real = float!(0);
+    let mut result_imaginary = float!(0);
     let original_variable_value = context
         .symbol_table
         .get_and_remove_var(integration_variable);
@@ -86,26 +89,27 @@ fn simpsons_rule(
     const N: i32 = 900;
     let a = interpreter::eval_expr(context, a_expr, "")?;
     let b = interpreter::eval_expr(context, b_expr, "")?;
-    let h = (b.sub_without_unit(a.clone())).div_without_unit(KalkNum::from(N));
+    let h = (b.sub_without_unit(a.clone())).div_without_unit(KalkValue::from(N));
     for i in 0..=N {
         let variable_value = a
             .clone()
-            .add_without_unit(KalkNum::from(i).mul_without_unit(h.clone()));
+            .add_without_unit(KalkValue::from(i).mul_without_unit(h.clone()));
         context.symbol_table.set(Stmt::VarDecl(
             Identifier::from_full_name(integration_variable),
             Box::new(crate::ast::build_literal_ast(&variable_value)),
         ));
 
-        let factor = KalkNum::from(match i {
+        let factor = KalkValue::from(match i {
             0 | N => 1,
             _ if i % 3 == 0 => 2,
             _ => 3,
         });
 
         // factor * f(x_n)
-        let mul = factor.mul_without_unit(interpreter::eval_expr(context, expr, "")?);
-        result.value += mul.value;
-        result.imaginary_value += mul.imaginary_value;
+        let (mul_real, mul_imaginary, _) =
+            as_number_or_zero!(factor.mul_without_unit(interpreter::eval_expr(context, expr, "")?));
+        result_real += mul_real;
+        result_imaginary += mul_imaginary;
     }
 
     if let Some(value) = original_variable_value {
@@ -116,10 +120,13 @@ fn simpsons_rule(
             .get_and_remove_var(integration_variable);
     }
 
-    Ok(result.mul_without_unit(KalkNum::new_with_imaginary(
-        3f64 / 8f64 * h.value,
-        &h.unit,
-        3f64 / 8f64 * h.imaginary_value,
+    let result = KalkValue::Number(result_real, result_imaginary, String::new());
+    let (h_real, h_imaginary, h_unit) = as_number_or_zero!(h);
+
+    Ok(result.mul_without_unit(KalkValue::Number(
+        3f64 / 8f64 * h_real,
+        3f64 / 8f64 * h_imaginary,
+        h_unit,
     )))
 }
 
@@ -128,8 +135,9 @@ mod tests {
     use crate::ast;
     use crate::calculus::Identifier;
     use crate::calculus::Stmt;
+    use crate::float;
     use crate::interpreter;
-    use crate::kalk_num::KalkNum;
+    use crate::kalk_value::KalkValue;
     use crate::lexer::TokenKind::*;
     use crate::symbol_table::SymbolTable;
     use crate::test_helpers::*;
@@ -210,7 +218,7 @@ mod tests {
         let result = super::derive_func(
             &mut context,
             &Identifier::from_full_name("f'"),
-            KalkNum::new_with_imaginary(KalkNum::from(2f64).value, "", KalkNum::from(3f64).value),
+            KalkValue::Number(float!(2f64), float!(3f64), String::new()),
         )
         .unwrap();
         assert!(cmp(result.to_f64(), -4.5f64) || cmp(result.to_f64(), -4.499999f64));
@@ -255,10 +263,10 @@ mod tests {
         let result = super::integrate(
             &mut context,
             &*literal(2f64),
-            &ast::build_literal_ast(&KalkNum::new_with_imaginary(
-                KalkNum::from(3f64).value,
-                "",
-                KalkNum::from(4f64).value,
+            &ast::build_literal_ast(&KalkValue::Number(
+                float!(3f64),
+                float!(4f64),
+                String::new(),
             )),
             &*binary(var("x"), Star, var("i")),
             "x",

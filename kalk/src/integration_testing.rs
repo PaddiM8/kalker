@@ -2,9 +2,9 @@
 mod tests {
     use std::{fs::File, io::Read, path::PathBuf};
 
-    use crate::kalk_num::KalkNum;
+    use crate::kalk_value::KalkValue;
 
-    fn eval_file(name: &str) -> KalkNum {
+    fn eval_file(name: &str) -> KalkValue {
         let mut path = PathBuf::new();
         path.push(env!("CARGO_MANIFEST_DIR"));
         path.push("..");
@@ -19,9 +19,17 @@ mod tests {
             .unwrap();
         let mut context = crate::parser::Context::new();
 
-        crate::parser::eval(&mut context, &file_content, 58)
+        #[cfg(feature = "rug")]
+        return crate::parser::eval(&mut context, &file_content, 58)
             .unwrap()
             .unwrap()
+            .get_value();
+
+        #[cfg(not(feature = "rug"))]
+        crate::parser::eval(&mut context, &file_content)
+            .unwrap()
+            .unwrap()
+            .get_value()
     }
 
     #[test]

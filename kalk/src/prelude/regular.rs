@@ -1,29 +1,38 @@
 pub mod special_funcs {
-    use crate::kalk_num::KalkNum;
+    use crate::{as_number_or_return, float, kalk_value::KalkValue};
 
-    pub fn factorial(x: KalkNum) -> KalkNum {
+    pub fn factorial(x: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x);
+
         // Round it a bit, to prevent floating point errors.
-        KalkNum::new(
-            (super::funcs::precise_gamma(x.value + 1f64) * 10e6f64).round() / 10e6f64,
-            &x.unit,
+        KalkValue::Number(
+            (super::funcs::precise_gamma(real + 1f64) * 10e6f64).round() / 10e6f64,
+            float!(0),
+            unit,
         )
     }
 }
 
 pub(crate) mod funcs {
-    use crate::kalk_num::KalkNum;
+    use crate::kalk_value::KalkValue;
     use crate::prelude::funcs::abs;
+    use crate::{as_number_or_return, float};
 
-    pub fn arg(x: KalkNum) -> KalkNum {
+    pub fn arg(x: KalkValue) -> KalkValue {
+        let (real, imaginary, unit) = as_number_or_return!(x);
+
         // i(ln|x| - ln(x))
-        KalkNum::new(x.imaginary_value.atan2(x.value), &x.unit)
+        KalkValue::Number(imaginary.atan2(real), float!(0), unit)
     }
 
-    pub fn gamma(x: KalkNum) -> KalkNum {
+    pub fn gamma(x: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x);
+
         // Round it a bit, to prevent floating point errors.
-        KalkNum::new(
-            (precise_gamma(x.value) * 10e6f64).round() / 10e6f64,
-            &x.unit,
+        KalkValue::Number(
+            (precise_gamma(real) * 10e6f64).round() / 10e6f64,
+            float!(0),
+            unit,
         )
     }
 
@@ -50,34 +59,49 @@ pub(crate) mod funcs {
         2f64.sqrt() * pi.sqrt() * t.powf(x - 0.5f64) * (-t).exp() * a
     }
 
-    pub fn bitcmp(x: KalkNum) -> KalkNum {
-        KalkNum::from(!(x.value.round() as i32))
+    pub fn bitcmp(x: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+
+        KalkValue::from(!(real.round() as i32))
     }
 
-    pub fn bitand(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::from(x.value.round() as i32 & y.value.round() as i32)
+    pub fn bitand(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::from(real.round() as i32 & real_rhs.round() as i32)
     }
 
-    pub fn bitor(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::from(x.value.round() as i32 | y.value.round() as i32)
+    pub fn bitor(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::from(real.round() as i32 | real_rhs.round() as i32)
     }
 
-    pub fn bitxor(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::from(x.value.round() as i32 ^ y.value.round() as i32)
+    pub fn bitxor(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::from(real.round() as i32 ^ real_rhs.round() as i32)
     }
 
-    pub fn bitshift(x: KalkNum, y: KalkNum) -> KalkNum {
-        let x = x.value.round() as i32;
-        let y = y.value.round() as i32;
+    pub fn bitshift(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, _) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+        let x = real.round() as i32;
+        let y = real_rhs.round() as i32;
         if y < 0 {
-            KalkNum::from((x >> y.abs()))
+            KalkValue::from(x >> y.abs())
         } else {
-            KalkNum::from((x << y))
+            KalkValue::from(x << y)
         }
     }
 
-    pub fn hypot(x: KalkNum, y: KalkNum) -> KalkNum {
-        if x.has_imaginary() || y.has_imaginary() {
+    pub fn hypot(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, imaginary, unit) = as_number_or_return!(x.clone());
+        let (real_rhs, imaginary_rhs, _) = as_number_or_return!(y.clone());
+        if imaginary.abs() != 0f64 || imaginary_rhs != 0f64 {
             let abs_x = abs(x);
             let abs_y = abs(y);
             crate::prelude::funcs::sqrt(
@@ -87,15 +111,21 @@ pub(crate) mod funcs {
                     .add_without_unit(abs_y.clone().mul_without_unit(abs_y)),
             )
         } else {
-            KalkNum::new(x.value.hypot(y.value), &x.unit)
+            KalkValue::Number(real.hypot(real_rhs), float!(0), unit)
         }
     }
 
-    pub fn max(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::new(x.value.max(y.value), &x.unit)
+    pub fn max(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::Number(real.max(real_rhs), float!(0), unit)
     }
 
-    pub fn min(x: KalkNum, y: KalkNum) -> KalkNum {
-        KalkNum::new(x.value.min(y.value), &x.unit)
+    pub fn min(x: KalkValue, y: KalkValue) -> KalkValue {
+        let (real, _, unit) = as_number_or_return!(x);
+        let (real_rhs, _, _) = as_number_or_return!(y);
+
+        KalkValue::Number(real.min(real_rhs), float!(0), unit)
     }
 }
