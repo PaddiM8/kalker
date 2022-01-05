@@ -439,6 +439,14 @@ impl KalkValue {
         }
     }
 
+    pub fn is_nan(&self) -> bool {
+        if let KalkValue::Number(real, imaginary, _) = self {
+            real.is_nan() || imaginary.is_nan()
+        } else {
+            false
+        }
+    }
+
     pub fn to_scientific_notation(
         &self,
         complex_number_type: ComplexNumberType,
@@ -503,7 +511,7 @@ impl KalkValue {
         rhs: KalkValue,
     ) -> KalkValue {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        self.add_without_unit(right)
+        self.add_without_unit(&right)
     }
 
     pub(crate) fn sub(
@@ -512,7 +520,7 @@ impl KalkValue {
         rhs: KalkValue,
     ) -> KalkValue {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        self.sub_without_unit(right)
+        self.sub_without_unit(&right)
     }
 
     pub(crate) fn mul(
@@ -521,7 +529,7 @@ impl KalkValue {
         rhs: KalkValue,
     ) -> KalkValue {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        self.mul_without_unit(right)
+        self.mul_without_unit(&right)
     }
 
     pub(crate) fn div(
@@ -530,7 +538,16 @@ impl KalkValue {
         rhs: KalkValue,
     ) -> KalkValue {
         let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs.clone());
-        self.div_without_unit(right)
+        self.div_without_unit(&right)
+    }
+
+    pub(crate) fn pow(
+        self,
+        context: &mut crate::interpreter::Context,
+        rhs: KalkValue,
+    ) -> KalkValue {
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
+        self.pow_without_unit(&right)
     }
 
     pub(crate) fn rem(
@@ -614,42 +631,51 @@ impl KalkValue {
         }
     }
 
-    pub(crate) fn add_without_unit(self, rhs: KalkValue) -> KalkValue {
-        match (self, rhs) {
+    pub(crate) fn add_without_unit(self, rhs: &KalkValue) -> KalkValue {
+        match (self.clone(), rhs) {
             (
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
-            ) => KalkValue::Number(real + real_rhs, imaginary + imaginary_rhs, unit),
+            ) => KalkValue::Number(real + real_rhs, imaginary + imaginary_rhs, unit.to_string()),
+            (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
+                calculate_vector(self, rhs, &KalkValue::add_without_unit)
+            }
             _ => KalkValue::nan(),
         }
     }
 
-    pub(crate) fn sub_without_unit(self, rhs: KalkValue) -> KalkValue {
-        match (self, rhs) {
+    pub(crate) fn sub_without_unit(self, rhs: &KalkValue) -> KalkValue {
+        match (self.clone(), rhs) {
             (
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
-            ) => KalkValue::Number(real - real_rhs, imaginary - imaginary_rhs, unit),
+            ) => KalkValue::Number(real - real_rhs, imaginary - imaginary_rhs, unit.to_string()),
+            (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
+                calculate_vector(self, rhs, &KalkValue::sub_without_unit)
+            }
             _ => KalkValue::nan(),
         }
     }
 
-    pub(crate) fn mul_without_unit(self, rhs: KalkValue) -> KalkValue {
+    pub(crate) fn mul_without_unit(self, rhs: &KalkValue) -> KalkValue {
         // (a + bi)(c + di) = ac + adi + bci + bdi²
-        match (self, rhs) {
+        match (self.clone(), rhs) {
             (
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
             ) => KalkValue::Number(
                 real.clone() * real_rhs.clone() - imaginary.clone() * imaginary_rhs.clone(),
                 real * imaginary_rhs + imaginary * real_rhs,
-                unit,
+                unit.to_string(),
             ),
+            (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
+                calculate_vector(self, rhs, &KalkValue::mul_without_unit)
+            }
             _ => KalkValue::nan(),
         }
     }
 
-    pub(crate) fn div_without_unit(self, rhs: KalkValue) -> KalkValue {
+    pub(crate) fn div_without_unit(self, rhs: &KalkValue) -> KalkValue {
         match (self.clone(), rhs.clone()) {
             (
                 KalkValue::Number(real, imaginary, _),
@@ -663,8 +689,8 @@ impl KalkValue {
                     // with the conjugate of the denominator, and divide.
                     let conjugate = rhs.get_conjugate();
                     let (numerator, numerator_imaginary) =
-                        self.clone().mul_without_unit(conjugate.clone()).values();
-                    let (denominator, _) = rhs.clone().mul_without_unit(conjugate).values();
+                        self.clone().mul_without_unit(&conjugate.clone()).values();
+                    let (denominator, _) = rhs.clone().mul_without_unit(&conjugate).values();
                     KalkValue::Number(
                         numerator / denominator.clone(),
                         numerator_imaginary / denominator,
@@ -672,41 +698,44 @@ impl KalkValue {
                     )
                 }
             }
+            (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
+                calculate_vector(self, rhs, &KalkValue::div_without_unit)
+            }
             _ => KalkValue::nan(),
         }
     }
 
-    pub(crate) fn pow(
-        self,
-        context: &mut crate::interpreter::Context,
-        rhs: KalkValue,
-    ) -> KalkValue {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
-        self.pow_without_unit(right)
-    }
+    pub(crate) fn pow_without_unit(self, rhs: &KalkValue) -> KalkValue {
+        match (self.clone(), rhs) {
+            (
+                KalkValue::Number(real, imaginary, _),
+                KalkValue::Number(real_rhs, imaginary_rhs, unit),
+            ) => {
+                if imaginary != 0f64 || imaginary_rhs != &0f64 || (real < 0f64 && real_rhs < &1f64)
+                {
+                    let a = real.clone();
+                    let b = imaginary.clone();
+                    let c = real_rhs;
+                    let d = imaginary_rhs;
+                    let arg = crate::prelude::funcs::arg(self).values().0;
+                    let raised = a.clone() * a + b.clone() * b;
+                    let exp =
+                        pow(raised.clone(), c.clone() / 2f64) * (-d.clone() * arg.clone()).exp();
+                    let polar = c * arg + d.clone() / 2f64 * raised.ln();
 
-    pub(crate) fn pow_without_unit(self, rhs: KalkValue) -> KalkValue {
-        if let (
-            KalkValue::Number(real, imaginary, _),
-            KalkValue::Number(real_rhs, imaginary_rhs, unit),
-        ) = (self.clone(), rhs)
-        {
-            if imaginary != 0f64 || imaginary_rhs != 0f64 || (real < 0f64 && real_rhs < 1f64) {
-                let a = real.clone();
-                let b = imaginary.clone();
-                let c = real_rhs;
-                let d = imaginary_rhs;
-                let arg = crate::prelude::funcs::arg(self).values().0;
-                let raised = a.clone() * a + b.clone() * b;
-                let exp = pow(raised.clone(), c.clone() / 2f64) * (-d.clone() * arg.clone()).exp();
-                let polar = c * arg + d / 2f64 * raised.ln();
-
-                KalkValue::Number(polar.clone().cos() * exp.clone(), polar.sin() * exp, unit)
-            } else {
-                KalkValue::Number(pow(real, real_rhs), float!(0), unit)
+                    KalkValue::Number(
+                        polar.clone().cos() * exp.clone(),
+                        polar.sin() * exp,
+                        unit.to_string(),
+                    )
+                } else {
+                    KalkValue::Number(pow(real, real_rhs.clone()), float!(0), unit.to_string())
+                }
             }
-        } else {
-            KalkValue::nan()
+            (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
+                calculate_vector(self, rhs, &KalkValue::pow_without_unit)
+            }
+            _ => KalkValue::nan(),
         }
     }
 
@@ -720,6 +749,18 @@ impl KalkValue {
                 KalkValue::Boolean(
                     (real.clone() - real_rhs.clone()).abs() < ACCEPTABLE_COMPARISON_MARGIN,
                 )
+            }
+            (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
+                let mut vecs_are_equal = true;
+                for (value, value_rhs) in values.iter().zip(values_rhs) {
+                    if let KalkValue::Boolean(are_equal) = value.eq_without_unit(&value_rhs) {
+                        if !are_equal {
+                            vecs_are_equal = false;
+                        }
+                    }
+                }
+
+                KalkValue::Boolean(vecs_are_equal)
             }
             _ => KalkValue::nan(),
         }
@@ -785,6 +826,35 @@ pub fn format_number(input: f64) -> String {
             .to_string()
     } else {
         rounded.into()
+    }
+}
+
+fn calculate_vector(
+    x: KalkValue,
+    y: &KalkValue,
+    action: &dyn Fn(KalkValue, &KalkValue) -> KalkValue,
+) -> KalkValue {
+    match (x, y) {
+        (KalkValue::Vector(values), KalkValue::Number(_, _, _)) => {
+            KalkValue::Vector(values.iter().map(|x| action(x.clone(), y)).collect())
+        }
+        (KalkValue::Number(_, _, _), KalkValue::Vector(values_rhs)) => {
+            KalkValue::Vector(values_rhs.iter().map(|x| action(x.clone(), x)).collect())
+        }
+        (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
+            if values.len() == values_rhs.len() {
+                KalkValue::Vector(
+                    values
+                        .iter()
+                        .zip(values_rhs)
+                        .map(|(x, y)| x.clone().add_without_unit(&y))
+                        .collect(),
+                )
+            } else {
+                KalkValue::nan()
+            }
+        }
+        _ => KalkValue::nan(),
     }
 }
 
@@ -885,7 +955,7 @@ mod tests {
 
         for (a, b, expected_result) in in_out {
             let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .add_without_unit(KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+                .add_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
             assert_eq!(actual_result.to_f64(), expected_result.0);
             assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
         }
@@ -902,7 +972,7 @@ mod tests {
 
         for (a, b, expected_result) in in_out {
             let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .sub_without_unit(KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+                .sub_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
             assert_eq!(actual_result.to_f64(), expected_result.0);
             assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
         }
@@ -919,7 +989,7 @@ mod tests {
 
         for (a, b, expected_result) in in_out {
             let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .mul_without_unit(KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+                .mul_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
             assert_eq!(actual_result.to_f64(), expected_result.0);
             assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
         }
@@ -935,7 +1005,7 @@ mod tests {
 
         for (a, b, expected_result) in in_out {
             let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .div_without_unit(KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+                .div_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
             assert_eq!(actual_result.to_f64(), expected_result.0);
             assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
         }
@@ -963,7 +1033,7 @@ mod tests {
 
         for (a, b, expected_result) in in_out {
             let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .pow_without_unit(KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+                .pow_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
             assert!(cmp(actual_result.to_f64(), expected_result.0));
             assert!(cmp(actual_result.imaginary_to_f64(), expected_result.1));
         }
