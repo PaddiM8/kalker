@@ -114,18 +114,4 @@ pub(crate) mod funcs {
             KalkValue::Number(real.hypot(real_rhs), float!(0), unit)
         }
     }
-
-    pub fn max(x: KalkValue, y: KalkValue) -> KalkValue {
-        let (real, _, unit) = as_number_or_return!(x);
-        let (real_rhs, _, _) = as_number_or_return!(y);
-
-        KalkValue::Number(real.max(real_rhs), float!(0), unit)
-    }
-
-    pub fn min(x: KalkValue, y: KalkValue) -> KalkValue {
-        let (real, _, unit) = as_number_or_return!(x);
-        let (real_rhs, _, _) = as_number_or_return!(y);
-
-        KalkValue::Number(real.min(real_rhs), float!(0), unit)
-    }
 }

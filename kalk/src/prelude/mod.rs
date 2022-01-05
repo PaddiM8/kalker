@@ -75,7 +75,6 @@ lazy_static! {
 
         m.insert("abs", (UnaryFuncInfo(abs, Other), ""));
         m.insert("arg", (UnaryFuncInfo(arg, Other), ""));
-        m.insert("average", (UnaryFuncInfo(average, Other), ""));
         m.insert("cbrt", (UnaryFuncInfo(cbrt, Other), ""));
         m.insert("ceil", (UnaryFuncInfo(ceil, Other), ""));
         m.insert("iverson", (UnaryFuncInfo(iverson, Other), ""));
@@ -87,8 +86,6 @@ lazy_static! {
         m.insert("Γ", (UnaryFuncInfo(gamma, Other), ""));
         m.insert("log", (UnaryFuncInfo(log, Other), ""));
         m.insert("ln", (UnaryFuncInfo(ln, Other), ""));
-        m.insert("max", (UnaryFuncInfo(max_vec, Other), ""));
-        m.insert("min", (UnaryFuncInfo(min_vec, Other), ""));
         m.insert("Re", (UnaryFuncInfo(re, Other), ""));
         m.insert("round", (UnaryFuncInfo(round, Other), ""));
         m.insert("sqrt", (UnaryFuncInfo(sqrt, Other), ""));
@@ -103,8 +100,6 @@ lazy_static! {
         m.insert("bitor", (BinaryFuncInfo(bitor, Other), ""));
         m.insert("bitxor", (BinaryFuncInfo(bitxor, Other), ""));
         m.insert("bitshift", (BinaryFuncInfo(bitshift, Other), ""));
-        m.insert("max", (BinaryFuncInfo(max, Other), ""));
-        m.insert("min", (BinaryFuncInfo(min, Other), ""));
         m.insert("hypot", (BinaryFuncInfo(hypot, Other), ""));
         m.insert("gcd", (BinaryFuncInfo(gcd, Other), ""));
         m.insert("lcm", (BinaryFuncInfo(lcm, Other), ""));
@@ -114,6 +109,13 @@ lazy_static! {
         m.insert("comb", (BinaryFuncInfo(ncr, Other), ""));
         m.insert("nPr", (BinaryFuncInfo(npr, Other), ""));
         m.insert("perm", (BinaryFuncInfo(npr, Other), ""));
+        m
+    };
+    pub static ref VECTOR_FUNCS: HashMap<&'static str, VectorFuncInfo> = {
+        let mut m = HashMap::new();
+        m.insert("average", VectorFuncInfo(average, Other));
+        m.insert("max", VectorFuncInfo(max, Other));
+        m.insert("min", VectorFuncInfo(min, Other));
         m
     };
 }
@@ -127,6 +129,8 @@ enum FuncType {
 pub struct UnaryFuncInfo(fn(KalkValue) -> KalkValue, FuncType);
 
 pub struct BinaryFuncInfo(fn(KalkValue, KalkValue) -> KalkValue, FuncType);
+
+pub struct VectorFuncInfo(fn(KalkValue) -> KalkValue, FuncType);
 
 impl UnaryFuncInfo {
     fn call(
@@ -164,6 +168,13 @@ impl BinaryFuncInfo {
     }
 }
 
+impl VectorFuncInfo {
+    fn call(&self, x: KalkValue) -> KalkValue {
+        let func = self.0;
+        func(x)
+    }
+}
+
 pub fn is_prelude_func(identifier: &str) -> bool {
     identifier == "sum"
         || identifier == "Σ"
@@ -175,6 +186,11 @@ pub fn is_prelude_func(identifier: &str) -> bool {
         || identifier == "∫"
         || UNARY_FUNCS.contains_key(identifier)
         || BINARY_FUNCS.contains_key(identifier)
+        || VECTOR_FUNCS.contains_key(identifier)
+}
+
+pub fn is_vector_func(identifier: &str) -> bool {
+    VECTOR_FUNCS.contains_key(identifier)
 }
 
 pub fn is_constant(identifier: &str) -> bool {
@@ -209,6 +225,14 @@ pub fn call_binary_func(
             func_info.call(context, x, y, angle_unit),
             func_unit.to_string(),
         ))
+    } else {
+        None
+    }
+}
+
+pub fn call_vector_func(name: &str, x: KalkValue) -> Option<KalkValue> {
+    if let Some(func_info) = VECTOR_FUNCS.get(name) {
+        Some(func_info.call(x))
     } else {
         None
     }
@@ -700,7 +724,7 @@ pub mod funcs {
         }
     }
 
-    pub fn max_vec(x: KalkValue) -> KalkValue {
+    pub fn max(x: KalkValue) -> KalkValue {
         let values = as_vector_or_return!(x);
         let mut max = &values[0];
         for value in &values {
@@ -714,7 +738,7 @@ pub mod funcs {
         max.clone()
     }
 
-    pub fn min_vec(x: KalkValue) -> KalkValue {
+    pub fn min(x: KalkValue) -> KalkValue {
         let values = as_vector_or_return!(x);
         let mut min = &values[0];
         for value in &values {

@@ -293,6 +293,27 @@ pub(crate) fn eval_fn_call_expr(
     expressions: &[Expr],
     unit: &str,
 ) -> Result<KalkValue, CalcError> {
+    // Prelude vector function
+    if prelude::is_vector_func(&identifier.full_name) {
+        let mut values = Vec::new();
+        for expression in expressions {
+            let value = eval_expr(context, expression, "")?;
+            if expressions.len() == 1 {
+                if let KalkValue::Vector(internal_values) = value {
+                    values = internal_values;
+                    break;
+                }
+            }
+
+            values.push(value);
+        }
+
+        return Ok(
+            prelude::call_vector_func(&identifier.full_name, KalkValue::Vector(values))
+                .unwrap_or(KalkValue::nan()),
+        );
+    }
+
     // Prelude
     let prelude_func = match expressions.len() {
         1 => {
