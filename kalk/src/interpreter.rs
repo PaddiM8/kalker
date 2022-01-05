@@ -323,6 +323,33 @@ pub(crate) fn eval_fn_call_expr(
     };
 
     if let Some((result, _)) = prelude_func {
+        // If the result is nan and only one argument was given,
+        // it may be due to incompatible types.
+        if result.is_nan() && expressions.len() == 1 {
+            let x = eval_expr(context, &expressions[0], "")?;
+
+            // If a vector was given, call the function on every item
+            // in the vector.
+            if let KalkValue::Vector(values) = x {
+                let mut new_values = Vec::new();
+                let mut success = true;
+                for value in values {
+                    if let Some(result) =
+                        prelude::call_unary_func(context, &identifier.full_name, value, "")
+                    {
+                        new_values.push(result.0);
+                    } else {
+                        success = false;
+                        break;
+                    }
+                }
+
+                if success {
+                    return Ok(KalkValue::Vector(new_values));
+                }
+            }
+        }
+
         return Ok(result);
     }
 
