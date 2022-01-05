@@ -122,7 +122,7 @@ impl<'a> Lexer<'a> {
         let token = match c {
             '+' => build(TokenKind::Plus, "", span),
             '-' => build(TokenKind::Minus, "", span),
-            '*' | '×' => build(TokenKind::Star, "", span),
+            '*' | '×' | '⋅' => build(TokenKind::Star, "", span),
             '/' | '÷' => build(TokenKind::Slash, "", span),
             '^' => build(TokenKind::Power, "", span),
             '|' => build(TokenKind::Pipe, "", span),
@@ -352,7 +352,7 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
-            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '\n' => false,
+            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '\n' => false,
             _ => !c.is_digit(10) || is_superscript(c) || is_subscript(c),
         }
     } else {
