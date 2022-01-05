@@ -568,9 +568,8 @@ fn parse_factorial(context: &mut Context) -> Result<Expr, CalcError> {
 
 fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
     let expr = match peek(context).kind {
-        TokenKind::OpenParenthesis => parse_group(context)?,
+        TokenKind::OpenParenthesis | TokenKind::OpenBracket => parse_vector(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
-        TokenKind::OpenBracket => parse_vector(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
         TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
         _ => return Err(CalcError::UnableToParseExpression),
@@ -579,33 +578,22 @@ fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(expr)
 }
 
-fn parse_group(context: &mut Context) -> Result<Expr, CalcError> {
-    advance(context);
-    let group_expr = Expr::Group(Box::new(parse_expr(context)?));
-    consume(context, TokenKind::ClosedParenthesis)?;
-
-    Ok(group_expr)
-}
-
 fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
-    let name = match &advance(context).kind {
+    let name = match &peek(context).kind {
         TokenKind::Pipe => "abs",
         TokenKind::OpenCeil => "ceil",
         TokenKind::OpenFloor => "floor",
         _ => unreachable!(),
     };
 
-    let expr = parse_expr(context)?;
-
-    if peek(context).kind == TokenKind::EOF {
-        return Err(CalcError::Expected(String::from(
-            "Closing group symbol, eg. ⌋",
-        )));
+    match parse_vector(context)? {
+        Expr::Vector(arguments) => Ok(Expr::FnCall(Identifier::from_full_name(name), arguments)),
+        Expr::Group(argument) => Ok(Expr::FnCall(
+            Identifier::from_full_name(name),
+            vec![*argument],
+        )),
+        _ => unreachable!(),
     }
-
-    advance(context);
-
-    Ok(Expr::FnCall(Identifier::from_full_name(name), vec![expr]))
 }
 
 fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
@@ -617,9 +605,19 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
         values.push(parse_expr(context)?);
     }
 
+    if peek(context).kind == TokenKind::EOF {
+        return Err(CalcError::Expected(String::from(
+            "Closing group symbol, eg. ⌋",
+        )));
+    }
+
     advance(context);
 
-    Ok(Expr::Vector(values))
+    if values.len() == 1 {
+        Ok(Expr::Group(Box::new(values.pop().unwrap())))
+    } else {
+        Ok(Expr::Vector(values))
+    }
 }
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
@@ -659,17 +657,21 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         return Ok(Expr::FnCall(identifier, vec![parameter]));
     }
 
-    let parse_as_var_instead = match_token(context, TokenKind::OpenParenthesis)
-        && !context.parsing_identifier_stmt
-        && !exists_as_fn;
+    let next_is_group = match peek(context).kind {
+        TokenKind::OpenParenthesis
+        | TokenKind::OpenBracket
+        | TokenKind::Pipe
+        | TokenKind::OpenCeil
+        | TokenKind::OpenFloor => true,
+        _ => false,
+    };
+    let parse_as_var_instead = next_is_group && !context.parsing_identifier_stmt && !exists_as_fn;
 
     // Eg. sqrt(64)
     // If the function doesn't exist, parse it as a variable and multiplication instead.
     // Although, if the parse_identifier_stmt function called this function,
     // parse it as a function anyway, since it might be creating one.
-    if !parse_as_var_instead && match_token(context, TokenKind::OpenParenthesis) {
-        advance(context);
-
+    if !parse_as_var_instead && next_is_group {
         let is_integral = identifier.full_name == "integrate"
             || identifier.full_name == "integral"
             || identifier.full_name == "∫";
@@ -677,26 +679,22 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
             context.is_in_integral = true;
         }
 
-        let mut parameters = Vec::new();
-        parameters.push(parse_expr(context)?);
-
-        while match_token(context, TokenKind::Comma) {
-            advance(context);
-            parameters.push(parse_expr(context)?);
-        }
-
-        consume(context, TokenKind::ClosedParenthesis)?;
+        let mut arguments = match parse_vector(context)? {
+            Expr::Vector(arguments) => arguments,
+            Expr::Group(argument) => vec![*argument],
+            _ => unreachable!(),
+        };
 
         if is_integral {
             context.is_in_integral = false;
         }
 
         if let Some(log_base) = log_base {
-            parameters.push(log_base);
-            return Ok(Expr::FnCall(Identifier::from_full_name("log"), parameters));
+            arguments.push(log_base);
+            return Ok(Expr::FnCall(Identifier::from_full_name("log"), arguments));
         }
 
-        return Ok(Expr::FnCall(identifier, parameters));
+        return Ok(Expr::FnCall(identifier, arguments));
     }
 
     // Eg. x
