@@ -696,6 +696,10 @@ impl KalkValue {
                     .collect(),
             ),
             (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
+                if values.len() != values_rhs.len() {
+                    return KalkValue::nan();
+                }
+
                 let mut sum = KalkValue::from(0f64);
                 for (value, value_rhs) in values.iter().zip(values_rhs) {
                     sum = sum.add_without_unit(&value.clone().mul_without_unit(value_rhs));
