@@ -549,12 +549,25 @@ fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
 }
 
 fn parse_exponent(context: &mut Context) -> Result<Expr, CalcError> {
-    let left = parse_factorial(context)?;
+    let left = parse_indexer(context)?;
 
     if match_token(context, TokenKind::Power) {
         let op = advance(context).kind;
         let right = Box::new(parse_exponent(context)?);
         return Ok(Expr::Binary(Box::new(left), op, right));
+    }
+
+    Ok(left)
+}
+
+fn parse_indexer(context: &mut Context) -> Result<Expr, CalcError> {
+    let left = parse_factorial(context)?;
+
+    if match_token(context, TokenKind::OpenDoubleBracket) {
+        advance(context);
+        let right = Box::new(parse_expr(context)?);
+        consume(context, TokenKind::ClosedDoubleBracket)?;
+        return Ok(Expr::Indexer(Box::new(left), right));
     }
 
     Ok(left)
