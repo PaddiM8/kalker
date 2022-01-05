@@ -683,8 +683,25 @@ impl KalkValue {
                 real * imaginary_rhs + imaginary * real_rhs,
                 unit.to_string(),
             ),
-            (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
-                calculate_vector(self, rhs, &KalkValue::mul_without_unit)
+            (KalkValue::Vector(values), KalkValue::Number(_, _, _)) => KalkValue::Vector(
+                values
+                    .iter()
+                    .map(|x| x.clone().mul_without_unit(&self))
+                    .collect(),
+            ),
+            (KalkValue::Number(_, _, _), KalkValue::Vector(values_rhs)) => KalkValue::Vector(
+                values_rhs
+                    .iter()
+                    .map(|x| self.clone().mul_without_unit(x))
+                    .collect(),
+            ),
+            (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
+                let mut sum = KalkValue::from(0f64);
+                for (value, value_rhs) in values.iter().zip(values_rhs) {
+                    sum = sum.add_without_unit(&value.clone().mul_without_unit(value_rhs));
+                }
+
+                sum
             }
             _ => KalkValue::nan(),
         }
@@ -854,7 +871,7 @@ fn calculate_vector(
             KalkValue::Vector(values.iter().map(|x| action(x.clone(), y)).collect())
         }
         (KalkValue::Number(_, _, _), KalkValue::Vector(values_rhs)) => {
-            KalkValue::Vector(values_rhs.iter().map(|x| action(x.clone(), x)).collect())
+            KalkValue::Vector(values_rhs.iter().map(|x| action(y.clone(), x)).collect())
         }
         (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
             if values.len() == values_rhs.len() {
