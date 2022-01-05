@@ -1,5 +1,5 @@
 pub mod special_funcs {
-    use crate::{as_number_or_return, float, kalk_num::KalkValue};
+    use crate::{as_number_or_return, float, kalk_value::KalkValue};
 
     pub fn factorial(x: KalkValue) -> KalkValue {
         let (real, _, unit) = as_number_or_return!(x);
@@ -14,7 +14,7 @@ pub mod special_funcs {
 }
 
 pub(crate) mod funcs {
-    use crate::kalk_num::KalkValue;
+    use crate::kalk_value::KalkValue;
     use crate::prelude::funcs::abs;
     use crate::{as_number_or_return, float};
 
@@ -107,8 +107,8 @@ pub(crate) mod funcs {
             crate::prelude::funcs::sqrt(
                 abs_x
                     .clone()
-                    .mul_without_unit(abs_x)
-                    .add_without_unit(abs_y.clone().mul_without_unit(abs_y)),
+                    .mul_without_unit(&abs_x)
+                    .add_without_unit(&abs_y.clone().mul_without_unit(&abs_y)),
             )
         } else {
             KalkValue::Number(real.hypot(real_rhs), float!(0), unit)
