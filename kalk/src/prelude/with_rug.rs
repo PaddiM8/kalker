@@ -83,8 +83,8 @@ pub(crate) mod funcs {
             crate::prelude::funcs::sqrt(
                 abs_x
                     .clone()
-                    .mul_without_unit(abs_x)
-                    .add_without_unit(abs_y.clone().mul_without_unit(abs_y)),
+                    .mul_without_unit(&abs_x)
+                    .add_without_unit(&abs_y.clone().mul_without_unit(&abs_y)),
             )
         } else {
             KalkValue::Number(real.hypot(&real_rhs), float!(0), unit)

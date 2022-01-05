@@ -124,6 +124,7 @@ pub(crate) fn eval_expr(
             eval_fn_call_expr(context, identifier, expressions, unit)
         }
         Expr::Piecewise(pieces) => eval_piecewise(context, pieces, unit),
+        Expr::Vector(values) => eval_vector(context, values),
     }
 }
 
@@ -474,6 +475,15 @@ fn eval_piecewise(
     }
 
     Err(CalcError::PiecewiseConditionsAreFalse)
+}
+
+fn eval_vector(context: &mut Context, values: &Vec<Expr>) -> Result<KalkValue, CalcError> {
+    let mut eval_values = Vec::new();
+    for value in values {
+        eval_values.push(eval_expr(context, value, "")?);
+    }
+
+    Ok(KalkValue::Vector(eval_values))
 }
 
 #[cfg(test)]

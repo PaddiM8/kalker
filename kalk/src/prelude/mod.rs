@@ -256,11 +256,12 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real > 1f64 || real < -1f64 {
             // -i * ln(i * sqrt(1 - z²) + z)
-            let root =
-                sqrt(KalkValue::from(1f64).sub_without_unit(x.clone().mul_without_unit(x.clone())));
+            let root = sqrt(
+                KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x.clone())),
+            );
             let iroot = multiply_with_i(root.clone());
             let (ln_real, ln_imaginary, ln_unit) =
-                as_number_or_return!(ln(iroot.add_without_unit(x)));
+                as_number_or_return!(ln(iroot.add_without_unit(&x)));
 
             // -iz = -i(a + bi) = b - ai
             KalkValue::Number(ln_imaginary, -ln_real, ln_unit)
@@ -283,7 +284,7 @@ pub mod funcs {
                 unit,
             ));
 
-            ln(x.add_without_unit(sqrt1.mul_without_unit(sqrt2)))
+            ln(x.add_without_unit(&sqrt1.mul_without_unit(&sqrt2)))
         } else {
             KalkValue::Number(real.acosh(), float!(0), unit)
         }
@@ -293,7 +294,7 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 {
             // atan(1/z)
-            atan(KalkValue::from(1f64).div_without_unit(x))
+            atan(KalkValue::from(1f64).div_without_unit(&x))
         } else {
             KalkValue::Number((1f64 / real).atan(), float!(0), unit)
         }
@@ -304,7 +305,7 @@ pub mod funcs {
         if imaginary != 0f64 || real <= 1f64 || real >= -1f64 {
             // 1 / z
             let (inv_real, inv_imaginary, inv_unit) =
-                as_number_or_return!(KalkValue::from(1f64).div_without_unit(x));
+                as_number_or_return!(KalkValue::from(1f64).div_without_unit(&x));
             let ln1 = ln(KalkValue::Number(
                 1f64 + inv_real.clone(),
                 inv_imaginary.clone(),
@@ -312,8 +313,8 @@ pub mod funcs {
             ));
             let ln2 = ln(KalkValue::Number(1f64 - inv_real, -inv_imaginary, inv_unit));
 
-            ln1.sub_without_unit(ln2)
-                .div_without_unit(KalkValue::from(2f64))
+            ln1.sub_without_unit(&ln2)
+                .div_without_unit(&KalkValue::from(2f64))
         } else {
             KalkValue::Number((1f64 / real).atanh(), float!(0), unit)
         }
@@ -323,7 +324,7 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real < 1f64 || real > -1f64 {
             // asin(1/z)
-            asin(KalkValue::from(1f64).div_without_unit(x))
+            asin(KalkValue::from(1f64).div_without_unit(&x))
         } else {
             KalkValue::Number((1f64 / real).asin(), float!(0), unit)
         }
@@ -333,16 +334,16 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real == 0f64 {
             let (inv_x2_real, inv_x2_imaginary, inv_x2_unit) = as_number_or_return!(
-                KalkValue::from(1f64).div_without_unit(x.clone().mul_without_unit(x.clone()))
+                KalkValue::from(1f64).div_without_unit(&x.clone().mul_without_unit(&x.clone()))
             );
             let sqrt = sqrt(KalkValue::Number(
                 1f64 + inv_x2_real,
                 inv_x2_imaginary,
                 inv_x2_unit,
             ));
-            let inv_x = KalkValue::from(1f64).div_without_unit(x.clone());
+            let inv_x = KalkValue::from(1f64).div_without_unit(&x.clone());
 
-            ln(sqrt.add_without_unit(inv_x))
+            ln(sqrt.add_without_unit(&inv_x))
         } else {
             KalkValue::Number((1f64 / real).asinh(), float!(0), unit)
         }
@@ -352,7 +353,7 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real < 1f64 || real > -1f64 {
             // acos(1/z)
-            acos(KalkValue::from(1f64).div_without_unit(x))
+            acos(KalkValue::from(1f64).div_without_unit(&x))
         } else {
             KalkValue::Number((1f64 / real).acos(), float!(0), unit)
         }
@@ -362,7 +363,7 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real <= 0f64 || real > 1f64 {
             // 1/z
-            let inv = KalkValue::from(1f64).div_without_unit(x.clone());
+            let inv = KalkValue::from(1f64).div_without_unit(&x.clone());
             let (inv_real, inv_imaginary, inv_unit) = as_number_or_return!(inv.clone());
             // sqrt(1/z - 1)
             let sqrt1 = sqrt(KalkValue::Number(
@@ -378,7 +379,7 @@ pub mod funcs {
             ));
 
             // ln(1/z + sqrt(1/z - 1) * sqrt(1/z + 1))
-            ln(sqrt1.mul_without_unit(sqrt2).add_without_unit(inv))
+            ln(sqrt1.mul_without_unit(&sqrt2).add_without_unit(&inv))
         } else {
             KalkValue::Number((1f64 / real).acosh(), float!(0), unit)
         }
@@ -388,10 +389,11 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real > 1f64 || real < -1f64 {
             // i * ln(sqrt(1 - z²) - iz)
-            let root =
-                sqrt(KalkValue::from(1f64).sub_without_unit(x.clone().mul_without_unit(x.clone())));
+            let root = sqrt(
+                KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x.clone())),
+            );
             let iz = multiply_with_i(x.clone());
-            let ln = ln(root.sub_without_unit(iz));
+            let ln = ln(root.sub_without_unit(&iz));
             multiply_with_i(ln)
         } else {
             KalkValue::Number(real.asin(), float!(0), unit)
@@ -402,10 +404,10 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 {
             let (x2_real, x2_imaginary, x2_unit) =
-                as_number_or_return!(x.clone().mul_without_unit(x.clone()));
+                as_number_or_return!(x.clone().mul_without_unit(&x.clone()));
             let sqrt = sqrt(KalkValue::Number(x2_real + 1f64, x2_imaginary, x2_unit));
 
-            ln(x.add_without_unit(sqrt))
+            ln(x.add_without_unit(&sqrt))
         } else {
             KalkValue::Number(real.asinh(), float!(0), unit)
         }
@@ -427,9 +429,9 @@ pub mod funcs {
             let pos = KalkValue::Number(1f64 + iz_real, iz_imaginary, iz_unit);
 
             // ln(1 - iz) - ln(1 + iz)
-            let ln = ln(neg).sub_without_unit(ln(pos));
+            let ln = ln(neg).sub_without_unit(&ln(pos));
 
-            multiply_with_i(ln).div_without_unit(KalkValue::from(2f64))
+            multiply_with_i(ln).div_without_unit(&KalkValue::from(2f64))
         } else {
             KalkValue::Number(real.atan(), float!(0), unit)
         }
@@ -446,8 +448,8 @@ pub mod funcs {
             ));
             let log2 = ln(KalkValue::Number(1f64 - real, -imaginary, unit));
 
-            log1.sub_without_unit(log2)
-                .div_without_unit(KalkValue::from(2f64))
+            log1.sub_without_unit(&log2)
+                .div_without_unit(&KalkValue::from(2f64))
         } else {
             KalkValue::Number(real.atanh(), float!(0), unit)
         }
@@ -486,11 +488,11 @@ pub mod funcs {
     }
 
     pub fn csc(x: KalkValue) -> KalkValue {
-        KalkValue::from(1f64).div_without_unit(sin(x))
+        KalkValue::from(1f64).div_without_unit(&sin(x))
     }
 
     pub fn csch(x: KalkValue) -> KalkValue {
-        KalkValue::from(1f64).div_without_unit(sinh(x))
+        KalkValue::from(1f64).div_without_unit(&sinh(x))
     }
 
     pub fn cot(x: KalkValue) -> KalkValue {
@@ -583,12 +585,15 @@ pub mod funcs {
 
             let (b_real, b_imaginary, b_unit) = as_number_or_return!(b.clone());
             let (c_real, c_imaginary, c_unit) =
-                as_number_or_return!(a.clone().div_without_unit(b.clone()));
+                as_number_or_return!(a.clone().div_without_unit(&b.clone()));
             if c_imaginary.clone().fract() == 0f64 {
                 KalkValue::Number(b_real.abs(), b_imaginary, b_unit)
             } else {
                 let rounded_c = KalkValue::Number(c_real.round(), c_imaginary.round(), c_unit);
-                gcd(a.sub_without_unit(b.clone().mul_without_unit(rounded_c)), b)
+                gcd(
+                    a.sub_without_unit(&b.clone().mul_without_unit(&rounded_c)),
+                    b,
+                )
             }
         } else {
             if real < 0f64 || real_rhs < 0f64 {
@@ -642,14 +647,14 @@ pub mod funcs {
         let gcd = gcd(x.clone(), y.clone());
         let absx = KalkValue::Number(real.abs(), imaginary, unit);
         let absy = KalkValue::Number(real_rhs.abs(), imaginary_rhs, unit_rhs);
-        return absx.div_without_unit(gcd).mul_without_unit(absy);
+        return absx.div_without_unit(&gcd).mul_without_unit(&absy);
     }
 
     pub fn log(x: KalkValue) -> KalkValue {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real < 0f64 {
             // ln(z) / ln(10)
-            ln(x).div_without_unit(KalkValue::from(10f64.ln()))
+            ln(x).div_without_unit(&KalkValue::from(10f64.ln()))
         } else {
             KalkValue::Number(real.log10(), float!(0), unit)
         }
@@ -660,7 +665,7 @@ pub mod funcs {
         let (real_rhs, _, _) = as_number_or_return!(y.clone());
         if imaginary != 0f64 || y.has_imaginary() || real < 0f64 || real_rhs < 0f64 {
             // ln(z) / ln(n)
-            ln(x).div_without_unit(ln(y))
+            ln(x).div_without_unit(&ln(y))
         } else {
             KalkValue::Number(real.log10() / real_rhs.log10(), float!(0), unit)
         }
@@ -671,14 +676,14 @@ pub mod funcs {
         if imaginary != 0f64 || real < 0f64 {
             let r = abs(x.clone());
             // ln|z| + i * arg z
-            ln(r).add_without_unit(multiply_with_i(arg(x)))
+            ln(r).add_without_unit(&multiply_with_i(arg(x)))
         } else {
             KalkValue::Number(real.ln(), float!(0), unit)
         }
     }
 
     pub fn nth_root(x: KalkValue, n: KalkValue) -> KalkValue {
-        x.pow_without_unit(KalkValue::from(1f64).div_without_unit(n))
+        x.pow_without_unit(&KalkValue::from(1f64).div_without_unit(&n))
     }
 
     pub fn re(x: KalkValue) -> KalkValue {
@@ -692,11 +697,11 @@ pub mod funcs {
     }
 
     pub fn sec(x: KalkValue) -> KalkValue {
-        KalkValue::from(1f64).div_without_unit(cos(x))
+        KalkValue::from(1f64).div_without_unit(&cos(x))
     }
 
     pub fn sech(x: KalkValue) -> KalkValue {
-        KalkValue::from(1f64).div_without_unit(cosh(x))
+        KalkValue::from(1f64).div_without_unit(&cosh(x))
     }
 
     pub fn sin(x: KalkValue) -> KalkValue {
@@ -775,12 +780,12 @@ pub mod funcs {
 
     pub fn ncr(x: KalkValue, y: KalkValue) -> KalkValue {
         factorial(x.clone()).div_without_unit(
-            factorial(y.clone()).mul_without_unit(factorial(x.sub_without_unit(y))),
+            &factorial(y.clone()).mul_without_unit(&factorial(x.sub_without_unit(&y))),
         )
     }
 
     pub fn npr(x: KalkValue, y: KalkValue) -> KalkValue {
-        factorial(x.clone()).div_without_unit(factorial(x.sub_without_unit(y)))
+        factorial(x.clone()).div_without_unit(&factorial(x.sub_without_unit(&y)))
     }
 
     fn multiply_with_i(z: KalkValue) -> KalkValue {

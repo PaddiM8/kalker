@@ -569,9 +569,8 @@ fn parse_factorial(context: &mut Context) -> Result<Expr, CalcError> {
 fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
     let expr = match peek(context).kind {
         TokenKind::OpenParenthesis => parse_group(context)?,
-        TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor | TokenKind::OpenBracket => {
-            parse_group_fn(context)?
-        }
+        TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
+        TokenKind::OpenBracket => parse_vector(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
         TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
         _ => return Err(CalcError::UnableToParseExpression),
@@ -593,7 +592,6 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
         TokenKind::Pipe => "abs",
         TokenKind::OpenCeil => "ceil",
         TokenKind::OpenFloor => "floor",
-        TokenKind::OpenBracket => "iverson",
         _ => unreachable!(),
     };
 
@@ -608,6 +606,20 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
     advance(context);
 
     Ok(Expr::FnCall(Identifier::from_full_name(name), vec![expr]))
+}
+
+fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
+    advance(context);
+
+    let mut values = vec![parse_expr(context)?];
+    while match_token(context, TokenKind::Comma) {
+        advance(context);
+        values.push(parse_expr(context)?);
+    }
+
+    advance(context);
+
+    Ok(Expr::Vector(values))
 }
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {

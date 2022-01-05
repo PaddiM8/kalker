@@ -21,6 +21,7 @@ pub enum Expr {
     FnCall(Identifier, Vec<Expr>),
     Literal(f64),
     Piecewise(Vec<ConditionalPiece>),
+    Vector(Vec<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
