@@ -14,6 +14,7 @@ pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
 
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
@@ -99,10 +100,12 @@ impl Default for Context {
 /// Error that occured during parsing or evaluation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalcError {
+    CanOnlyIndexVectors,
     Expected(String),
     ExpectedDx,
     ExpectedIf,
     IncorrectAmountOfArguments(usize, String, usize),
+    ItemOfIndexDoesNotExist(usize),
     InvalidNumberLiteral(String),
     InvalidOperator,
     InvalidUnit,
@@ -123,6 +126,7 @@ pub enum CalcError {
 impl ToString for CalcError {
     fn to_string(&self) -> String {
         match self {
+            CalcError::CanOnlyIndexVectors => format!("Indexing (getting an item with a specific index) is only possible on vectors."),
             CalcError::Expected(description) => format!("Expected: {}", description),
             CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
             CalcError::ExpectedIf => format!("Expected 'if', with a condition after it."),
@@ -130,6 +134,7 @@ impl ToString for CalcError {
                 "Expected {} arguments for function {}, but got {}.",
                 expected, func, got
             ),
+            CalcError::ItemOfIndexDoesNotExist(index) => format!("Item of index {} does not exist.", index),
             CalcError::InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
             CalcError::InvalidOperator => format!("Invalid operator."),
             CalcError::InvalidUnit => format!("Invalid unit."),
@@ -607,7 +612,7 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
 
     if peek(context).kind == TokenKind::EOF {
         return Err(CalcError::Expected(String::from(
-            "Closing group symbol, eg. ⌋",
+            "Closing group symbol, eg. )",
         )));
     }
 
@@ -626,7 +631,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     let mut log_base = None;
     if identifier.full_name.starts_with("log") {
         if let Some(c) = identifier.full_name.chars().nth(3) {
-            if crate::text_utils::is_subscript(&c) {
+            if c == '_' {
                 log_base = Some(Expr::Literal(get_base(&identifier.full_name)? as f64));
             }
         }
@@ -700,6 +705,28 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     // Eg. x
     if parse_as_var_instead || context.symbol_table.contains_var(&identifier.pure_name) {
         Ok(build_var(context, &identifier.full_name))
+    } else if context
+        .symbol_table
+        .contains_var(&identifier.get_name_without_lowered())
+    {
+        let underscore_pos = identifier.pure_name.find('_').unwrap();
+        let var_name = &identifier.pure_name[0..underscore_pos];
+        let lowered = &identifier.pure_name[underscore_pos + 1..];
+
+        // Create a new identical context to avoid changing the current one
+        let mut lowered_context = context.clone();
+        let mut parsed_stmts = parse(&mut lowered_context, &lowered)?;
+        let parsed_lowered = parsed_stmts
+            .pop()
+            .unwrap_or(Stmt::Expr(Box::new(Expr::Literal(0f64))));
+        if let Stmt::Expr(lowered_expr) = parsed_lowered {
+            Ok(Expr::Indexer(
+                Box::new(Expr::Var(Identifier::from_full_name(&var_name))),
+                lowered_expr,
+            ))
+        } else {
+            Err(CalcError::UnableToParseExpression)
+        }
     } else if context.parsing_unit_decl {
         context.unit_decl_base_unit = Some(identifier.full_name);
         Ok(Expr::Var(Identifier::from_full_name(DECL_UNIT)))

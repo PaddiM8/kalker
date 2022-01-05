@@ -125,6 +125,7 @@ pub(crate) fn eval_expr(
         }
         Expr::Piecewise(pieces) => eval_piecewise(context, pieces, unit),
         Expr::Vector(values) => eval_vector(context, values),
+        Expr::Indexer(var, index) => eval_indexer(context, var, index, unit),
     }
 }
 
@@ -250,9 +251,10 @@ fn eval_var_expr(
         .symbol_table
         .get_var(identifier.full_name.as_ref() as &str)
         .cloned();
-    match var_decl {
-        Some(Stmt::VarDecl(_, expr)) => eval_expr(context, &expr, unit),
-        _ => Err(CalcError::UndefinedVar(identifier.full_name.clone())),
+    if let Some(Stmt::VarDecl(_, expr)) = var_decl {
+        eval_expr(context, &expr, unit)
+    } else {
+        Err(CalcError::UndefinedVar(identifier.full_name.clone()))
     }
 }
 
@@ -532,6 +534,25 @@ fn eval_vector(context: &mut Context, values: &Vec<Expr>) -> Result<KalkValue, C
     }
 
     Ok(KalkValue::Vector(eval_values))
+}
+
+fn eval_indexer(
+    context: &mut Context,
+    var: &Expr,
+    index: &Expr,
+    unit: &str,
+) -> Result<KalkValue, CalcError> {
+    let var_value = eval_expr(context, var, unit)?;
+    if let KalkValue::Vector(values) = var_value {
+        let index_value = eval_expr(context, index, unit)?.to_f64() as usize;
+        if let Some(value) = values.get(index_value) {
+            Ok(value.clone())
+        } else {
+            Err(CalcError::ItemOfIndexDoesNotExist(index_value))
+        }
+    } else {
+        Err(CalcError::CanOnlyIndexVectors)
+    }
 }
 
 #[cfg(test)]

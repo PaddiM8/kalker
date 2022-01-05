@@ -22,6 +22,7 @@ pub enum Expr {
     Literal(f64),
     Piecewise(Vec<ConditionalPiece>),
     Vector(Vec<Expr>),
+    Indexer(Box<Expr>, Box<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,6 +66,14 @@ impl Identifier {
             pure_name: name.into(),
             parameter_of_function: Some(function.into()),
             prime_count: 0u32,
+        }
+    }
+
+    pub fn get_name_without_lowered(&self) -> &str {
+        if let Some(underscore_pos) = self.pure_name.find('_') {
+            &self.pure_name[0..underscore_pos]
+        } else {
+            &self.pure_name
         }
     }
 }

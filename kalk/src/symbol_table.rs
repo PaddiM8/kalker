@@ -1,7 +1,7 @@
 use crate::{ast::Expr, ast::Identifier, ast::Stmt, prelude};
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SymbolTable {
     pub(crate) hashmap: HashMap<String, Stmt>,
     pub(crate) unit_types: HashMap<String, ()>,
