@@ -14,7 +14,6 @@ pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
 
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
 #[wasm_bindgen]
-#[derive(Clone)]
 pub struct Context {
     tokens: Vec<Token>,
     pos: usize,
@@ -725,21 +724,17 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
         let underscore_pos = identifier.pure_name.find('_').unwrap();
         let var_name = &identifier.pure_name[0..underscore_pos];
         let lowered = &identifier.pure_name[underscore_pos + 1..];
+        let lowered_expr =
+            if lowered.len() > 0 && lowered.chars().nth(0).unwrap_or('\0').is_digit(10) {
+                Expr::Literal(lowered.parse::<f64>().unwrap_or(f64::NAN))
+            } else {
+                Expr::Var(Identifier::from_full_name(lowered))
+            };
 
-        // Create a new identical context to avoid changing the current one
-        let mut lowered_context = context.clone();
-        let mut parsed_stmts = parse(&mut lowered_context, &lowered)?;
-        let parsed_lowered = parsed_stmts
-            .pop()
-            .unwrap_or(Stmt::Expr(Box::new(Expr::Literal(0f64))));
-        if let Stmt::Expr(lowered_expr) = parsed_lowered {
-            Ok(Expr::Indexer(
-                Box::new(Expr::Var(Identifier::from_full_name(&var_name))),
-                lowered_expr,
-            ))
-        } else {
-            Err(CalcError::UnableToParseExpression)
-        }
+        Ok(Expr::Indexer(
+            Box::new(Expr::Var(Identifier::from_full_name(&var_name))),
+            Box::new(lowered_expr),
+        ))
     } else if context.parsing_unit_decl {
         context.unit_decl_base_unit = Some(identifier.full_name);
         Ok(Expr::Var(Identifier::from_full_name(DECL_UNIT)))
