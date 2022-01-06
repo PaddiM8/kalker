@@ -189,7 +189,11 @@ impl KalkValue {
                     let imaginary_as_str = format_number(primitive!(imaginary).abs());
                     let sign = if imaginary < &0f64 { "-" } else { "+" };
 
+                    if &as_str == "0" {
+                        imaginary_as_str
+                    } else {
                     format!("{} {} {}i", as_str, sign, imaginary_as_str)
+                    }
                 } else {
                     as_str
                 }
