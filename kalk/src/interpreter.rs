@@ -125,6 +125,7 @@ pub(crate) fn eval_expr(
         }
         Expr::Piecewise(pieces) => eval_piecewise(context, pieces, unit),
         Expr::Vector(values) => eval_vector(context, values),
+        Expr::Matrix(rows) => eval_matrix(context, rows),
         Expr::Indexer(var, index) => eval_indexer(context, var, index, unit),
     }
 }
@@ -534,6 +535,20 @@ fn eval_vector(context: &mut Context, values: &Vec<Expr>) -> Result<KalkValue, C
     }
 
     Ok(KalkValue::Vector(eval_values))
+}
+
+fn eval_matrix(context: &mut Context, rows: &Vec<Vec<Expr>>) -> Result<KalkValue, CalcError> {
+    let mut eval_rows = Vec::new();
+    for row in rows {
+        let mut eval_row = Vec::new();
+        for value in row {
+            eval_row.push(eval_expr(context, value, "")?)
+        }
+
+        eval_rows.push(eval_row);
+    }
+
+    Ok(KalkValue::Matrix(eval_rows))
 }
 
 fn eval_indexer(

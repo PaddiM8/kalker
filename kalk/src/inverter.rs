@@ -88,6 +88,7 @@ fn invert(
         Expr::Literal(_) => Ok((target_expr, expr.clone())),
         Expr::Piecewise(_) => Err(CalcError::UnableToInvert(String::from("Piecewise"))),
         Expr::Vector(_) => Err(CalcError::UnableToInvert(String::from("Vector"))),
+        Expr::Matrix(_) => Err(CalcError::UnableToInvert(String::from("Matrix"))),
         Expr::Indexer(_, _) => Err(CalcError::UnableToInvert(String::from("Inverter"))),
     }
 }
@@ -391,6 +392,9 @@ pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> 
         Expr::Vector(items) => items
             .iter()
             .any(|x| contains_var(symbol_table, x, var_name)),
+        Expr::Matrix(rows) => rows
+            .iter()
+            .any(|row| row.iter().any(|x| contains_var(symbol_table, x, var_name))),
         Expr::Indexer(_, _) => false,
     }
 }

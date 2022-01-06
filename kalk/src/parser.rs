@@ -105,6 +105,7 @@ pub enum CalcError {
     ExpectedIf,
     IncorrectAmountOfArguments(usize, String, usize),
     ItemOfIndexDoesNotExist(usize),
+    InconsistentColumnWidths,
     InvalidNumberLiteral(String),
     InvalidOperator,
     InvalidUnit,
@@ -134,6 +135,7 @@ impl ToString for CalcError {
                 expected, func, got
             ),
             CalcError::ItemOfIndexDoesNotExist(index) => format!("Item of index {} does not exist.", index),
+            CalcError::InconsistentColumnWidths => format!("Inconsistent column widths. Matrix columns must be the same size."),
             CalcError::InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
             CalcError::InvalidOperator => format!("Invalid operator."),
             CalcError::InvalidUnit => format!("Invalid unit."),
@@ -614,12 +616,39 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
 }
 
 fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
-    advance(context);
+    let kind = advance(context).kind;
 
-    let mut values = vec![parse_expr(context)?];
-    while match_token(context, TokenKind::Comma) {
+    if kind == TokenKind::OpenBracket {
+        skip_newlines(context);
+    }
+
+    let mut rows = vec![vec![parse_expr(context)?]];
+    let mut column_count = None;
+    let mut items_in_row = 1;
+    while match_token(context, TokenKind::Comma)
+        || match_token(context, TokenKind::Semicolon)
+        || (match_token(context, TokenKind::Newline)
+            && peek_next(context).kind != TokenKind::ClosedBracket)
+    {
+        if kind == TokenKind::OpenBracket
+            && (match_token(context, TokenKind::Newline)
+                || match_token(context, TokenKind::Semicolon))
+        {
+            if let Some(columns) = column_count {
+                if columns != items_in_row {
+                    return Err(CalcError::InconsistentColumnWidths);
+                }
+            } else {
+                column_count = Some(items_in_row);
+            }
+
+            rows.push(Vec::new());
+            items_in_row = 0;
+        }
+
         advance(context);
-        values.push(parse_expr(context)?);
+        rows.last_mut().unwrap().push(parse_expr(context)?);
+        items_in_row += 1;
     }
 
     if peek(context).kind == TokenKind::EOF {
@@ -628,12 +657,21 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
         )));
     }
 
+    if kind == TokenKind::OpenBracket {
+        skip_newlines(context);
+    }
+
     advance(context);
 
-    if values.len() == 1 {
-        Ok(Expr::Group(Box::new(values.pop().unwrap())))
+    if rows.len() == 1 {
+        let mut values = rows.pop().unwrap();
+        if values.len() == 1 {
+            Ok(Expr::Group(Box::new(values.pop().unwrap())))
+        } else {
+            Ok(Expr::Vector(values))
+        }
     } else {
-        Ok(Expr::Vector(values))
+        Ok(Expr::Matrix(rows))
     }
 }
 

@@ -47,8 +47,19 @@
     let highlightedTextElement: HTMLElement;
     let ignoreNextInput = false;
 
-    function setText(text: string) {
-        const [highlighted, offset] = highlight(text);
+    enum HighlightType {
+        Output,
+        InputField,
+        History,
+    }
+
+    function setText(text: string, isFinalBeforeSubmit = false) {
+        const [highlighted, offset] = highlight(
+            text,
+            isFinalBeforeSubmit
+                ? HighlightType.History
+                : HighlightType.InputField
+        );
         const prevCursorPos = inputElement.selectionStart;
         setHtml(highlighted);
         setCaret(prevCursorPos + offset);
@@ -90,12 +101,18 @@
         }
     }
 
-    function hasUnevenAmountOfBraces(input: string): boolean {
+    function hasUnevenAmountOfBrackets(
+        input: string,
+        openChar: string,
+        closedChar: string,
+        onlyCheckFirstLine = false
+    ): boolean {
         let openCount = 0;
         let closedCount = 0;
         for (const char of input) {
-            if (char == "{") openCount++;
-            if (char == "}") closedCount++;
+            if (onlyCheckFirstLine && char == "\n") break;
+            if (char == openChar) openCount++;
+            if (char == closedChar) closedCount++;
         }
 
         return openCount > closedCount;
@@ -104,8 +121,15 @@
     function handleKeyDown(event: KeyboardEvent, kalk: Kalk) {
         if (event.key == "Enter") {
             if (
-                hasUnevenAmountOfBraces(
-                    (event.target as HTMLTextAreaElement).value
+                hasUnevenAmountOfBrackets(
+                    (event.target as HTMLTextAreaElement).value,
+                    "{",
+                    "}"
+                ) ||
+                hasUnevenAmountOfBrackets(
+                    (event.target as HTMLTextAreaElement).value,
+                    "[",
+                    "]"
                 )
             ) {
                 return;
@@ -127,13 +151,13 @@
                 const [result, success] = calculate(kalk, input);
 
                 output = success
-                    ? highlight(result, true)[0]
+                    ? highlight(result, HighlightType.Output)[0]
                     : `<span style="color: ${errorcolor}">${result}</span>`;
             }
 
             // Highlight
             const target = event.target as HTMLInputElement;
-            setText(target.value);
+            setText(target.value, true);
 
             outputLines = output
                 ? [...outputLines, [getHtml(), true], [output, false]]
@@ -276,7 +300,7 @@
 
     function highlight(
         input: string,
-        isOutput: boolean = false
+        highlightType: HighlightType
     ): [string, number] {
         if (!input) return ["", 0];
         let result = input;
@@ -316,9 +340,38 @@
                     if (substring.startsWith("\n")) {
                         if (substring.endsWith("}")) {
                             return "<br />}";
+                        } else if (substring.endsWith("]")) {
+                            return "<br />]";
                         } else {
-                            if (!substring.match(/\n\s\s/)) offset += 2;
-                            return isOutput ? "<br />" : "<br />&nbsp;&nbsp;";
+                            let spaceCount = 2;
+                            const unclosedBracketInFirstLine =
+                                hasUnevenAmountOfBrackets(
+                                    input,
+                                    "[",
+                                    "]",
+                                    true
+                                );
+                            if (unclosedBracketInFirstLine) {
+                                let bracketIndex = input.indexOf("[");
+                                spaceCount =
+                                    bracketIndex == -1
+                                        ? spaceCount
+                                        : bracketIndex + 1;
+                            }
+
+                            if (!substring.match(/\n\s/)) offset += spaceCount;
+                            if (highlightType == HighlightType.Output) {
+                                return "<br />";
+                            } else if (
+                                highlightType == HighlightType.InputField
+                            ) {
+                                return "<br />" + "&nbsp;".repeat(spaceCount);
+                            } else if (highlightType == HighlightType.History) {
+                                // Account for ">> "
+                                return (
+                                    "<br />" + "&nbsp;".repeat(spaceCount + 3)
+                                );
+                            }
                         }
                     }
                     if (substring.match(/\s+/)) {
@@ -326,7 +379,7 @@
                     }
                 }
 
-                if (op && !isOutput) {
+                if (op && highlightType != HighlightType.Output) {
                     if (substring == "*") return "⋅";
                     if (substring == "/") return "÷";
                 }
