@@ -22,6 +22,7 @@ pub enum Expr {
     Literal(f64),
     Piecewise(Vec<ConditionalPiece>),
     Vector(Vec<Expr>),
+    Matrix(Vec<Vec<Expr>>),
     Indexer(Box<Expr>, Box<Expr>),
 }
 

@@ -173,6 +173,7 @@ pub enum KalkValue {
     Number(Float, Float, String),
     Boolean(bool),
     Vector(Vec<KalkValue>),
+    Matrix(Vec<Vec<KalkValue>>),
 }
 
 impl KalkValue {
@@ -192,7 +193,7 @@ impl KalkValue {
                     if &as_str == "0" {
                         imaginary_as_str
                     } else {
-                    format!("{} {} {}i", as_str, sign, imaginary_as_str)
+                        format!("{} {} {}i", as_str, sign, imaginary_as_str)
                     }
                 } else {
                     as_str
@@ -206,18 +207,43 @@ impl KalkValue {
                 }
             }
             KalkValue::Vector(values) => {
+                format!(
+                    "({})",
+                    values
+                        .iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                )
+            }
+            KalkValue::Matrix(rows) => {
+                let mut value_strings = Vec::new();
+                let mut longest = 0;
+                for row in rows {
+                    for value in row {
+                        let value_str = value.to_string();
+                        longest = longest.max(value_str.len());
+                        value_strings.push(format!("{},", value_str));
+                    }
+
+                    value_strings.last_mut().unwrap().pop(); // Trailing comma
+                    value_strings.push(String::from("\n"));
+                }
+
                 let mut result = String::from("[");
-                for value in values {
-                    result.push_str(&value.to_string());
-                    result.push_str(", ");
+                for value_str in value_strings {
+                    if value_str == "\n" {
+                        result.push_str("\n ");
+                    } else {
+                        result.push_str(&format!("{:width$} ", value_str, width = longest + 1));
+                    }
                 }
 
-                if values.len() > 0 {
-                    result.pop();
-                    result.pop();
-                }
-
-                result.push_str("]");
+                result.pop(); // Trailing new-line
+                result.pop(); // Trailing space
+                result.pop(); // Trailing space
+                result.pop(); // Trailing comma
+                result.push(']');
 
                 result
             }
@@ -656,6 +682,9 @@ impl KalkValue {
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
             ) => KalkValue::Number(real + real_rhs, imaginary + imaginary_rhs, unit.to_string()),
+            (KalkValue::Matrix(_), _) | (_, KalkValue::Matrix(_)) => {
+                calculate_matrix(self, rhs, &KalkValue::add_without_unit)
+            }
             (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
                 calculate_vector(self, rhs, &KalkValue::add_without_unit)
             }
@@ -669,6 +698,9 @@ impl KalkValue {
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
             ) => KalkValue::Number(real - real_rhs, imaginary - imaginary_rhs, unit.to_string()),
+            (KalkValue::Matrix(_), _) | (_, KalkValue::Matrix(_)) => {
+                calculate_matrix(self, rhs, &KalkValue::sub_without_unit)
+            }
             (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
                 calculate_vector(self, rhs, &KalkValue::sub_without_unit)
             }
@@ -677,26 +709,83 @@ impl KalkValue {
     }
 
     pub(crate) fn mul_without_unit(self, rhs: &KalkValue) -> KalkValue {
-        // (a + bi)(c + di) = ac + adi + bci + bdi²
-        match (self.clone(), rhs) {
+        // Make sure matrix is always first to avoid having to match
+        // different orders in the next match expression.
+        let (lhs, rhs) = match (&self, rhs) {
+            (KalkValue::Matrix(_), KalkValue::Matrix(_)) => (&self, rhs),
+            (_, KalkValue::Matrix(_)) => (rhs, &self),
+            _ => (&self, rhs),
+        };
+
+        match (lhs, rhs) {
             (
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
             ) => KalkValue::Number(
-                real.clone() * real_rhs.clone() - imaginary.clone() * imaginary_rhs.clone(),
-                real * imaginary_rhs + imaginary * real_rhs,
+                // (a + bi)(c + di) = ac + adi + bci + bdi²
+                real.clone() * real_rhs - imaginary.clone() * imaginary_rhs,
+                real.clone() * imaginary_rhs + imaginary * real_rhs,
                 unit.to_string(),
             ),
+            (KalkValue::Matrix(rows), KalkValue::Number(_, _, _)) => KalkValue::Matrix(
+                rows.iter()
+                    .map(|row| {
+                        row.iter()
+                            .map(|x| x.clone().mul_without_unit(rhs))
+                            .collect()
+                    })
+                    .collect(),
+            ),
+            (KalkValue::Matrix(rows), KalkValue::Vector(values_rhs)) => {
+                if rows.first().unwrap().len() != values_rhs.len() {
+                    return KalkValue::nan();
+                }
+
+                let mut new_values: Vec<KalkValue> = Vec::new();
+                for row in rows {
+                    new_values.push(
+                        row.iter()
+                            .zip(values_rhs)
+                            .map(|(x, y)| x.clone().mul_without_unit(y))
+                            .sum(),
+                    )
+                }
+
+                KalkValue::Vector(new_values)
+            }
+            (KalkValue::Matrix(rows), KalkValue::Matrix(rows_rhs)) => {
+                if rows.first().unwrap().len() != rows_rhs.len() {
+                    return KalkValue::nan();
+                }
+
+                let mut result = Vec::new();
+                // For every row in lhs
+                for i in 0..rows.len() {
+                    let mut dot_products = Vec::new();
+
+                    // For every column in rhs
+                    for j in 0..rows.len() {
+                        let mut dot_product = KalkValue::from(0f64);
+
+                        // For every value in the current lhs row
+                        for (k, value) in rows[i].iter().enumerate() {
+                            let value_rhs = &rows_rhs[k][j];
+                            dot_product = dot_product
+                                .add_without_unit(&value.clone().mul_without_unit(value_rhs));
+                        }
+
+                        dot_products.push(dot_product);
+                    }
+
+                    result.push(dot_products);
+                }
+
+                KalkValue::Matrix(result)
+            }
             (KalkValue::Vector(values), KalkValue::Number(_, _, _)) => KalkValue::Vector(
                 values
                     .iter()
-                    .map(|x| x.clone().mul_without_unit(&self))
-                    .collect(),
-            ),
-            (KalkValue::Number(_, _, _), KalkValue::Vector(values_rhs)) => KalkValue::Vector(
-                values_rhs
-                    .iter()
-                    .map(|x| self.clone().mul_without_unit(x))
+                    .map(|x| x.clone().mul_without_unit(lhs))
                     .collect(),
             ),
             (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
@@ -738,6 +827,9 @@ impl KalkValue {
                     )
                 }
             }
+            (KalkValue::Matrix(_), _) | (_, KalkValue::Matrix(_)) => {
+                calculate_matrix(self, rhs, &KalkValue::div_without_unit)
+            }
             (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
                 calculate_vector(self, rhs, &KalkValue::div_without_unit)
             }
@@ -772,6 +864,35 @@ impl KalkValue {
                     KalkValue::Number(pow(real, real_rhs.clone()), float!(0), unit.to_string())
                 }
             }
+            (KalkValue::Matrix(rows), KalkValue::Number(real, imaginary, _)) => {
+                if real < &0f64
+                    || real.clone().fract() > 0.000001f64
+                    || !(imaginary == &0f64 || imaginary == &-0f64)
+                    || rows.len() != rows.first().unwrap().len()
+                {
+                    return KalkValue::nan();
+                }
+
+                if real == &0f64 {
+                    return KalkValue::from(1f64);
+                }
+
+                let mut result = KalkValue::from(1f64);
+                for _ in 0..primitive!(real) as i32 {
+                    result = result.mul_without_unit(&self);
+                }
+
+                result
+            }
+            (KalkValue::Number(_, _, _), KalkValue::Matrix(rows)) => KalkValue::Matrix(
+                rows.iter()
+                    .map(|row| {
+                        row.iter()
+                            .map(|x| self.clone().pow_without_unit(x))
+                            .collect()
+                    })
+                    .collect(),
+            ),
             (KalkValue::Vector(_), _) | (_, KalkValue::Vector(_)) => {
                 calculate_vector(self, rhs, &KalkValue::pow_without_unit)
             }
@@ -898,6 +1019,66 @@ fn calculate_vector(
     }
 }
 
+fn calculate_matrix(
+    x: KalkValue,
+    y: &KalkValue,
+    action: &dyn Fn(KalkValue, &KalkValue) -> KalkValue,
+) -> KalkValue {
+    // Make sure matrix is always first to avoid having to match
+    // different orders in the next match expression.
+    let (x, y) = match (&x, y) {
+        (_, KalkValue::Matrix(_)) => (y, &x),
+        _ => (&x, y),
+    };
+
+    match (x, y) {
+        (KalkValue::Matrix(rows), KalkValue::Number(_, _, _)) => KalkValue::Matrix(
+            rows.iter()
+                .map(|row| row.iter().map(|x| action(x.clone(), y)).collect())
+                .collect(),
+        ),
+        (KalkValue::Matrix(rows), KalkValue::Vector(values_rhs)) => {
+            if rows.len() != values_rhs.len() {
+                return KalkValue::nan();
+            }
+
+            let mut new_rows = Vec::new();
+            for (i, row) in rows.iter().enumerate() {
+                new_rows.push(Vec::new());
+                for value in row {
+                    new_rows
+                        .last_mut()
+                        .unwrap()
+                        .push(action(value.clone(), &values_rhs[i]))
+                }
+            }
+
+            KalkValue::Matrix(new_rows)
+        }
+        (KalkValue::Matrix(rows), KalkValue::Matrix(rows_rhs)) => {
+            if rows.len() != rows_rhs.len()
+                || rows.first().unwrap().len() != rows_rhs.first().unwrap().len()
+            {
+                return KalkValue::nan();
+            }
+
+            let mut new_rows = Vec::new();
+            for (i, row) in rows.iter().enumerate() {
+                new_rows.push(Vec::new());
+                for (j, value) in row.iter().enumerate() {
+                    new_rows
+                        .last_mut()
+                        .unwrap()
+                        .push(action(value.clone(), &rows_rhs[i][j]))
+                }
+            }
+
+            KalkValue::Matrix(new_rows)
+        }
+        _ => KalkValue::nan(),
+    }
+}
+
 fn calculate_unit(
     context: &mut crate::interpreter::Context,
     left: &KalkValue,
@@ -934,6 +1115,20 @@ fn pow(x: Float, y: Float) -> Float {
 impl Into<String> for ScientificNotation {
     fn into(self) -> String {
         self.to_string()
+    }
+}
+
+impl std::iter::Sum<KalkValue> for KalkValue {
+    fn sum<I>(iter: I) -> KalkValue
+    where
+        I: std::iter::Iterator<Item = KalkValue>,
+    {
+        let mut sum = KalkValue::from(0f64);
+        for x in iter {
+            sum = sum.add_without_unit(&x);
+        }
+
+        sum
     }
 }
 

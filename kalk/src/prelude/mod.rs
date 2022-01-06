@@ -283,9 +283,8 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real > 1f64 || real < -1f64 {
             // -i * ln(i * sqrt(1 - z²) + z)
-            let root = sqrt(
-                KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x.clone())),
-            );
+            let root =
+                sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)));
             let iroot = multiply_with_i(root.clone());
             let (ln_real, ln_imaginary, ln_unit) =
                 as_number_or_return!(ln(iroot.add_without_unit(&x)));
@@ -361,14 +360,14 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real == 0f64 {
             let (inv_x2_real, inv_x2_imaginary, inv_x2_unit) = as_number_or_return!(
-                KalkValue::from(1f64).div_without_unit(&x.clone().mul_without_unit(&x.clone()))
+                KalkValue::from(1f64).div_without_unit(&x.clone().mul_without_unit(&x))
             );
             let sqrt = sqrt(KalkValue::Number(
                 1f64 + inv_x2_real,
                 inv_x2_imaginary,
                 inv_x2_unit,
             ));
-            let inv_x = KalkValue::from(1f64).div_without_unit(&x.clone());
+            let inv_x = KalkValue::from(1f64).div_without_unit(&x);
 
             ln(sqrt.add_without_unit(&inv_x))
         } else {
@@ -390,7 +389,7 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real <= 0f64 || real > 1f64 {
             // 1/z
-            let inv = KalkValue::from(1f64).div_without_unit(&x.clone());
+            let inv = KalkValue::from(1f64).div_without_unit(&x);
             let (inv_real, inv_imaginary, inv_unit) = as_number_or_return!(inv.clone());
             // sqrt(1/z - 1)
             let sqrt1 = sqrt(KalkValue::Number(
@@ -416,9 +415,8 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 || real > 1f64 || real < -1f64 {
             // i * ln(sqrt(1 - z²) - iz)
-            let root = sqrt(
-                KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x.clone())),
-            );
+            let root =
+                sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)));
             let iz = multiply_with_i(x.clone());
             let ln = ln(root.sub_without_unit(&iz));
             multiply_with_i(ln)
@@ -431,7 +429,7 @@ pub mod funcs {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if imaginary != 0f64 {
             let (x2_real, x2_imaginary, x2_unit) =
-                as_number_or_return!(x.clone().mul_without_unit(&x.clone()));
+                as_number_or_return!(x.clone().mul_without_unit(&x));
             let sqrt = sqrt(KalkValue::Number(x2_real + 1f64, x2_imaginary, x2_unit));
 
             ln(x.add_without_unit(&sqrt))
