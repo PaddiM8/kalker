@@ -593,7 +593,11 @@ fn eval_indexer(
             }
 
             let index_value = eval_expr(context, &indexes[0], unit)?.to_f64() as usize;
-            if let Some(value) = values.get(index_value) {
+            if index_value == 0 {
+                return Err(CalcError::ItemOfIndexDoesNotExist(vec![index_value]));
+            }
+
+            if let Some(value) = values.get(index_value - 1) {
                 Ok(value.clone())
             } else {
                 Err(CalcError::ItemOfIndexDoesNotExist(vec![index_value]))
@@ -606,8 +610,15 @@ fn eval_indexer(
 
             let row_index = eval_expr(context, &indexes[0], unit)?.to_f64() as usize;
             let column_index = eval_expr(context, &indexes[1], unit)?.to_f64() as usize;
-            if let Some(row) = rows.get(row_index) {
-                if let Some(value) = row.get(column_index) {
+            if row_index == 0 || column_index == 0 {
+                return Err(CalcError::ItemOfIndexDoesNotExist(vec![
+                    row_index,
+                    column_index,
+                ]));
+            }
+
+            if let Some(row) = rows.get(row_index - 1) {
+                if let Some(value) = row.get(column_index - 1) {
                     return Ok(value.clone());
                 }
             }
