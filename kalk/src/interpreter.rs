@@ -352,15 +352,18 @@ pub(crate) fn eval_fn_call_expr(
         if result.is_nan() && expressions.len() == 1 {
             let x = eval_expr(context, &expressions[0], "")?;
 
-            // If a vector was given, call the function on every item
-            // in the vector.
+            // If a vector/matrix was given, call the function on every item
+            // in the vector/matrix.
             if let KalkValue::Vector(values) = x {
                 let mut new_values = Vec::new();
                 let mut success = true;
                 for value in values {
-                    if let Some(result) =
-                        prelude::call_unary_func(context, &identifier.full_name, value, "")
-                    {
+                    if let Some(result) = prelude::call_unary_func(
+                        context,
+                        &identifier.full_name,
+                        value,
+                        &context.angle_unit.clone(),
+                    ) {
                         new_values.push(result.0);
                     } else {
                         success = false;
@@ -370,6 +373,31 @@ pub(crate) fn eval_fn_call_expr(
 
                 if success {
                     return Ok(KalkValue::Vector(new_values));
+                }
+            } else if let KalkValue::Matrix(rows) = x {
+                let mut new_rows = Vec::new();
+                let mut success = true;
+                for row in rows {
+                    let mut new_row = Vec::new();
+                    for value in row {
+                        if let Some(result) = prelude::call_unary_func(
+                            context,
+                            &identifier.full_name,
+                            value,
+                            &context.angle_unit.clone(),
+                        ) {
+                            new_row.push(result.0);
+                        } else {
+                            success = false;
+                            break;
+                        }
+                    }
+
+                    new_rows.push(new_row);
+                }
+
+                if success {
+                    return Ok(KalkValue::Matrix(new_rows));
                 }
             }
         }
