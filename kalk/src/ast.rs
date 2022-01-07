@@ -23,7 +23,7 @@ pub enum Expr {
     Piecewise(Vec<ConditionalPiece>),
     Vector(Vec<Expr>),
     Matrix(Vec<Vec<Expr>>),
-    Indexer(Box<Expr>, Box<Expr>),
+    Indexer(Box<Expr>, Vec<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
