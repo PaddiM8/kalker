@@ -126,7 +126,7 @@ pub(crate) fn eval_expr(
         Expr::Piecewise(pieces) => eval_piecewise(context, pieces, unit),
         Expr::Vector(values) => eval_vector(context, values),
         Expr::Matrix(rows) => eval_matrix(context, rows),
-        Expr::Indexer(var, index) => eval_indexer(context, var, index, unit),
+        Expr::Indexer(var, indexes) => eval_indexer(context, var, indexes, unit),
     }
 }
 
@@ -582,19 +582,42 @@ fn eval_matrix(context: &mut Context, rows: &Vec<Vec<Expr>>) -> Result<KalkValue
 fn eval_indexer(
     context: &mut Context,
     var: &Expr,
-    index: &Expr,
+    indexes: &[Expr],
     unit: &str,
 ) -> Result<KalkValue, CalcError> {
     let var_value = eval_expr(context, var, unit)?;
-    if let KalkValue::Vector(values) = var_value {
-        let index_value = eval_expr(context, index, unit)?.to_f64() as usize;
-        if let Some(value) = values.get(index_value) {
-            Ok(value.clone())
-        } else {
-            Err(CalcError::ItemOfIndexDoesNotExist(index_value))
+    match var_value {
+        KalkValue::Vector(values) => {
+            if indexes.len() != 1 {
+                return Err(CalcError::IncorrectAmountOfIndexes(indexes.len(), 1));
+            }
+
+            let index_value = eval_expr(context, &indexes[0], unit)?.to_f64() as usize;
+            if let Some(value) = values.get(index_value) {
+                Ok(value.clone())
+            } else {
+                Err(CalcError::ItemOfIndexDoesNotExist(vec![index_value]))
+            }
         }
-    } else {
-        Err(CalcError::CanOnlyIndexVectors)
+        KalkValue::Matrix(rows) => {
+            if indexes.len() != 2 {
+                return Err(CalcError::IncorrectAmountOfIndexes(indexes.len(), 2));
+            }
+
+            let row_index = eval_expr(context, &indexes[0], unit)?.to_f64() as usize;
+            let column_index = eval_expr(context, &indexes[1], unit)?.to_f64() as usize;
+            if let Some(row) = rows.get(row_index) {
+                if let Some(value) = row.get(column_index) {
+                    return Ok(value.clone());
+                }
+            }
+
+            Err(CalcError::ItemOfIndexDoesNotExist(vec![
+                row_index,
+                column_index,
+            ]))
+        }
+        _ => Err(CalcError::CanOnlyIndexVectors),
     }
 }
 

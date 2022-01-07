@@ -104,7 +104,8 @@ pub enum CalcError {
     ExpectedDx,
     ExpectedIf,
     IncorrectAmountOfArguments(usize, String, usize),
-    ItemOfIndexDoesNotExist(usize),
+    IncorrectAmountOfIndexes(usize, usize),
+    ItemOfIndexDoesNotExist(Vec<usize>),
     InconsistentColumnWidths,
     InvalidNumberLiteral(String),
     InvalidOperator,
@@ -134,7 +135,11 @@ impl ToString for CalcError {
                 "Expected {} arguments for function {}, but got {}.",
                 expected, func, got
             ),
-            CalcError::ItemOfIndexDoesNotExist(index) => format!("Item of index {} does not exist.", index),
+            CalcError::IncorrectAmountOfIndexes(expected,  got) => format!(
+                "Expected {} indexes but got {}.",
+                expected, got
+            ),
+            CalcError::ItemOfIndexDoesNotExist(indexes) => format!("Item of index ⟦{}⟧ does not exist.", indexes.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")),
             CalcError::InconsistentColumnWidths => format!("Inconsistent column widths. Matrix columns must be the same size."),
             CalcError::InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
             CalcError::InvalidOperator => format!("Invalid operator."),
@@ -566,9 +571,15 @@ fn parse_indexer(context: &mut Context) -> Result<Expr, CalcError> {
 
     if match_token(context, TokenKind::OpenDoubleBracket) {
         advance(context);
-        let right = Box::new(parse_expr(context)?);
+        let mut indexes = vec![parse_expr(context)?];
+        while match_token(context, TokenKind::Comma) {
+            advance(context);
+            indexes.push(parse_expr(context)?);
+        }
+
         consume(context, TokenKind::ClosedDoubleBracket)?;
-        return Ok(Expr::Indexer(Box::new(left), right));
+
+        return Ok(Expr::Indexer(Box::new(left), indexes));
     }
 
     Ok(left)
@@ -771,7 +782,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
 
         Ok(Expr::Indexer(
             Box::new(Expr::Var(Identifier::from_full_name(&var_name))),
-            Box::new(lowered_expr),
+            vec![lowered_expr],
         ))
     } else if context.parsing_unit_decl {
         context.unit_decl_base_unit = Some(identifier.full_name);
