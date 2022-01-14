@@ -54,4 +54,19 @@ mod tests {
     fn test_variables() {
         assert!(is_true(eval_file("variables")));
     }
+
+    #[test]
+    fn test_functions() {
+        assert!(is_true(eval_file("functions")));
+    }
+
+    #[test]
+    fn test_derivation() {
+        assert!(is_true(eval_file("derivation")));
+    }
+
+    #[test]
+    fn test_integration() {
+        assert!(is_true(eval_file("integration")));
+    }
 }
