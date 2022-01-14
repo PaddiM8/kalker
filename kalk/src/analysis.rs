@@ -387,17 +387,21 @@ fn build_fn_call(
 
             new_arguments
         }
-        Expr::Group(argument) => {
+        _ => {
+            let argument = if let Expr::Group(argument) = adjacent_expr {
+                *argument
+            } else {
+                adjacent_expr
+            };
             if let Some(log_base) = log_base {
                 return Ok(Expr::FnCall(
                     Identifier::from_full_name("log"),
-                    vec![analyse_expr(context, *argument)?, log_base],
+                    vec![analyse_expr(context, argument)?, log_base],
                 ));
             } else {
-                vec![analyse_expr(context, *argument)?]
+                vec![analyse_expr(context, argument)?]
             }
         }
-        _ => unreachable!(),
     };
 
     if is_integral {
