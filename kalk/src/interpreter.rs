@@ -169,6 +169,8 @@ fn eval_binary_expr(
         TokenKind::LessThan => left.less_than(context, right),
         TokenKind::GreaterOrEquals => left.greater_or_equals(context, right),
         TokenKind::LessOrEquals => left.less_or_equals(context, right),
+        TokenKind::And => left.and(&right),
+        TokenKind::Or => left.or(&right),
         _ => KalkValue::from(1),
     };
 

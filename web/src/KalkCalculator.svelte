@@ -306,7 +306,7 @@
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<brackets>\[\[)|(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷⋅]|if|otherwise)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)\(?)/g,
+            /(?<brackets>\[\[)|(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷⋅∧∨]|if|otherwise|and|or)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)\(?)/g,
             (
                 substring,
                 brackets,
@@ -380,8 +380,10 @@
                 }
 
                 if (op && highlightType != HighlightType.Output) {
-                    if (substring == "*") return "⋅";
-                    if (substring == "/") return "÷";
+                    if (substring == "*") substring = "⋅";
+                    if (substring == "/") substring = "÷";
+                    if (substring == "and") substring = "∧";
+                    if (substring == "or") substring = "∨";
                 }
 
                 if (identifier) {

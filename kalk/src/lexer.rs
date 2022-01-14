@@ -23,6 +23,8 @@ pub enum TokenKind {
     NotEquals,
     GreaterOrEquals,
     LessOrEquals,
+    And,
+    Or,
 
     UnitKeyword,
     ToKeyword,
@@ -144,6 +146,8 @@ impl<'a> Lexer<'a> {
             '=' => build(TokenKind::Equals, "", span),
             '>' => build(TokenKind::GreaterThan, "", span),
             '<' => build(TokenKind::LessThan, "", span),
+            '∧' => build(TokenKind::And, "", span),
+            '∨' => build(TokenKind::Or, "", span),
             ',' => build(TokenKind::Comma, "", span),
             ';' => build(TokenKind::Semicolon, "", span),
             '\n' => build(TokenKind::Newline, "", span),
@@ -316,6 +320,8 @@ impl<'a> Lexer<'a> {
         }
 
         let kind = match value.as_ref() {
+            "and" => TokenKind::And,
+            "or" => TokenKind::Or,
             "unit" => TokenKind::UnitKeyword,
             "to" => TokenKind::ToKeyword,
             "if" => TokenKind::IfKeyword,
@@ -382,7 +388,9 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
-            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '\n' => false,
+            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '∧' | '∨' | '\n' => {
+                false
+            }
             _ => !c.is_digit(10) || is_superscript(c) || is_subscript(c),
         }
     } else {
