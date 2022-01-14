@@ -32,17 +32,26 @@ mod tests {
             .get_value()
     }
 
+    fn is_true(x: KalkValue) -> bool {
+        if let KalkValue::Boolean(boolean) = x {
+            boolean
+        } else {
+            false
+        }
+    }
+
     #[test]
     fn test_basics() {
-        let result = eval_file("basics");
-        assert_eq!(result.to_string_real(10), "3400");
-        assert!(!result.has_imaginary());
+        assert!(is_true(eval_file("basics")));
     }
 
     #[test]
     fn test_radix() {
-        let result = eval_file("radix");
-        assert_eq!(result.to_string_real(10), "62");
-        assert_eq!(result.to_string_imaginary(10, false), "11.3125");
+        assert!(is_true(eval_file("radix")));
+    }
+
+    #[test]
+    fn test_variables() {
+        assert!(is_true(eval_file("variables")));
     }
 }

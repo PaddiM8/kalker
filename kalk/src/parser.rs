@@ -5,9 +5,8 @@ use crate::ast::Identifier;
 use crate::calculation_result::CalculationResult;
 use crate::{
     ast::{Expr, Stmt},
-    interpreter, inverter,
+    interpreter,
     lexer::{Lexer, Token, TokenKind},
-    prelude,
     symbol_table::SymbolTable,
 };
 use wasm_bindgen::prelude::*;
@@ -30,8 +29,6 @@ pub struct Context {
     /// When a unit declaration is being parsed, this value will be set
     /// whenever a unit in the expression is found. Eg. unit a = 3b, it will be set to Some("b")
     unit_decl_base_unit: Option<String>,
-    equation_variable: Option<String>,
-    contains_equation_equal_sign: bool,
     other_radix: Option<u8>,
 }
 
@@ -47,8 +44,6 @@ impl Context {
             timeout: None,
             parsing_unit_decl: false,
             unit_decl_base_unit: None,
-            equation_variable: None,
-            contains_equation_equal_sign: false,
             other_radix: None,
         };
 
@@ -165,12 +160,6 @@ pub fn eval(
     input: &str,
     #[cfg(feature = "rug")] precision: u32,
 ) -> Result<Option<CalculationResult>, CalcError> {
-    // Variable and function declaration parsers will set this to false
-    // if the equal sign is for one of those instead.
-    // It also should not contain an iverson bracket, since equal signs in there
-    // mean something else. This is not super reliable, and should probably be improved in the future.
-    context.contains_equation_equal_sign =
-        input.contains("=") && !input.contains("[") && !input.contains("{");
     let statements = parse(context, input)?;
 
     let mut symbol_table = context.symbol_table.get_mut();
@@ -225,7 +214,7 @@ pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError>
 fn parse_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     if match_token(context, TokenKind::Identifier) {
         return Ok(match peek_next(context).kind {
-            TokenKind::Equals => parse_var_decl_stmt(context)?,
+            //TokenKind::Equals => parse_var_decl_stmt(context)?,
             _ => Stmt::Expr(Box::new(parse_expr(context)?)),
         });
     } else if match_token(context, TokenKind::UnitKeyword) {
@@ -282,30 +271,6 @@ fn parse_piecewise(context: &mut Context) -> Result<Expr, CalcError> {
     advance(context);
 
     Ok(Expr::Piecewise(pieces))
-}
-
-fn parse_var_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
-    let identifier = advance(context).clone();
-    advance(context); // Equal sign
-    context.contains_equation_equal_sign = false;
-    context.equation_variable = None;
-    let expr = parse_expr(context)?;
-    if inverter::contains_var(
-        &mut context.symbol_table.get_mut(),
-        &expr,
-        &identifier.value,
-    ) {
-        return Err(CalcError::VariableReferencesItself);
-    }
-
-    if prelude::is_constant(&identifier.value) {
-        return Err(CalcError::UnableToOverrideConstant(identifier.value.into()));
-    }
-
-    Ok(Stmt::VarDecl(
-        Identifier::from_full_name(&identifier.value),
-        Box::new(expr),
-    ))
 }
 
 fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {

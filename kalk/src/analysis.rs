@@ -70,66 +70,126 @@ pub(crate) fn analyse_stmt(
 }
 
 fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, CalcError> {
-    // Apparently you can't pattern match boxed types in the stable compiler.
-    // This is a mess...
-    let value = if let Expr::Binary(left, TokenKind::Equals, right) = value {
-        if let Expr::Binary(identifier_expr, TokenKind::Star, parameter_expr) = *left {
-            match *identifier_expr {
-                Expr::Var(identifier) if !prelude::is_prelude_func(&identifier.full_name) => {
-                    let mut parameters = Vec::new();
-                    match *parameter_expr {
-                        Expr::Vector(exprs) => {
-                            for expr in exprs {
-                                if let Expr::Var(argument_identifier) = expr {
-                                    parameters.push(format!(
-                                        "{}-{}",
-                                        identifier.pure_name, argument_identifier.pure_name
-                                    ));
-                                }
-                            }
-                        }
-                        Expr::Group(expr) => {
-                            if let Expr::Var(argument_identifier) = *expr {
-                                parameters.push(format!(
-                                    "{}-{}",
-                                    identifier.pure_name, argument_identifier.pure_name
-                                ));
-                            }
-                        }
-                        _ => unreachable!(),
+    Ok(
+        if let Expr::Binary(left, TokenKind::Equals, right) = value {
+            match *left {
+                Expr::Binary(identifier_expr, TokenKind::Star, parameter_expr) => {
+                    build_fn_decl(context, *identifier_expr, *parameter_expr, *right)?
+                }
+                Expr::Var(identifier) if !context.in_conditional => {
+                    if inverter::contains_var(
+                        &mut context.symbol_table,
+                        &right,
+                        &identifier.full_name,
+                    ) {
+                        return Err(CalcError::VariableReferencesItself);
                     }
 
-                    context.current_function_name = Some(identifier.pure_name.clone());
-                    context.current_function_parameters = Some(parameters.clone());
-                    let fn_decl = Stmt::FnDecl(
-                        identifier,
-                        parameters,
-                        Box::new(analyse_expr(context, *right)?),
-                    );
-                    context.symbol_table.insert(fn_decl.clone());
-                    context.current_function_name = None;
-                    context.current_function_parameters = None;
+                    if prelude::is_constant(&identifier.full_name) {
+                        return Err(CalcError::UnableToOverrideConstant(
+                            identifier.pure_name.into(),
+                        ));
+                    }
 
-                    return Ok(fn_decl);
+                    let result =
+                        Stmt::VarDecl(identifier, Box::new(analyse_expr(context, *right)?));
+                    context.symbol_table.insert(result.clone());
+
+                    result
                 }
-                _ => Expr::Binary(
-                    Box::new(Expr::Binary(
-                        identifier_expr,
-                        TokenKind::Star,
-                        parameter_expr,
-                    )),
+                _ => Stmt::Expr(Box::new(Expr::Binary(
+                    Box::new(analyse_expr(context, *left)?),
                     TokenKind::Equals,
                     right,
-                ),
+                ))),
             }
         } else {
-            Expr::Binary(left, TokenKind::Equals, right)
-        }
-    } else {
-        value
-    };
+            Stmt::Expr(Box::new(analyse_expr(context, value)?))
+        },
+    )
+}
 
-    Ok(Stmt::Expr(Box::new(analyse_expr(context, value)?)))
+fn build_fn_decl(
+    context: &mut Context,
+    identifier_expr: Expr,
+    parameter_expr: Expr,
+    right: Expr,
+) -> Result<Stmt, CalcError> {
+    Ok(match identifier_expr {
+        Expr::Var(identifier) if !prelude::is_prelude_func(&identifier.full_name) => {
+            // Check if all the expressions in the parameter_expr are
+            // variables. If not, it can't be turned into a function declaration.
+            let all_are_vars = match &parameter_expr {
+                Expr::Vector(exprs) => {
+                    exprs
+                        .iter()
+                        .any(|x| if let Expr::Var(_) = x { true } else { false })
+                }
+                Expr::Group(expr) => {
+                    if let Expr::Var(_) = &**expr {
+                        true
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+
+            if !all_are_vars {
+                // Analyse it as a function call instead
+                return Ok(Stmt::Expr(Box::new(analyse_expr(
+                    context,
+                    Expr::Binary(
+                        Box::new(Expr::Binary(
+                            Box::new(Expr::Var(identifier)),
+                            TokenKind::Star,
+                            Box::new(parameter_expr),
+                        )),
+                        TokenKind::Equals,
+                        Box::new(right),
+                    ),
+                )?)));
+            }
+
+            let exprs = match parameter_expr {
+                Expr::Vector(exprs) => exprs,
+                Expr::Group(expr) => vec![*expr],
+                _ => unreachable!(),
+            };
+
+            let mut parameters = Vec::new();
+            for expr in exprs {
+                if let Expr::Var(argument_identifier) = expr {
+                    parameters.push(format!(
+                        "{}-{}",
+                        identifier.pure_name, argument_identifier.pure_name
+                    ));
+                }
+            }
+
+            context.current_function_name = Some(identifier.pure_name.clone());
+            context.current_function_parameters = Some(parameters.clone());
+            let fn_decl = Stmt::FnDecl(
+                identifier,
+                parameters,
+                Box::new(analyse_expr(context, right)?),
+            );
+            context.symbol_table.insert(fn_decl.clone());
+            context.current_function_name = None;
+            context.current_function_parameters = None;
+
+            fn_decl
+        }
+        _ => Stmt::Expr(Box::new(Expr::Binary(
+            Box::new(Expr::Binary(
+                Box::new(identifier_expr),
+                TokenKind::Star,
+                Box::new(parameter_expr),
+            )),
+            TokenKind::Equals,
+            Box::new(right),
+        ))),
+    })
 }
 
 fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, CalcError> {
@@ -201,8 +261,13 @@ fn analyse_binary<'a>(
     op: TokenKind,
     right: Expr,
 ) -> Result<Expr, CalcError> {
+    let previous_in_conditional = context.in_conditional;
+    if op == TokenKind::And || op == TokenKind::Or {
+        context.in_conditional = true;
+    }
+
     let right = analyse_expr(context, right)?;
-    match (&left, &op) {
+    let result = match (&left, &op) {
         (_, TokenKind::Equals) if !context.in_conditional => {
             // Equation
             context.in_equation = true;
@@ -212,7 +277,10 @@ fn analyse_binary<'a>(
             // abort and analyse as a comparison instead.
             if context.in_equation == false {
                 context.in_conditional = true;
-                return analyse_binary(context, left, op, right);
+                let result = analyse_binary(context, left, op, right);
+                context.in_conditional = previous_in_conditional;
+
+                return result;
             }
 
             context.in_equation = false;
@@ -221,7 +289,10 @@ fn analyse_binary<'a>(
                 var_name
             } else {
                 context.in_conditional = true;
-                return analyse_binary(context, left, op, right);
+                let result = analyse_binary(context, left, op, right);
+                context.in_conditional = previous_in_conditional;
+
+                return result;
             };
 
             let inverted = if inverter::contains_var(&mut context.symbol_table, &left, var_name) {
@@ -263,7 +334,11 @@ fn analyse_binary<'a>(
             op,
             Box::new(right),
         )),
-    }
+    };
+
+    context.in_conditional = previous_in_conditional;
+
+    result
 }
 
 fn analyse_var(
