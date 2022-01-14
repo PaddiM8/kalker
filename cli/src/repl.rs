@@ -203,9 +203,10 @@ impl Completer for RLHelper {
                 }
             }
 
-            if subscript_digits.len() > 0 {
+            let subscript_char_count = subscript_digits.chars().count();
+            if subscript_char_count > 0 && pos - subscript_char_count > 0 {
                 let value = kalk::text_utils::normal_to_subscript(subscript_digits.chars());
-                return Ok((pos - subscript_digits.chars().count() - 1, vec![value]));
+                return Ok((pos - subscript_char_count - 1, vec![value]));
             }
         }
 
