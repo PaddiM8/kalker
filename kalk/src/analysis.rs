@@ -180,15 +180,19 @@ fn build_fn_decl(
 
             fn_decl
         }
-        _ => Stmt::Expr(Box::new(Expr::Binary(
-            Box::new(Expr::Binary(
-                Box::new(identifier_expr),
-                TokenKind::Star,
-                Box::new(parameter_expr),
-            )),
-            TokenKind::Equals,
-            Box::new(right),
-        ))),
+        _ => {
+            let new_binary = Expr::Binary(
+                Box::new(Expr::Binary(
+                    Box::new(identifier_expr),
+                    TokenKind::Star,
+                    Box::new(parameter_expr),
+                )),
+                TokenKind::Equals,
+                Box::new(right),
+            );
+
+            Stmt::Expr(Box::new(analyse_expr(context, new_binary)?))
+        }
     })
 }
 
@@ -266,12 +270,12 @@ fn analyse_binary<'a>(
         context.in_conditional = true;
     }
 
-    let right = analyse_expr(context, right)?;
     let result = match (&left, &op) {
         (_, TokenKind::Equals) if !context.in_conditional => {
             // Equation
             context.in_equation = true;
             let left = analyse_expr(context, left)?;
+            let right = analyse_expr(context, right)?;
 
             // If it has already been set to false manually somewhere else,
             // abort and analyse as a comparison instead.
@@ -332,7 +336,7 @@ fn analyse_binary<'a>(
         _ => Ok(Expr::Binary(
             Box::new(analyse_expr(context, left)?),
             op,
-            Box::new(right),
+            Box::new(analyse_expr(context, right)?),
         )),
     };
 
@@ -369,6 +373,12 @@ fn analyse_var(
             );
         }
     }
+
+    let adjacent_factor = if let Some(adjacent_factor) = adjacent_factor {
+        Some(analyse_expr(context, adjacent_factor)?)
+    } else {
+        None
+    };
 
     if context.symbol_table.contains_var(&identifier.pure_name)
         || (identifier.pure_name.len() == 1 && !context.in_equation)
@@ -417,7 +427,7 @@ fn analyse_var(
         let last_char = identifier_without_dx.pop().unwrap_or_default();
         let second_last_char = identifier_without_dx.pop().unwrap_or_default();
 
-        if context.in_integral && second_last_char == 'd' && identifier.pure_name.len() > 2 {
+        if context.in_integral && second_last_char == 'd' && identifier.pure_name.len() >= 2 {
             let new_identifier: String = identifier_without_dx.iter().collect();
             with_adjacent(
                 build_dx(context, &new_identifier, last_char)?,
@@ -425,7 +435,7 @@ fn analyse_var(
                 adjacent_exponent,
             )
         } else {
-            build_split_up_vars(context, identifier, adjacent_exponent)
+            build_split_up_vars(context, identifier, adjacent_factor, adjacent_exponent)
         }
     }
 }
@@ -458,13 +468,13 @@ fn build_fn_call(
     adjacent_expr: Expr,
     log_base: Option<Expr>,
 ) -> Result<Expr, CalcError> {
-    let is_integral = identifier.full_name == "integrate";
+    let is_integral = identifier.pure_name == "integrate";
     if is_integral {
         context.in_integral = true;
     }
 
     // Don't perform equation solving on special functions
-    if is_integral || identifier.full_name == "sum" || identifier.full_name == "prod" {
+    if is_integral || identifier.pure_name == "sum" || identifier.pure_name == "prod" {
         context.in_equation = false;
     }
 
@@ -522,16 +532,32 @@ fn build_dx(
     name_without_dx: &str,
     char_after_d: char,
 ) -> Result<Expr, CalcError> {
-    Ok(Expr::Binary(
-        Box::new(build_var(context, name_without_dx)),
-        TokenKind::Star,
-        Box::new(build_var(context, &char_after_d.to_string())),
-    ))
+    if name_without_dx.len() == 0 {
+        Ok(Expr::Var(Identifier::from_full_name(&format!(
+            "d{}",
+            char_after_d.to_string()
+        ))))
+    } else {
+        Ok(Expr::Binary(
+            Box::new(analyse_var(
+                context,
+                Identifier::from_full_name(name_without_dx),
+                None,
+                None,
+            )?),
+            TokenKind::Star,
+            Box::new(Expr::Var(Identifier::from_full_name(&format!(
+                "d{}",
+                char_after_d.to_string()
+            )))),
+        ))
+    }
 }
 
 fn build_split_up_vars(
     context: &mut Context,
     identifier: Identifier,
+    adjacent_factor: Option<Expr>,
     adjacent_exponent: Option<Expr>,
 ) -> Result<Expr, CalcError> {
     let mut chars: Vec<char> = identifier.pure_name.chars().collect();
@@ -543,10 +569,14 @@ fn build_split_up_vars(
     // create a function call expression, where that last character
     // is the argument.
     if context.symbol_table.contains_fn(&identifier_without_last) {
-        return Ok(Expr::FnCall(
-            Identifier::from_full_name(&identifier_without_last),
-            vec![build_var(context, &last_char.to_string())],
-        ));
+        return with_adjacent(
+            Expr::FnCall(
+                Identifier::from_full_name(&identifier_without_last),
+                vec![build_var(context, &last_char.to_string())],
+            ),
+            adjacent_factor,
+            adjacent_exponent,
+        );
     } else {
         // Otherwise, re-add the character.
         chars.push(last_char);
