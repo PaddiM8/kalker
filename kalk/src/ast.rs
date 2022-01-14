@@ -77,6 +77,14 @@ impl Identifier {
             &self.pure_name
         }
     }
+
+    pub fn get_lowered_part(&self) -> Option<&str> {
+        if let Some(underscore_pos) = self.pure_name.find('_') {
+            Some(&self.pure_name[underscore_pos + 1..])
+        } else {
+            None
+        }
+    }
 }
 
 pub fn build_literal_ast(kalk_value: &crate::kalk_value::KalkValue) -> Expr {
