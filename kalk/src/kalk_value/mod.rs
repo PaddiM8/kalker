@@ -919,16 +919,15 @@ impl KalkValue {
     }
 
     pub(crate) fn eq_without_unit(&self, rhs: &KalkValue) -> KalkValue {
-        if self.has_imaginary() || rhs.has_imaginary() {
-            return KalkValue::nan();
-        }
-
         match (self, rhs) {
-            (KalkValue::Number(real, _, _), KalkValue::Number(real_rhs, _, _)) => {
-                KalkValue::Boolean(
-                    (real.clone() - real_rhs.clone()).abs() < ACCEPTABLE_COMPARISON_MARGIN,
-                )
-            }
+            (
+                KalkValue::Number(real, imaginary, _),
+                KalkValue::Number(real_rhs, imaginary_rhs, _),
+            ) => KalkValue::Boolean(
+                (real.clone() - real_rhs.clone()).abs() < ACCEPTABLE_COMPARISON_MARGIN
+                    && (imaginary.clone() - imaginary_rhs.clone()).abs()
+                        < ACCEPTABLE_COMPARISON_MARGIN,
+            ),
             (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
                 let mut vecs_are_equal = true;
                 for (value, value_rhs) in values.iter().zip(values_rhs) {
@@ -946,16 +945,15 @@ impl KalkValue {
     }
 
     pub(crate) fn not_eq_without_unit(&self, rhs: &KalkValue) -> KalkValue {
-        if self.has_imaginary() || rhs.has_imaginary() {
-            return KalkValue::nan();
-        }
-
         match (self, rhs) {
-            (KalkValue::Number(real, _, _), KalkValue::Number(real_rhs, _, _)) => {
-                KalkValue::Boolean(
-                    (real.clone() - real_rhs.clone()).abs() > ACCEPTABLE_COMPARISON_MARGIN,
-                )
-            }
+            (
+                KalkValue::Number(real, imaginary, _),
+                KalkValue::Number(real_rhs, imaginary_rhs, _),
+            ) => KalkValue::Boolean(
+                (real.clone() - real_rhs.clone()).abs() > ACCEPTABLE_COMPARISON_MARGIN
+                    || (imaginary.clone() - imaginary_rhs.clone()).abs()
+                        > ACCEPTABLE_COMPARISON_MARGIN,
+            ),
             _ => KalkValue::nan(),
         }
     }
