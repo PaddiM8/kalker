@@ -1,0 +1,5 @@
+a = integrate(0, pi, sinxdx)
+b = integrate(0, pi, sinx dx)
+c = integrate(0, pi, sinx, dx)
+
+a = 2 and b = 2 and c = 2
