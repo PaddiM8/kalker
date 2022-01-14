@@ -803,7 +803,7 @@ impl KalkValue {
             (KalkValue::Vector(values), KalkValue::Number(_, _, _)) => KalkValue::Vector(
                 values
                     .iter()
-                    .map(|x| x.clone().mul_without_unit(lhs))
+                    .map(|x| x.clone().mul_without_unit(rhs))
                     .collect(),
             ),
             (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
@@ -1024,7 +1024,7 @@ fn calculate_vector(
                     values
                         .iter()
                         .zip(values_rhs)
-                        .map(|(x, y)| x.clone().add_without_unit(&y))
+                        .map(|(x, y)| action(x.clone(), &y))
                         .collect(),
                 )
             } else {
