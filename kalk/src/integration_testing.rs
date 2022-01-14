@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use std::{fs::File, io::Read, path::PathBuf};
+    use test_case::test_case;
 
     use crate::kalk_value::KalkValue;
 
@@ -40,33 +41,17 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_basics() {
-        assert!(is_true(eval_file("basics")));
-    }
-
-    #[test]
-    fn test_radix() {
-        assert!(is_true(eval_file("radix")));
-    }
-
-    #[test]
-    fn test_variables() {
-        assert!(is_true(eval_file("variables")));
-    }
-
-    #[test]
-    fn test_functions() {
-        assert!(is_true(eval_file("functions")));
-    }
-
-    #[test]
-    fn test_derivation() {
-        assert!(is_true(eval_file("derivation")));
-    }
-
-    #[test]
-    fn test_integration() {
-        assert!(is_true(eval_file("integration")));
+    #[test_case("basics")]
+    #[test_case("derivation")]
+    #[test_case("functions")]
+    #[test_case("groups")]
+    #[test_case("integration")]
+    #[test_case("matrices")]
+    #[test_case("radix")]
+    #[test_case("sum")]
+    #[test_case("variables")]
+    #[test_case("vectors")]
+    fn test_file(name: &str) {
+        assert!(is_true(eval_file(name)));
     }
 }

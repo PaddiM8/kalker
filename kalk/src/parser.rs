@@ -315,6 +315,7 @@ fn parse_or(context: &mut Context) -> Result<Expr, CalcError> {
 
     if match_token(context, TokenKind::Or) {
         let op = advance(context).kind;
+        skip_newlines(context);
         let right = Box::new(parse_or(context)?);
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
@@ -327,6 +328,7 @@ fn parse_and(context: &mut Context) -> Result<Expr, CalcError> {
 
     if match_token(context, TokenKind::And) {
         let op = advance(context).kind;
+        skip_newlines(context);
         let right = Box::new(parse_and(context)?);
         return Ok(Expr::Binary(Box::new(left), op, right));
     }

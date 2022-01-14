@@ -1,0 +1,5 @@
+x = 3
+f(x) = 2*x
+g(x, y) = 2*x*y
+
+f(x) = 6 and fx = 6 and x = 3 and g(x, x + 1) = 24
