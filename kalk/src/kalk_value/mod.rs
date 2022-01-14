@@ -928,6 +928,21 @@ impl KalkValue {
                     && (imaginary.clone() - imaginary_rhs.clone()).abs()
                         < ACCEPTABLE_COMPARISON_MARGIN,
             ),
+            (KalkValue::Matrix(rows), KalkValue::Matrix(rows_rhs)) => {
+                let mut matrices_are_equal = true;
+                for (row, row_rhs) in rows.iter().zip(rows_rhs) {
+                    for (value, value_rhs) in row.iter().zip(row_rhs) {
+                        if let KalkValue::Boolean(are_equal) = value.eq_without_unit(&value_rhs) {
+                            if !are_equal {
+                                matrices_are_equal = false;
+                            }
+                        }
+                    }
+                }
+
+                KalkValue::Boolean(matrices_are_equal)
+            }
+
             (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
                 let mut vecs_are_equal = true;
                 for (value, value_rhs) in values.iter().zip(values_rhs) {
@@ -954,6 +969,14 @@ impl KalkValue {
                     || (imaginary.clone() - imaginary_rhs.clone()).abs()
                         > ACCEPTABLE_COMPARISON_MARGIN,
             ),
+            (KalkValue::Vector(_), KalkValue::Vector(_))
+            | (KalkValue::Matrix(_), KalkValue::Matrix(_)) => {
+                if let KalkValue::Boolean(boolean) = self.eq_without_unit(rhs) {
+                    KalkValue::Boolean(!boolean)
+                } else {
+                    KalkValue::nan()
+                }
+            }
             _ => KalkValue::nan(),
         }
     }
@@ -1043,6 +1066,7 @@ fn calculate_matrix(
     // Make sure matrix is always first to avoid having to match
     // different orders in the next match expression.
     let (x, y) = match (&x, y) {
+        (KalkValue::Matrix(_), KalkValue::Matrix(_)) => (&x, y),
         (_, KalkValue::Matrix(_)) => (y, &x),
         _ => (&x, y),
     };
