@@ -1,3 +1,4 @@
+mod analysis;
 pub mod ast;
 pub mod calculation_result;
 mod calculus;
