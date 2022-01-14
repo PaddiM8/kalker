@@ -342,42 +342,35 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 }
 
 fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
-    Ok(parse_equality(context)?)
+    Ok(parse_or(context)?)
+}
+
+fn parse_or(context: &mut Context) -> Result<Expr, CalcError> {
+    let left = parse_and(context)?;
+
+    if match_token(context, TokenKind::Or) {
+        let op = advance(context).kind;
+        let right = Box::new(parse_or(context)?);
+        return Ok(Expr::Binary(Box::new(left), op, right));
+    }
+
+    Ok(left)
+}
+
+fn parse_and(context: &mut Context) -> Result<Expr, CalcError> {
+    let left = parse_equality(context)?;
+
+    if match_token(context, TokenKind::And) {
+        let op = advance(context).kind;
+        let right = Box::new(parse_and(context)?);
+        return Ok(Expr::Binary(Box::new(left), op, right));
+    }
+
+    Ok(left)
 }
 
 fn parse_equality(context: &mut Context) -> Result<Expr, CalcError> {
     let mut left = parse_to(context)?;
-
-    // Equation
-    /*if match_token(context, TokenKind::Equals) && context.contains_equation_equal_sign {
-        advance(context);
-        let right = parse_to(context)?;
-        let var_name = if let Some(var_name) = &context.equation_variable {
-            var_name
-        } else {
-            return Err(CalcError::UnableToSolveEquation);
-        };
-
-        let inverted =
-            if inverter::contains_var(&mut context.symbol_table.get_mut(), &left, var_name) {
-                left.invert_to_target(&mut context.symbol_table.get_mut(), right, var_name)?
-            } else {
-                right.invert_to_target(&mut context.symbol_table.get_mut(), left, var_name)?
-            };
-
-        // If the inverted expression still contains the variable,
-        // the equation solving failed.
-        if inverter::contains_var(&mut context.symbol_table.get_mut(), &inverted, var_name) {
-            return Err(CalcError::UnableToSolveEquation);
-        }
-
-        context.symbol_table.get_mut().insert(Stmt::VarDecl(
-            Identifier::from_full_name(var_name),
-            Box::new(inverted.clone()),
-        ));
-
-        return Ok(inverted);
-    }*/
 
     // Equality check
     while match_token(context, TokenKind::Equals)

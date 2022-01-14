@@ -676,6 +676,24 @@ impl KalkValue {
         }
     }
 
+    pub(crate) fn and(self, rhs: &KalkValue) -> KalkValue {
+        match (self, rhs) {
+            (KalkValue::Boolean(boolean), KalkValue::Boolean(boolean_rhs)) => {
+                KalkValue::Boolean(boolean && *boolean_rhs)
+            }
+            _ => KalkValue::nan(),
+        }
+    }
+
+    pub(crate) fn or(self, rhs: &KalkValue) -> KalkValue {
+        match (self, rhs) {
+            (KalkValue::Boolean(boolean), KalkValue::Boolean(boolean_rhs)) => {
+                KalkValue::Boolean(boolean || *boolean_rhs)
+            }
+            _ => KalkValue::nan(),
+        }
+    }
+
     pub(crate) fn add_without_unit(self, rhs: &KalkValue) -> KalkValue {
         match (self.clone(), rhs) {
             (
