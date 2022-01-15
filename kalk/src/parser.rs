@@ -97,6 +97,7 @@ pub enum CalcError {
     IncorrectAmountOfIndexes(usize, usize),
     ItemOfIndexDoesNotExist(Vec<usize>),
     InconsistentColumnWidths,
+    InvalidComprehension(String),
     InvalidNumberLiteral(String),
     InvalidOperator,
     InvalidUnit,
@@ -131,6 +132,7 @@ impl ToString for CalcError {
             ),
             CalcError::ItemOfIndexDoesNotExist(indexes) => format!("Item of index ⟦{}⟧ does not exist.", indexes.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")),
             CalcError::InconsistentColumnWidths => format!("Inconsistent column widths. Matrix columns must be the same size."),
+            CalcError::InvalidComprehension(x) => format!("Invalid comprehension: {}", x),
             CalcError::InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
             CalcError::InvalidOperator => format!("Invalid operator."),
             CalcError::InvalidUnit => format!("Invalid unit."),
@@ -308,6 +310,32 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 
 fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(parse_or(context)?)
+}
+
+fn parse_comprehension(context: &mut Context) -> Result<Expr, CalcError> {
+    let left = parse_or(context)?;
+
+    if match_token(context, TokenKind::Colon) {
+        let op = advance(context).kind;
+        skip_newlines(context);
+        let right = Box::new(parse_comprehension_comma(context)?);
+        return Ok(Expr::Binary(Box::new(left), op, right));
+    }
+
+    Ok(left)
+}
+
+fn parse_comprehension_comma(context: &mut Context) -> Result<Expr, CalcError> {
+    let left = parse_or(context)?;
+
+    if match_token(context, TokenKind::Comma) {
+        let op = advance(context).kind;
+        skip_newlines(context);
+        let right = Box::new(parse_comprehension_comma(context)?);
+        return Ok(Expr::Binary(Box::new(left), op, right));
+    }
+
+    Ok(left)
 }
 
 fn parse_or(context: &mut Context) -> Result<Expr, CalcError> {
@@ -545,7 +573,12 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
         skip_newlines(context);
     }
 
-    let mut rows = vec![vec![parse_expr(context)?]];
+    let first_expr = if kind == TokenKind::OpenBracket {
+        parse_comprehension(context)?
+    } else {
+        parse_expr(context)?
+    };
+    let mut rows = vec![vec![first_expr]];
     let mut column_count = None;
     let mut items_in_row = 1;
     while match_token(context, TokenKind::Comma)

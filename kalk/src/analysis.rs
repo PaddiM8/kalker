@@ -1,5 +1,5 @@
 use crate::{
-    ast::{ConditionalPiece, Expr, Identifier, Stmt},
+    ast::{ConditionalPiece, Expr, Identifier, RangedVar, Stmt},
     inverter,
     lexer::TokenKind,
     parser::{self, CalcError},
@@ -13,9 +13,12 @@ pub(crate) struct Context<'a> {
     current_function_parameters: Option<Vec<String>>,
     equation_variable: Option<String>,
     in_integral: bool,
+    in_sum_prod: bool,
     in_unit_decl: bool,
     in_conditional: bool,
     in_equation: bool,
+    in_comprehension: bool,
+    comprehension_vars: Option<Vec<RangedVar>>,
 }
 
 pub(crate) fn analyse_stmt(
@@ -28,9 +31,12 @@ pub(crate) fn analyse_stmt(
         current_function_parameters: None,
         equation_variable: None,
         in_integral: false,
+        in_sum_prod: false,
         in_unit_decl: false,
         in_conditional: false,
         in_equation: false,
+        in_comprehension: false,
+        comprehension_vars: None,
     };
 
     Ok(match statement {
@@ -256,6 +262,7 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, CalcError> {
 
             Expr::Indexer(Box::new(analyse_expr(context, *value)?), analysed_indexes)
         }
+        Expr::Comprehension(left, right, vars) => Expr::Comprehension(left, right, vars),
     })
 }
 
@@ -270,8 +277,8 @@ fn analyse_binary<'a>(
         context.in_conditional = true;
     }
 
-    let result = match (&left, &op) {
-        (_, TokenKind::Equals) if !context.in_conditional => {
+    let result = match (&left, &op, &right) {
+        (_, TokenKind::Equals, _) if !context.in_conditional => {
             // Equation
             context.in_equation = true;
             let left = analyse_expr(context, left)?;
@@ -319,19 +326,77 @@ fn analyse_binary<'a>(
 
             return Ok(inverted);
         }
-        (Expr::Var(_), TokenKind::Star) => {
+        (Expr::Var(_), TokenKind::Star, _) => {
             if let Expr::Var(identifier) = left {
                 analyse_var(context, identifier, Some(right), None)
             } else {
                 unreachable!()
             }
         }
-        (Expr::Var(_), TokenKind::Power) => {
+        (Expr::Var(_), TokenKind::Power, _) => {
             if let Expr::Var(identifier) = left {
                 analyse_var(context, identifier, None, Some(right))
             } else {
                 unreachable!()
             }
+        }
+        (_, TokenKind::Colon, _) => {
+            context.in_comprehension = true;
+            context.in_conditional = true;
+            context.comprehension_vars = Some(Vec::new());
+
+            let mut conditions = vec![right];
+            let mut has_comma = false;
+            while let Expr::Binary(_, TokenKind::Comma, _) = conditions.last().unwrap() {
+                has_comma = true;
+                if let Expr::Binary(left_condition, _, right_condition) = conditions.pop().unwrap()
+                {
+                    conditions.push(analyse_expr(context, *left_condition.to_owned())?);
+                    conditions.push(analyse_expr(context, *right_condition.to_owned())?);
+                }
+            }
+
+            if !has_comma {
+                let analysed_condition = analyse_expr(context, conditions.pop().unwrap())?;
+                conditions.push(analysed_condition);
+            }
+
+            context.in_comprehension = false;
+            context.in_conditional = false;
+            let left = analyse_expr(context, left)?;
+
+            let result = Expr::Comprehension(
+                Box::new(left),
+                conditions,
+                context.comprehension_vars.take().unwrap(),
+            );
+
+            Ok(result)
+        }
+        (
+            Expr::Var(_),
+            TokenKind::GreaterThan
+            | TokenKind::LessThan
+            | TokenKind::GreaterOrEquals
+            | TokenKind::LessOrEquals,
+            _,
+        ) => analyse_comparison_with_var(context, left, op, right),
+        (
+            _,
+            TokenKind::GreaterThan
+            | TokenKind::LessThan
+            | TokenKind::GreaterOrEquals
+            | TokenKind::LessOrEquals,
+            Expr::Var(_),
+        ) => {
+            let inv_op = match op {
+                TokenKind::GreaterThan => TokenKind::LessThan,
+                TokenKind::LessThan => TokenKind::GreaterThan,
+                TokenKind::GreaterOrEquals => TokenKind::LessOrEquals,
+                TokenKind::LessOrEquals => TokenKind::GreaterOrEquals,
+                _ => unreachable!(),
+            };
+            analyse_comparison_with_var(context, right, inv_op, left)
         }
         _ => Ok(Expr::Binary(
             Box::new(analyse_expr(context, left)?),
@@ -343,6 +408,69 @@ fn analyse_binary<'a>(
     context.in_conditional = previous_in_conditional;
 
     result
+}
+
+fn analyse_comparison_with_var(
+    context: &mut Context,
+    var: Expr,
+    op: TokenKind,
+    right: Expr,
+) -> Result<Expr, CalcError> {
+    let right = analyse_expr(context, right)?;
+
+    if context.comprehension_vars.is_none() {
+        return Ok(Expr::Binary(
+            Box::new(analyse_expr(context, var)?),
+            op,
+            Box::new(right),
+        ));
+    }
+
+    // Make sure any comprehension variables
+    // are added to context.comprehension_variables.
+    let analysed_var = analyse_expr(context, var)?;
+    let var_name = if let Expr::Var(identifier) = &analysed_var {
+        &identifier.pure_name
+    } else {
+        unreachable!("Expected Expr::Var");
+    };
+
+    let vars = context.comprehension_vars.as_mut().unwrap();
+    for ranged_var in vars {
+        if &ranged_var.name == var_name {
+            match op {
+                TokenKind::GreaterThan => {
+                    ranged_var.min = Expr::Binary(
+                        Box::new(right.clone()),
+                        TokenKind::Plus,
+                        Box::new(Expr::Literal(1f64)),
+                    );
+                }
+                TokenKind::LessThan => {
+                    ranged_var.max = right.clone();
+                }
+                TokenKind::GreaterOrEquals => {
+                    ranged_var.min = right.clone();
+                }
+                TokenKind::LessOrEquals => {
+                    ranged_var.max = Expr::Binary(
+                        Box::new(right.clone()),
+                        TokenKind::Plus,
+                        Box::new(Expr::Literal(1f64)),
+                    );
+                }
+                _ => unreachable!(),
+            }
+
+            break;
+        }
+    }
+
+    Ok(Expr::Binary(
+        Box::new(Expr::Literal(0f64)),
+        TokenKind::Equals,
+        Box::new(Expr::Literal(0f64)),
+    ))
 }
 
 fn analyse_var(
@@ -380,7 +508,15 @@ fn analyse_var(
         None
     };
 
-    if context.symbol_table.contains_var(&identifier.pure_name)
+    let is_comprehension_var = if let Some(vars) = &context.comprehension_vars {
+        vars.iter().any(|x| x.name == identifier.pure_name)
+    } else {
+        false
+    };
+
+    if is_comprehension_var {
+        with_adjacent(Expr::Var(identifier), adjacent_factor, adjacent_exponent)
+    } else if context.symbol_table.contains_var(&identifier.pure_name)
         || (identifier.pure_name.len() == 1 && !context.in_equation)
     {
         with_adjacent(
@@ -473,8 +609,13 @@ fn build_fn_call(
         context.in_integral = true;
     }
 
+    let is_sum_prod = identifier.pure_name == "sum" || identifier.pure_name == "prod";
+    if is_sum_prod {
+        context.in_sum_prod = true;
+    }
+
     // Don't perform equation solving on special functions
-    if is_integral || identifier.pure_name == "sum" || identifier.pure_name == "prod" {
+    if is_integral || is_sum_prod {
         context.in_equation = false;
     }
 
@@ -506,6 +647,10 @@ fn build_fn_call(
 
     if is_integral {
         context.in_integral = false;
+    }
+
+    if is_sum_prod {
+        context.in_sum_prod = false;
     }
 
     return Ok(Expr::FnCall(identifier, arguments));
@@ -615,8 +760,23 @@ fn build_var(context: &mut Context, name: &str) -> Expr {
         }
     }
 
-    if context.in_equation && !context.symbol_table.contains_var(name) {
+    if context.in_sum_prod && name == "n" {
+        return Expr::Var(Identifier::from_full_name(name));
+    }
+
+    let var_exists = context.symbol_table.contains_var(name);
+    if context.in_equation && !var_exists {
         context.equation_variable = Some(name.to_string());
+    }
+
+    if context.in_comprehension && !var_exists {
+        if let Some(vars) = context.comprehension_vars.as_mut() {
+            vars.push(RangedVar {
+                name: name.to_string(),
+                max: Expr::Literal(0f64),
+                min: Expr::Literal(0f64),
+            });
+        }
     }
 
     Expr::Var(Identifier::from_full_name(name))

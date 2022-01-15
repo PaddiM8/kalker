@@ -90,6 +90,9 @@ fn invert(
         Expr::Vector(_) => Err(CalcError::UnableToInvert(String::from("Vector"))),
         Expr::Matrix(_) => Err(CalcError::UnableToInvert(String::from("Matrix"))),
         Expr::Indexer(_, _) => Err(CalcError::UnableToInvert(String::from("Inverter"))),
+        Expr::Comprehension(_, _, _) => {
+            Err(CalcError::UnableToInvert(String::from("Comprehension")))
+        }
     }
 }
 
@@ -396,6 +399,7 @@ pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> 
             .iter()
             .any(|row| row.iter().any(|x| contains_var(symbol_table, x, var_name))),
         Expr::Indexer(_, _) => false,
+        Expr::Comprehension(_, _, _) => false,
     }
 }
 
