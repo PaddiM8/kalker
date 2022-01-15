@@ -1,5 +1,5 @@
-use crate::ast::Identifier;
 use crate::ast::{Expr, Stmt};
+use crate::ast::{Identifier, RangedVar};
 use crate::calculation_result::CalculationResult;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
@@ -127,6 +127,9 @@ pub(crate) fn eval_expr(
         Expr::Vector(values) => eval_vector(context, values),
         Expr::Matrix(rows) => eval_matrix(context, rows),
         Expr::Indexer(var, indexes) => eval_indexer(context, var, indexes, unit),
+        Expr::Comprehension(left, conditions, vars) => Ok(KalkValue::Vector(eval_comprehension(
+            context, left, conditions, vars,
+        )?)),
     }
 }
 
@@ -632,6 +635,53 @@ fn eval_indexer(
         }
         _ => Err(CalcError::CanOnlyIndexVectors),
     }
+}
+
+fn eval_comprehension(
+    context: &mut Context,
+    left: &Expr,
+    conditions: &[Expr],
+    vars: &[RangedVar],
+) -> Result<Vec<KalkValue>, CalcError> {
+    if vars.len() != conditions.len() {
+        return Err(CalcError::InvalidComprehension(String::from("Expected a new variable to be introduced for every condition (conditions are comma separated).")));
+    }
+
+    let condition = conditions.first().unwrap();
+    let var = vars.first().unwrap();
+    context.symbol_table.insert(Stmt::VarDecl(
+        Identifier::from_full_name(&var.name),
+        Box::new(Expr::Literal(0f64)),
+    ));
+
+    let min = eval_expr(context, &var.min, "")?.to_f64() as i32;
+    let max = eval_expr(context, &var.max, "")?.to_f64() as i32;
+
+    let mut values = Vec::new();
+    for i in min..max {
+        context.symbol_table.set(Stmt::VarDecl(
+            Identifier::from_full_name(&var.name),
+            Box::new(Expr::Literal(i as f64)),
+        ));
+
+        if conditions.len() > 1 {
+            let x = eval_comprehension(context, left, &conditions[1..], &vars[1..])?;
+            for value in x {
+                values.push(value);
+            }
+        }
+
+        let condition = eval_expr(context, condition, "")?;
+        if let KalkValue::Boolean(boolean) = condition {
+            if boolean && vars.len() == 1 {
+                values.push(eval_expr(context, left, "")?);
+            }
+        }
+    }
+
+    context.symbol_table.get_and_remove_var(&var.name);
+
+    Ok(values)
 }
 
 #[cfg(test)]

@@ -42,6 +42,7 @@ mod tests {
     }
 
     #[test_case("basics")]
+    #[test_case("comprehensions")]
     #[test_case("derivation")]
     #[test_case("functions")]
     #[test_case("groups")]

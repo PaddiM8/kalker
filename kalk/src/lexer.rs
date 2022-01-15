@@ -45,6 +45,7 @@ pub enum TokenKind {
     OpenBrace,
     ClosedBrace,
     Comma,
+    Colon,
     Semicolon,
     Newline,
 
@@ -149,6 +150,7 @@ impl<'a> Lexer<'a> {
             '∧' => build(TokenKind::And, "", span),
             '∨' => build(TokenKind::Or, "", span),
             ',' => build(TokenKind::Comma, "", span),
+            ':' => build(TokenKind::Colon, "", span),
             ';' => build(TokenKind::Semicolon, "", span),
             '\n' => build(TokenKind::Newline, "", span),
             '%' => build(TokenKind::Percent, "", span),
@@ -388,7 +390,7 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
-            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '∧' | '∨' | '\n' => {
+            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '∧' | '∨' | ':' | '\n' => {
                 false
             }
             _ => !c.is_digit(10) || is_superscript(c) || is_subscript(c),

@@ -24,12 +24,20 @@ pub enum Expr {
     Vector(Vec<Expr>),
     Matrix(Vec<Vec<Expr>>),
     Indexer(Box<Expr>, Vec<Expr>),
+    Comprehension(Box<Expr>, Vec<Expr>, Vec<RangedVar>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConditionalPiece {
     pub expr: Expr,
     pub condition: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RangedVar {
+    pub name: String,
+    pub max: Expr,
+    pub min: Expr,
 }
 
 #[derive(Debug, Clone, PartialEq)]
