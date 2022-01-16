@@ -215,7 +215,7 @@ impl std::fmt::Display for KalkValue {
                     "({})",
                     values
                         .iter()
-                        .map(|x| x.to_string())
+                        .map(|x| x.estimate().unwrap_or_else(|| x.to_string()))
                         .collect::<Vec<String>>()
                         .join(", ")
                 )
@@ -225,7 +225,7 @@ impl std::fmt::Display for KalkValue {
                 let mut longest = 0;
                 for row in rows {
                     for value in row {
-                        let value_str = value.to_string();
+                        let value_str = value.estimate().unwrap_or_else(|| value.to_string());
                         longest = longest.max(value_str.len());
                         value_strings.push(format!("{},", value_str));
                     }
