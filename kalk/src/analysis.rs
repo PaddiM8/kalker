@@ -14,7 +14,7 @@ pub(crate) struct Context<'a> {
     equation_variable: Option<String>,
     in_integral: bool,
     in_sum_prod: bool,
-    sum_variable_name: Option<String>,
+    sum_variable_names: Option<Vec<String>>,
     in_unit_decl: bool,
     in_conditional: bool,
     in_equation: bool,
@@ -33,7 +33,7 @@ pub(crate) fn analyse_stmt(
         equation_variable: None,
         in_integral: false,
         in_sum_prod: false,
-        sum_variable_name: None,
+        sum_variable_names: None,
         in_unit_decl: false,
         in_conditional: false,
         in_equation: false,
@@ -606,8 +606,11 @@ fn build_fn_call(
     let is_sum_prod = identifier.pure_name == "sum" || identifier.pure_name == "prod";
     if is_sum_prod {
         context.in_sum_prod = true;
+        if context.sum_variable_names.is_none() {
+            context.sum_variable_names = Some(Vec::new());
+        }
     }
-
+    
     // Don't perform equation solving on special functions
     if is_integral || is_sum_prod {
         context.in_equation = false;
@@ -619,14 +622,15 @@ fn build_fn_call(
             for (i, argument) in arguments.iter().enumerate() {
                 if i == 0 && context.in_sum_prod {
                     context.in_conditional = true;
+                    let vars = context.sum_variable_names.as_mut().unwrap();
                     if let Expr::Binary(left, TokenKind::Equals, _) = argument {
                         if let Expr::Var(var_identifier) = &**left {
-                            context.sum_variable_name = Some(var_identifier.pure_name.clone());
+                            vars.push(var_identifier.pure_name.clone());
                         } else {
-                            context.sum_variable_name = Some(String::from("n"));
+                            vars.push(String::from("n"));
                         }
                     } else {
-                        context.sum_variable_name = Some(String::from("n"));
+                        vars.push(String::from("n"));
                     }
                 }
 
@@ -659,6 +663,8 @@ fn build_fn_call(
 
     if is_sum_prod {
         context.in_sum_prod = prev_in_sum_prod;
+        let vars = context.sum_variable_names.as_mut().unwrap();
+        vars.pop();
     }
 
     Ok(Expr::FnCall(identifier, arguments))
@@ -769,7 +775,7 @@ fn build_var(context: &mut Context, name: &str) -> Expr {
         }
     }
 
-    if context.in_sum_prod && name == context.sum_variable_name.as_ref().unwrap() {
+    if context.in_sum_prod && context.sum_variable_names.as_ref().unwrap().contains(&name.to_string()) {
         return Expr::Var(Identifier::from_full_name(name));
     }
 
