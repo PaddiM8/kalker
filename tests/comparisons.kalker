@@ -1,0 +1,13 @@
+x = 2
+true = (1 = 1)
+false = (1 != 1)
+
+(x > 2) = false and
+(x < 2) = false and
+(x = 2) = true and
+(x >= 2) = true and
+(x <= 2) = true and
+(1 < x < 2) = false and
+(x < 3 < 4) = true and
+(1 > x > 2) = false and
+(x > 3 > 4) = false
