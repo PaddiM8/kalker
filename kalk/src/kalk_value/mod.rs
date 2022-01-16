@@ -478,7 +478,7 @@ impl KalkValue {
 
     pub fn has_imaginary(&self) -> bool {
         if let KalkValue::Number(_, imaginary, _) = self {
-            imaginary != &0f64
+            imaginary != &0f64 && imaginary != &-0f64
         } else {
             false
         }
@@ -825,11 +825,11 @@ impl KalkValue {
     pub(crate) fn div_without_unit(self, rhs: &KalkValue) -> KalkValue {
         match (self.clone(), rhs.clone()) {
             (
-                KalkValue::Number(real, imaginary, _),
-                KalkValue::Number(real_rhs, imaginary_rhs, unit),
+                KalkValue::Number(real, _, _),
+                KalkValue::Number(real_rhs, _, unit),
             ) => {
                 // Avoid unecessary calculations
-                if imaginary == 0f64 && imaginary_rhs == 0f64 {
+                if !self.has_imaginary() && !rhs.has_imaginary() {
                     KalkValue::Number(real / real_rhs, float!(0f64), unit)
                 } else {
                     // Multiply both the numerator and denominator
@@ -861,7 +861,7 @@ impl KalkValue {
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
             ) => {
-                if imaginary != 0f64 || imaginary_rhs != &0f64 || (real < 0f64 && real_rhs < &1f64)
+                if self.has_imaginary() || imaginary_rhs != &0f64 || (real < 0f64 && real_rhs < &1f64)
                 {
                     let a = real.clone();
                     let b = imaginary.clone();

@@ -101,7 +101,7 @@ pub(crate) mod funcs {
     pub fn hypot(x: KalkValue, y: KalkValue) -> KalkValue {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         let (real_rhs, imaginary_rhs, _) = as_number_or_return!(y.clone());
-        if imaginary != 0f64 || imaginary_rhs != 0f64 {
+        if x.has_imaginary() || y.has_imaginary() {
             let abs_x = abs(x);
             let abs_y = abs(y);
             crate::prelude::funcs::sqrt(
