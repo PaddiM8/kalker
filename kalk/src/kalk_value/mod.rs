@@ -928,6 +928,9 @@ impl KalkValue {
                     && (imaginary.clone() - imaginary_rhs.clone()).abs()
                         < ACCEPTABLE_COMPARISON_MARGIN,
             ),
+            (KalkValue::Boolean(boolean), KalkValue::Boolean(boolean_rhs)) => {
+                KalkValue::Boolean(boolean == boolean_rhs)
+            }
             (KalkValue::Matrix(rows), KalkValue::Matrix(rows_rhs)) => {
                 let mut matrices_are_equal = true;
                 for (row, row_rhs) in rows.iter().zip(rows_rhs) {
@@ -969,6 +972,9 @@ impl KalkValue {
                     || (imaginary.clone() - imaginary_rhs.clone()).abs()
                         > ACCEPTABLE_COMPARISON_MARGIN,
             ),
+            (KalkValue::Boolean(boolean), KalkValue::Boolean(boolean_rhs)) => {
+                KalkValue::Boolean(boolean != boolean_rhs)
+            }
             (KalkValue::Vector(_), KalkValue::Vector(_))
             | (KalkValue::Matrix(_), KalkValue::Matrix(_)) => {
                 if let KalkValue::Boolean(boolean) = self.eq_without_unit(rhs) {
@@ -1001,7 +1007,7 @@ impl KalkValue {
 
         match (self, rhs) {
             (KalkValue::Number(real, _, _), KalkValue::Number(real_rhs, _, _)) => {
-                KalkValue::Boolean(real.clone() - real_rhs.clone() < ACCEPTABLE_COMPARISON_MARGIN)
+                KalkValue::Boolean(real.clone() - real_rhs.clone() < -ACCEPTABLE_COMPARISON_MARGIN)
             }
             _ => KalkValue::nan(),
         }

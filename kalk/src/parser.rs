@@ -352,7 +352,7 @@ fn parse_or(context: &mut Context) -> Result<Expr, CalcError> {
 }
 
 fn parse_and(context: &mut Context) -> Result<Expr, CalcError> {
-    let left = parse_equality(context)?;
+    let left = parse_comparison(context)?;
 
     if match_token(context, TokenKind::And) {
         let op = advance(context).kind;
@@ -364,7 +364,7 @@ fn parse_and(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_equality(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_comparison(context: &mut Context) -> Result<Expr, CalcError> {
     let mut left = parse_to(context)?;
 
     // Equality check
@@ -380,10 +380,36 @@ fn parse_equality(context: &mut Context) -> Result<Expr, CalcError> {
         let right = if op == TokenKind::Equals && match_token(context, TokenKind::OpenBrace) {
             parse_piecewise(context)?
         } else {
-            parse_to(context)?
+            parse_comparison(context)?
         };
 
-        left = Expr::Binary(Box::new(left), op, Box::new(right));
+        left = match right {
+            Expr::Binary(
+                inner_left,
+                inner_op
+                @
+                (TokenKind::Equals
+                | TokenKind::NotEquals
+                | TokenKind::GreaterThan
+                | TokenKind::LessThan
+                | TokenKind::GreaterOrEquals
+                | TokenKind::LessOrEquals),
+                inner_right,
+            ) => Expr::Binary(
+                Box::new(Expr::Binary(
+                    Box::new(left),
+                    op,
+                    Box::new(*inner_left.clone()),
+                )),
+                TokenKind::And,
+                Box::new(Expr::Binary(
+                    Box::new(*inner_left),
+                    inner_op,
+                    Box::new(*inner_right),
+                )),
+            ),
+            _ => Expr::Binary(Box::new(left), op, Box::new(right)),
+        }
     }
 
     Ok(left)
