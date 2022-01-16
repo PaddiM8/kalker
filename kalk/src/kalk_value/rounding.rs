@@ -31,19 +31,19 @@ pub(super) fn estimate(
     }
 
     // Eg. 0.5 to 1/2
-    let as_abs_string = value_string.trim_start_matches("-").to_string();
+    let as_abs_string = value_string.trim_start_matches('-').to_string();
     let sign = if value < &0f64 { "-" } else { "" };
-    if as_abs_string.starts_with("0.5") {
-        if as_abs_string.len() == 3 || (as_abs_string.len() > 6 && &as_abs_string[3..5] == "00") {
-            return Some(format!("{}1/2", sign));
-        }
+    if as_abs_string.starts_with("0.5")
+        && (as_abs_string.len() == 3 || (as_abs_string.len() > 6 && &as_abs_string[3..5] == "00"))
+    {
+        return Some(format!("{}1/2", sign));
     }
 
     // Eg. 1.33333333 to 1 + 1/3
     if fract_as_string.len() >= 7 {
         let first_five_decimals = &fract_as_string[2..7];
         if first_five_decimals == "33333" || first_five_decimals == "66666" {
-            let fraction = match first_five_decimals.as_ref() {
+            let fraction = match first_five_decimals {
                 "33333" => "1/3",
                 "66666" => "2/3",
                 _ => "?",
@@ -52,7 +52,7 @@ pub(super) fn estimate(
             if integer == 0f64 {
                 return Some(format!("{}{}", sign, fraction));
             } else {
-                let explicit_sign = if sign == "" { "+" } else { "-" };
+                let explicit_sign = if sign.is_empty() { "+" } else { "-" };
                 return Some(format!(
                     "{} {} {}",
                     trim_zeroes(&integer.to_string()),
@@ -66,7 +66,7 @@ pub(super) fn estimate(
     // Match with common numbers, eg. π, 2π/3, √2
     if as_abs_string.len() >= 8 {
         if let Some(constant) = CONSTANTS.get(&as_abs_string[0..8]) {
-            return Some(format!("{}{}", sign, constant.to_string()));
+            return Some(format!("{}{}", sign, constant));
         }
     }
 
@@ -80,7 +80,7 @@ pub(super) fn estimate(
             .values()
             .0;
         if squared.clone().sqrt().fract() != 0f64 && squared.clone().fract() == 0f64 {
-            return Some(format!("√{}", squared.to_string()));
+            return Some(format!("√{}", squared));
         }
     }
 
@@ -135,7 +135,7 @@ pub(super) fn round(
         };
 
         Some(new_num)
-    } else if (1f64 - fract.clone()).log10() < limit_ceil {
+    } else if (1f64 - fract).log10() < limit_ceil {
         // If eg. 0.999
         // .abs() this before ceiling to make sure it rounds correctly. The sign is re-added afterwards.
         let new_value = value.clone().abs().ceil() * sign;
@@ -155,10 +155,10 @@ pub(super) fn round(
 }
 
 pub(super) fn trim_zeroes(input: &str) -> String {
-    if input.contains(".") {
+    if input.contains('.') {
         input
-            .trim_end_matches("0")
-            .trim_end_matches(".")
+            .trim_end_matches('0')
+            .trim_end_matches('.')
             .to_string()
     } else {
         input.into()

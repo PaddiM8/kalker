@@ -147,7 +147,13 @@ pub enum ComplexNumberType {
 #[wasm_bindgen]
 impl ScientificNotation {
     #[wasm_bindgen(js_name = toString)]
-    pub fn to_string(&self) -> String {
+    pub fn to_js_string(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl std::fmt::Display for ScientificNotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let sign = if self.negative { "-" } else { "" };
         let digits_and_mul = if self.value == 1f64 {
             String::new()
@@ -155,7 +161,8 @@ impl ScientificNotation {
             format!("{}×", format_number(self.value))
         };
 
-        format!(
+        write!(
+            f,
             "{}{}10^{} {}",
             sign,
             digits_and_mul,
@@ -176,12 +183,8 @@ pub enum KalkValue {
     Matrix(Vec<Vec<KalkValue>>),
 }
 
-impl KalkValue {
-    pub fn nan() -> Self {
-        KalkValue::Number(float!(f64::NAN), float!(0f64), String::new())
-    }
-
-    pub fn to_string(&self) -> String {
+impl std::fmt::Display for KalkValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             KalkValue::Number(real, imaginary, _) => {
                 let as_str = format_number(primitive!(real));
@@ -191,23 +194,24 @@ impl KalkValue {
                     let sign = if imaginary < &0f64 { "-" } else { "+" };
 
                     if &as_str == "0" {
-                        imaginary_as_str
+                        write!(f, "{}", imaginary_as_str)
                     } else {
-                        format!("{} {} {}i", as_str, sign, imaginary_as_str)
+                        write!(f, "{} {} {}i", as_str, sign, imaginary_as_str)
                     }
                 } else {
-                    as_str
+                    write!(f, "{}", as_str)
                 }
             }
             KalkValue::Boolean(is_true) => {
                 if *is_true {
-                    String::from("true")
+                    write!(f, "true")
                 } else {
-                    String::from("false")
+                    write!(f, "false")
                 }
             }
             KalkValue::Vector(values) => {
-                format!(
+                write!(
+                    f,
                     "({})",
                     values
                         .iter()
@@ -245,9 +249,15 @@ impl KalkValue {
                 result.pop(); // Trailing comma
                 result.push(']');
 
-                result
+                write!(f, "{}", result)
             }
         }
+    }
+}
+
+impl KalkValue {
+    pub fn nan() -> Self {
+        KalkValue::Number(float!(f64::NAN), float!(0f64), String::new())
     }
 
     pub fn to_string_big(&self) -> String {
@@ -257,7 +267,7 @@ impl KalkValue {
             }
 
             let sign = if imaginary < &0f64 { "-" } else { "+" };
-            format!("{} {} {}", real.to_string(), sign, imaginary.to_string())
+            format!("{} {} {}", real, sign, imaginary)
         } else {
             self.to_string()
         }
@@ -304,12 +314,10 @@ impl KalkValue {
         } else if sci_notation_real.exponent <= -14 {
             new_real = float!(0);
             String::from("0")
+        } else if radix == 10 {
+            sci_notation_real.to_string().trim().to_string()
         } else {
-            if radix == 10 {
-                sci_notation_real.to_string().trim().to_string()
-            } else {
-                return String::new();
-            }
+            return String::new();
         };
 
         let sci_notation_imaginary = self.to_scientific_notation(ComplexNumberType::Imaginary);
@@ -321,12 +329,10 @@ impl KalkValue {
         } else if sci_notation_imaginary.exponent <= -14 {
             new_imaginary = float!(0);
             String::from("0")
+        } else if radix == 10 {
+            sci_notation_imaginary.to_string().trim().to_string()
         } else {
-            if radix == 10 {
-                format!("{}", sci_notation_imaginary.to_string().trim())
-            } else {
-                return String::new();
-            }
+            return String::new();
         };
 
         let mut output = result_str;
@@ -338,18 +344,18 @@ impl KalkValue {
             }
 
             // If there is a real value as well
-            if output.len() > 0 {
+            if !output.is_empty() {
                 output.push_str(&format!(
                     " {} {}",
                     if imaginary < &0f64 { "-" } else { "+" },
-                    result_str_imaginary.trim_start_matches("-"),
+                    result_str_imaginary.trim_start_matches('-'),
                 ));
             } else {
-                output.push_str(&format!("{}", result_str_imaginary));
+                output.push_str(&result_str_imaginary);
             }
         }
 
-        if unit != "" {
+        if !unit.is_empty() {
             output.push_str(&format!(" {}", unit));
         }
 
@@ -370,7 +376,7 @@ impl KalkValue {
 
     pub fn to_string_with_unit(&self) -> String {
         match self {
-            KalkValue::Number(_, _, unit) => format!("{} {}", self.to_string(), unit),
+            KalkValue::Number(_, _, unit) => format!("{} {}", self, unit),
             _ => self.to_string(),
         }
     }
@@ -408,11 +414,11 @@ impl KalkValue {
             if value == "0" {
                 // If both values ended up being estimated as zero,
                 // return zero.
-                if output.len() == 0 {
+                if output.is_empty() {
                     return Some(String::from("0"));
                 }
             } else {
-                let sign = if value.starts_with("-") { "-" } else { "+" };
+                let sign = if value.starts_with('-') { "-" } else { "+" };
                 let value = match value.as_ref() {
                     "1" => String::from("i"),
                     "-1" => String::from("-i"),
@@ -420,8 +426,8 @@ impl KalkValue {
                 };
 
                 // If there is a real value as well
-                if output.len() > 0 {
-                    output.push_str(&format!(" {} {}", sign, value.trim_start_matches("-")));
+                if !output.is_empty() {
+                    output.push_str(&format!(" {} {}", sign, value.trim_start_matches('-')));
                 } else {
                     output.push_str(&value);
                 }
@@ -500,7 +506,7 @@ impl KalkValue {
             ComplexNumberType::Real => self.to_f64(),
             ComplexNumberType::Imaginary => self.imaginary_to_f64(),
         };
-        let exponent = value.clone().abs().log10().floor() as i32 + 1;
+        let exponent = value.abs().log10().floor() as i32 + 1;
 
         ScientificNotation {
             negative: value < 0f64,
@@ -513,7 +519,7 @@ impl KalkValue {
 
     pub fn has_unit(&self) -> bool {
         if let KalkValue::Number(_, _, unit) = self {
-            unit.len() > 0
+            !unit.is_empty()
         } else {
             false
         }
@@ -536,7 +542,7 @@ impl KalkValue {
             let result = crate::interpreter::convert_unit(
                 context,
                 &Expr::Literal(primitive!(real)),
-                &unit,
+                unit,
                 to_unit,
             );
 
@@ -582,7 +588,7 @@ impl KalkValue {
         context: &mut crate::interpreter::Context,
         rhs: KalkValue,
     ) -> KalkValue {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs.clone());
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
         self.div_without_unit(&right)
     }
 
@@ -649,7 +655,7 @@ impl KalkValue {
         context: &mut crate::interpreter::Context,
         rhs: KalkValue,
     ) -> KalkValue {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs.clone());
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
         if let (KalkValue::Boolean(greater), KalkValue::Boolean(equal)) = (
             self.greater_than_without_unit(&right),
             self.eq_without_unit(&right),
@@ -665,7 +671,7 @@ impl KalkValue {
         context: &mut crate::interpreter::Context,
         rhs: KalkValue,
     ) -> KalkValue {
-        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs.clone());
+        let right = calculate_unit(context, &self, rhs.clone()).unwrap_or(rhs);
         if let (KalkValue::Boolean(less), KalkValue::Boolean(equal)) = (
             self.less_than_without_unit(&right),
             self.eq_without_unit(&right),
@@ -824,10 +830,7 @@ impl KalkValue {
 
     pub(crate) fn div_without_unit(self, rhs: &KalkValue) -> KalkValue {
         match (self.clone(), rhs.clone()) {
-            (
-                KalkValue::Number(real, _, _),
-                KalkValue::Number(real_rhs, _, unit),
-            ) => {
+            (KalkValue::Number(real, _, _), KalkValue::Number(real_rhs, _, unit)) => {
                 // Avoid unecessary calculations
                 if !self.has_imaginary() && !rhs.has_imaginary() {
                     KalkValue::Number(real / real_rhs, float!(0f64), unit)
@@ -836,7 +839,7 @@ impl KalkValue {
                     // with the conjugate of the denominator, and divide.
                     let conjugate = rhs.get_conjugate();
                     let (numerator, numerator_imaginary) =
-                        self.clone().mul_without_unit(&conjugate.clone()).values();
+                        self.mul_without_unit(&conjugate).values();
                     let (denominator, _) = rhs.clone().mul_without_unit(&conjugate).values();
                     KalkValue::Number(
                         numerator / denominator.clone(),
@@ -861,10 +864,12 @@ impl KalkValue {
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
             ) => {
-                if self.has_imaginary() || imaginary_rhs != &0f64 || (real < 0f64 && real_rhs < &1f64)
+                if self.has_imaginary()
+                    || imaginary_rhs != &0f64
+                    || (real < 0f64 && real_rhs < &1f64)
                 {
-                    let a = real.clone();
-                    let b = imaginary.clone();
+                    let a = real;
+                    let b = imaginary;
                     let c = real_rhs;
                     let d = imaginary_rhs;
                     let arg = crate::prelude::funcs::arg(self).values().0;
@@ -935,7 +940,7 @@ impl KalkValue {
                 let mut matrices_are_equal = true;
                 for (row, row_rhs) in rows.iter().zip(rows_rhs) {
                     for (value, value_rhs) in row.iter().zip(row_rhs) {
-                        if let KalkValue::Boolean(are_equal) = value.eq_without_unit(&value_rhs) {
+                        if let KalkValue::Boolean(are_equal) = value.eq_without_unit(value_rhs) {
                             if !are_equal {
                                 matrices_are_equal = false;
                             }
@@ -949,7 +954,7 @@ impl KalkValue {
             (KalkValue::Vector(values), KalkValue::Vector(values_rhs)) => {
                 let mut vecs_are_equal = true;
                 for (value, value_rhs) in values.iter().zip(values_rhs) {
-                    if let KalkValue::Boolean(are_equal) = value.eq_without_unit(&value_rhs) {
+                    if let KalkValue::Boolean(are_equal) = value.eq_without_unit(value_rhs) {
                         if !are_equal {
                             vecs_are_equal = false;
                         }
@@ -1025,13 +1030,13 @@ impl KalkValue {
 
 pub fn format_number(input: f64) -> String {
     let rounded = format!("{:.1$}", input, 10);
-    if rounded.contains(".") {
+    if rounded.contains('.') {
         rounded
             .trim_end_matches('0')
             .trim_end_matches('.')
             .to_string()
     } else {
-        rounded.into()
+        rounded
     }
 }
 
@@ -1053,7 +1058,7 @@ fn calculate_vector(
                     values
                         .iter()
                         .zip(values_rhs)
-                        .map(|(x, y)| action(x.clone(), &y))
+                        .map(|(x, y)| action(x.clone(), y))
                         .collect(),
                 )
             } else {
@@ -1158,9 +1163,9 @@ fn pow(x: Float, y: Float) -> Float {
     x.pow(y)
 }
 
-impl Into<String> for ScientificNotation {
-    fn into(self) -> String {
-        self.to_string()
+impl From<ScientificNotation> for String {
+    fn from(val: ScientificNotation) -> Self {
+        val.to_string()
     }
 }
 
@@ -1178,15 +1183,15 @@ impl std::iter::Sum<KalkValue> for KalkValue {
     }
 }
 
-impl Into<String> for KalkValue {
-    fn into(self) -> String {
-        self.to_string()
+impl From<KalkValue> for String {
+    fn from(val: KalkValue) -> Self {
+        val.to_string()
     }
 }
 
-impl Into<f64> for KalkValue {
-    fn into(self) -> f64 {
-        self.to_f64()
+impl From<KalkValue> for f64 {
+    fn from(val: KalkValue) -> Self {
+        val.to_f64()
     }
 }
 

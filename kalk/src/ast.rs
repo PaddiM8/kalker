@@ -116,7 +116,7 @@ fn separate_identifier_and_prime(identifier: &str) -> (String, u32) {
     let mut pure_identifier = identifier.to_string();
 
     loop {
-        if pure_identifier.ends_with("'") {
+        if pure_identifier.ends_with('\'') {
             pure_identifier.pop();
             prim_count += 1;
         } else {

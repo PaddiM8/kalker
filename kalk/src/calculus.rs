@@ -42,7 +42,7 @@ pub fn integrate_with_unknown_variable(
     // integral(a, b, expr dx)
     if let Expr::Binary(_, TokenKind::Star, right) = expr {
         if let Expr::Var(right_name) = &**right {
-            if right_name.full_name.starts_with("d") {
+            if right_name.full_name.starts_with('d') {
                 // Take the value, but remove the d, so that only eg. x is left from dx
                 integration_variable = Some(&right_name.full_name[1..]);
             }
@@ -89,7 +89,7 @@ fn simpsons_rule(
     const N: i32 = 900;
     let a = interpreter::eval_expr(context, a_expr, "")?;
     let b = interpreter::eval_expr(context, b_expr, "")?;
-    let h = (b.sub_without_unit(&a.clone())).div_without_unit(&KalkValue::from(N));
+    let h = (b.sub_without_unit(&a)).div_without_unit(&KalkValue::from(N));
     for i in 0..=N {
         let variable_value = a
             .clone()
@@ -143,7 +143,7 @@ mod tests {
     use crate::symbol_table::SymbolTable;
     use crate::test_helpers::*;
 
-    fn get_context<'a>(symbol_table: &'a mut SymbolTable) -> interpreter::Context<'a> {
+    fn get_context(symbol_table: &mut SymbolTable) -> interpreter::Context {
         interpreter::Context::new(
             symbol_table,
             "",

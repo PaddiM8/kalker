@@ -63,7 +63,7 @@ fn default_action(context: &Context) {
         load_input_file(&input_file_path, precision, &mut parser_context);
     }
 
-    if context.args.len() == 0 {
+    if context.args.is_empty() {
         // REPL
         repl::start(&mut parser_context, precision);
     } else {

@@ -100,3 +100,9 @@ impl SymbolTable {
             || self.hashmap.contains_key(&format!("fn.{}", identifier))
     }
 }
+
+impl Default for SymbolTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -35,7 +35,7 @@ impl<'a> Context<'a> {
             precision,
             sum_n_value: None,
             #[cfg(not(target_arch = "wasm32"))]
-            timeout: timeout,
+            timeout,
             #[cfg(not(target_arch = "wasm32"))]
             start_time: std::time::SystemTime::now(),
         }
@@ -80,7 +80,7 @@ fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<KalkValue, CalcError>
         Stmt::VarDecl(_, _) => eval_var_decl_stmt(context, stmt),
         Stmt::FnDecl(_, _, _) => eval_fn_decl_stmt(),
         Stmt::UnitDecl(_, _, _) => eval_unit_decl_stmt(),
-        Stmt::Expr(expr) => eval_expr_stmt(context, &expr),
+        Stmt::Expr(expr) => eval_expr_stmt(context, expr),
     }
 }
 
@@ -98,7 +98,7 @@ fn eval_unit_decl_stmt() -> Result<KalkValue, CalcError> {
 }
 
 fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<KalkValue, CalcError> {
-    eval_expr(context, &expr, "")
+    eval_expr(context, expr, "")
 }
 
 pub(crate) fn eval_expr(
@@ -114,12 +114,12 @@ pub(crate) fn eval_expr(
     }
 
     match expr {
-        Expr::Binary(left, op, right) => eval_binary_expr(context, &left, op, &right, unit),
+        Expr::Binary(left, op, right) => eval_binary_expr(context, left, op, right, unit),
         Expr::Unary(op, expr) => eval_unary_expr(context, op, expr, unit),
         Expr::Unit(identifier, expr) => eval_unit_expr(context, identifier, expr),
         Expr::Var(identifier) => eval_var_expr(context, identifier, unit),
         Expr::Literal(value) => eval_literal_expr(context, *value, unit),
-        Expr::Group(expr) => eval_group_expr(context, &expr, unit),
+        Expr::Group(expr) => eval_group_expr(context, expr, unit),
         Expr::FnCall(identifier, expressions) => {
             eval_fn_call_expr(context, identifier, expressions, unit)
         }
@@ -177,7 +177,7 @@ fn eval_binary_expr(
         _ => KalkValue::from(1),
     };
 
-    if unit.len() > 0 {
+    if !unit.is_empty() {
         if let KalkValue::Number(real, imaginary, _) = result {
             return Ok(KalkValue::Number(real, imaginary, unit.to_string()));
         }
@@ -192,7 +192,7 @@ fn eval_unary_expr(
     expr: &Expr,
     unit: &str,
 ) -> Result<KalkValue, CalcError> {
-    let num = eval_expr(context, &expr, unit)?;
+    let num = eval_expr(context, expr, unit)?;
 
     match op {
         TokenKind::Minus => Ok(num.mul(context, KalkValue::from(-1f64))),
@@ -318,7 +318,7 @@ pub(crate) fn eval_fn_call_expr(
 
         return Ok(
             prelude::call_vector_func(&identifier.full_name, KalkValue::Vector(values))
-                .unwrap_or(KalkValue::nan()),
+                .unwrap_or_else(KalkValue::nan),
         );
     }
 
@@ -327,7 +327,7 @@ pub(crate) fn eval_fn_call_expr(
         1 => {
             let x = eval_expr(context, &expressions[0], "")?;
             if identifier.prime_count > 0 {
-                return calculus::derive_func(context, &identifier, x);
+                return calculus::derive_func(context, identifier, x);
             } else {
                 prelude::call_unary_func(
                     context,
@@ -496,7 +496,7 @@ pub(crate) fn eval_fn_call_expr(
             // Initialise the arguments as their own variables.
             let mut new_argument_values = Vec::new();
             for (i, argument) in arguments.iter().enumerate() {
-                let argument_identifier = if argument.contains("-") {
+                let argument_identifier = if argument.contains('-') {
                     let identifier_parts: Vec<&str> = argument.split('-').collect();
                     Identifier::parameter_from_name(identifier_parts[1], identifier_parts[0])
                 } else {
@@ -533,10 +533,8 @@ pub(crate) fn eval_fn_call_expr(
             let fn_value = eval_expr(context, &fn_body, unit);
 
             // Revert to original argument values
-            for old_argument_value in old_argument_values {
-                if let Some(old_argument_value) = old_argument_value {
-                    context.symbol_table.insert(old_argument_value);
-                }
+            for old_argument_value in old_argument_values.into_iter().flatten() {
+                context.symbol_table.insert(old_argument_value);
             }
 
             fn_value
@@ -547,13 +545,13 @@ pub(crate) fn eval_fn_call_expr(
 
 fn eval_piecewise(
     context: &mut Context,
-    pieces: &Vec<crate::ast::ConditionalPiece>,
+    pieces: &[crate::ast::ConditionalPiece],
     unit: &str,
 ) -> Result<KalkValue, CalcError> {
     for piece in pieces {
         if let KalkValue::Boolean(condition_is_true) = eval_expr(context, &piece.condition, unit)? {
             if condition_is_true {
-                return Ok(eval_expr(context, &piece.expr, unit)?);
+                return eval_expr(context, &piece.expr, unit);
             }
         }
     }
@@ -561,7 +559,7 @@ fn eval_piecewise(
     Err(CalcError::PiecewiseConditionsAreFalse)
 }
 
-fn eval_vector(context: &mut Context, values: &Vec<Expr>) -> Result<KalkValue, CalcError> {
+fn eval_vector(context: &mut Context, values: &[Expr]) -> Result<KalkValue, CalcError> {
     let mut eval_values = Vec::new();
     for value in values {
         eval_values.push(eval_expr(context, value, "")?);
@@ -570,7 +568,7 @@ fn eval_vector(context: &mut Context, values: &Vec<Expr>) -> Result<KalkValue, C
     Ok(KalkValue::Vector(eval_values))
 }
 
-fn eval_matrix(context: &mut Context, rows: &Vec<Vec<Expr>>) -> Result<KalkValue, CalcError> {
+fn eval_matrix(context: &mut Context, rows: &[Vec<Expr>]) -> Result<KalkValue, CalcError> {
     let mut eval_rows = Vec::new();
     for row in rows {
         let mut eval_row = Vec::new();
@@ -783,27 +781,27 @@ mod tests {
         assert_eq!(interpret(pow).unwrap().unwrap().to_f64(), 8f64);
 
         let result = interpret(equals).unwrap().unwrap();
-        assert_eq!(bool(&result), false);
+        assert!(!bool(&result));
         assert!(result.to_f64().is_nan());
 
         let result = interpret(not_equals).unwrap().unwrap();
-        assert_eq!(bool(&result), true);
+        assert!(bool(&result));
         assert!(result.to_f64().is_nan());
 
         let result = interpret(greater_than).unwrap().unwrap();
-        assert_eq!(bool(&result), false);
+        assert!(!bool(&result));
         assert!(result.to_f64().is_nan());
 
         let result = interpret(less_than).unwrap().unwrap();
-        assert_eq!(bool(&result), true);
+        assert!(bool(&result));
         assert!(result.to_f64().is_nan());
 
         let result = interpret(greater_or_equals).unwrap().unwrap();
-        assert_eq!(bool(&result), false);
+        assert!(!bool(&result));
         assert!(result.to_f64().is_nan());
 
         let result = interpret(less_or_equals).unwrap().unwrap();
-        assert_eq!(bool(&result), true);
+        assert!(bool(&result));
         assert!(result.to_f64().is_nan());
     }
 

@@ -1,3 +1,4 @@
+#![allow(clippy::unused_unit)]
 mod analysis;
 pub mod ast;
 pub mod calculation_result;

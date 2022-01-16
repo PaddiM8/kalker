@@ -24,10 +24,10 @@ pub fn parse_float_radix(value: &str, radix: u8) -> Option<f64> {
         i -= 1;
     }
 
-    return Some(sum);
+    Some(sum)
 }
 
-const DIGITS: &'static str = "0123456789abcdefghijklmnopqrstuvwxyz";
+const DIGITS: &str = "0123456789abcdefghijklmnopqrstuvwxyz";
 pub fn int_to_radix(value: i64, radix: u8) -> String {
     let mut num = value.abs();
     let mut result_str = String::new();
@@ -37,7 +37,7 @@ pub fn int_to_radix(value: i64, radix: u8) -> String {
         num /= radix as i64;
     }
 
-    if result_str == "" {
+    if result_str.is_empty() {
         return String::from("0");
     }
 
@@ -52,7 +52,7 @@ pub fn float_to_radix(value: f64, radix: u8) -> String {
         result.push('.');
         let precision = 10;
         let fract_digits = (fract * (radix as i64).pow(precision) as f64) as i64;
-        result.push_str(&int_to_radix(fract_digits, radix).trim_end_matches('0'))
+        result.push_str(int_to_radix(fract_digits, radix).trim_end_matches('0'))
     }
 
     result
