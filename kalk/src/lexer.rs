@@ -324,6 +324,7 @@ impl<'a> Lexer<'a> {
         let kind = match value.as_ref() {
             "and" => TokenKind::And,
             "or" => TokenKind::Or,
+            "mod" => TokenKind::Percent,
             "unit" => TokenKind::UnitKeyword,
             "to" => TokenKind::ToKeyword,
             "if" => TokenKind::IfKeyword,
