@@ -49,7 +49,7 @@ pub enum TokenKind {
     Semicolon,
     Newline,
 
-    EOF,
+    Eof,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -80,7 +80,7 @@ impl<'a> Lexer<'a> {
         loop {
             let next = self.next();
 
-            if let TokenKind::EOF = next.kind {
+            if let TokenKind::Eof = next.kind {
                 tokens.push(next);
                 break;
             } else {
@@ -96,7 +96,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn next(&mut self) -> Token {
-        let eof = build(TokenKind::EOF, "", (self.index, self.index));
+        let eof = build(TokenKind::Eof, "", (self.index, self.index));
         let mut c = if let Some(c) = self.peek() {
             *c
         } else {
@@ -104,7 +104,7 @@ impl<'a> Lexer<'a> {
         };
 
         while c == ' ' || c == '\t' || c == '\r' {
-            if let None = self.advance() {
+            if self.advance().is_none() {
                 return eof;
             }
 
@@ -210,13 +210,7 @@ impl<'a> Lexer<'a> {
         let mut leading_zero = self.peek().unwrap_or(&'\0') == &'0';
         let mut base = 10u8;
 
-        loop {
-            let c = if let Some(c) = self.peek() {
-                *c
-            } else {
-                break;
-            };
-
+        while let Some(c) = self.peek() {
             // If at the second character and
             // the first character is a zero,
             // allow a letter
@@ -239,15 +233,15 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            if !c.is_digit(base as u32) && c != '.' && c != '_' && !c.is_whitespace()
-                || c == '\n'
-                || c == '\r'
+            if !c.is_digit(base as u32) && *c != '.' && *c != '_' && !c.is_whitespace()
+                || *c == '\n'
+                || *c == '\r'
             {
                 break;
             }
 
             end += 1;
-            value.push(c);
+            value.push(*c);
             self.advance();
         }
 
@@ -258,7 +252,7 @@ impl<'a> Lexer<'a> {
             self.advance();
         }
 
-        if base_str != "" {
+        if !base_str.is_empty() {
             base = crate::text_utils::subscript_to_normal(base_str.chars())
                 .parse::<u8>()
                 .unwrap_or(10);
@@ -295,7 +289,7 @@ impl<'a> Lexer<'a> {
                 self.advance();
                 let num = self.next().value;
                 value.push('_');
-                value.push_str(&num.trim_end()); // Trim, since the number_literal function allows whitespace, which identifiers should not contain.
+                value.push_str(num.trim_end()); // Trim, since the number_literal function allows whitespace, which identifiers should not contain.
                 break;
             }
 
@@ -353,7 +347,7 @@ impl<'a> Lexer<'a> {
             _ => value, // things like log_2 are handled in the parser
         };
 
-        if subscript.len() > 0 {
+        if !subscript.is_empty() {
             build(
                 kind,
                 &format!(
@@ -433,7 +427,7 @@ mod tests {
             TokenKind::Equals,
             TokenKind::Exclamation,
             TokenKind::Comma,
-            TokenKind::EOF,
+            TokenKind::Eof,
         ];
 
         match_tokens(tokens, expected);
@@ -449,7 +443,7 @@ mod tests {
             TokenKind::LessThan,
             TokenKind::Literal,
             TokenKind::ClosedBracket,
-            TokenKind::EOF,
+            TokenKind::Eof,
         ];
 
         match_tokens(tokens, expected);
@@ -465,10 +459,10 @@ mod tests {
             let tokens = Lexer::new(input).lex();
 
             if regex::Regex::new(r"^\s*$").unwrap().is_match(input) {
-                let expected = vec![TokenKind::EOF];
+                let expected = vec![TokenKind::Eof];
                 match_tokens(tokens, expected);
             } else {
-                let expected = vec![TokenKind::Identifier, TokenKind::EOF];
+                let expected = vec![TokenKind::Identifier, TokenKind::Eof];
                 match_tokens(tokens, expected);
             }
         }
@@ -479,7 +473,7 @@ mod tests {
     #[test_case("56.4")]
     fn test_number_literal(input: &str) {
         let tokens = Lexer::new(input).lex();
-        let expected = vec![TokenKind::Literal, TokenKind::EOF];
+        let expected = vec![TokenKind::Literal, TokenKind::Eof];
 
         assert_eq!(&tokens[0].value, input);
         match_tokens(tokens, expected);
@@ -489,7 +483,7 @@ mod tests {
     #[test_case("xy")]
     fn test_identifier(input: &str) {
         let tokens = Lexer::new(input).lex();
-        let expected = vec![TokenKind::Identifier, TokenKind::EOF];
+        let expected = vec![TokenKind::Identifier, TokenKind::Eof];
 
         assert_eq!(&tokens[0].value, input);
         match_tokens(tokens, expected);
@@ -503,7 +497,7 @@ mod tests {
             TokenKind::OpenParenthesis,
             TokenKind::Identifier,
             TokenKind::ClosedParenthesis,
-            TokenKind::EOF,
+            TokenKind::Eof,
         ];
 
         match_tokens(tokens, expected);

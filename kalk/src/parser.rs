@@ -11,8 +11,8 @@ use crate::{
 };
 use wasm_bindgen::prelude::*;
 
-pub const DECL_UNIT: &'static str = ".u";
-pub const DEFAULT_ANGLE_UNIT: &'static str = "rad";
+pub const DECL_UNIT: &str = ".u";
+pub const DEFAULT_ANGLE_UNIT: &str = "rad";
 
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
 #[wasm_bindgen]
@@ -118,10 +118,10 @@ pub enum CalcError {
 impl ToString for CalcError {
     fn to_string(&self) -> String {
         match self {
-            CalcError::CanOnlyIndexVectors => format!("Indexing (getting an item with a specific index) is only possible on vectors."),
+            CalcError::CanOnlyIndexVectors => String::from("Indexing (getting an item with a specific index) is only possible on vectors."),
             CalcError::Expected(description) => format!("Expected: {}", description),
-            CalcError::ExpectedDx => format!("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
-            CalcError::ExpectedIf => format!("Expected 'if', with a condition after it."),
+            CalcError::ExpectedDx => String::from("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
+            CalcError::ExpectedIf => String::from("Expected 'if', with a condition after it."),
             CalcError::IncorrectAmountOfArguments(expected, func, got) => format!(
                 "Expected {} arguments for function {}, but got {}.",
                 expected, func, got
@@ -131,25 +131,25 @@ impl ToString for CalcError {
                 expected, got
             ),
             CalcError::ItemOfIndexDoesNotExist(indexes) => format!("Item of index ⟦{}⟧ does not exist.", indexes.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")),
-            CalcError::InconsistentColumnWidths => format!("Inconsistent column widths. Matrix columns must be the same size."),
+            CalcError::InconsistentColumnWidths => String::from("Inconsistent column widths. Matrix columns must be the same size."),
             CalcError::InvalidComprehension(x) => format!("Invalid comprehension: {}", x),
             CalcError::InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
-            CalcError::InvalidOperator => format!("Invalid operator."),
-            CalcError::InvalidUnit => format!("Invalid unit."),
-            CalcError::TimedOut => format!("Operation took too long."),
-            CalcError::VariableReferencesItself => format!("Variable references itself."),
-            CalcError::PiecewiseConditionsAreFalse => format!("All the conditions in the piecewise are false."),
+            CalcError::InvalidOperator => String::from("Invalid operator."),
+            CalcError::InvalidUnit => String::from("Invalid unit."),
+            CalcError::TimedOut => String::from("Operation took too long."),
+            CalcError::VariableReferencesItself => String::from("Variable references itself."),
+            CalcError::PiecewiseConditionsAreFalse => String::from("All the conditions in the piecewise are false."),
             CalcError::UnexpectedToken(got, expected) => {
                 format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
             }
             CalcError::UnableToInvert(msg) => format!("Unable to invert: {}", msg),
             CalcError::UndefinedFn(name) => format!("Undefined function: '{}'.", name),
             CalcError::UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
-            CalcError::UnableToParseExpression => format!("Unable to parse expression."),
-            CalcError::UnableToSolveEquation => format!("Unable to solve equation."),
+            CalcError::UnableToParseExpression => String::from("Unable to parse expression."),
+            CalcError::UnableToSolveEquation => String::from("Unable to solve equation."),
             CalcError::UnableToOverrideConstant(name) => format!("Unable to override constant: '{}'.", name),
-            CalcError::UnrecognizedBase => format!("Unrecognized base."),
-            CalcError::Unknown => format!("Unknown error."),
+            CalcError::UnrecognizedBase => String::from("Unrecognized base."),
+            CalcError::Unknown => String::from("Unknown error."),
         }
     }
 }
@@ -164,17 +164,13 @@ pub fn eval(
 ) -> Result<Option<CalculationResult>, CalcError> {
     let statements = parse(context, input)?;
 
-    let mut symbol_table = context.symbol_table.get_mut();
+    let symbol_table = context.symbol_table.get_mut();
     let mut interpreter = interpreter::Context::new(
-        &mut symbol_table,
+        symbol_table,
         &context.angle_unit,
         #[cfg(feature = "rug")]
         precision,
-        if let Some(timeout) = context.timeout {
-            Some(timeout as u128)
-        } else {
-            None
-        },
+        context.timeout.map(|timeout| timeout as u128),
     );
     let result = interpreter.interpret(statements);
     if let Ok(Some(mut num)) = result {
@@ -199,8 +195,8 @@ pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError>
     let mut statements: Vec<Stmt> = Vec::new();
     while !is_at_end(context) {
         let parsed = parse_stmt(context)?;
-        let mut symbol_table = context.symbol_table.get_mut();
-        let analysed = analysis::analyse_stmt(&mut symbol_table, parsed)?;
+        let symbol_table = context.symbol_table.get_mut();
+        let analysed = analysis::analyse_stmt(symbol_table, parsed)?;
         statements.push(analysed);
 
         if match_token(context, TokenKind::Semicolon) {
@@ -298,7 +294,7 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let stmt_inv = Stmt::UnitDecl(
         base_unit.clone(),
         identifier.value.clone(),
-        Box::new(def.invert(&mut context.symbol_table.get_mut(), DECL_UNIT)?),
+        Box::new(def.invert(context.symbol_table.get_mut(), DECL_UNIT)?),
     );
     let stmt = Stmt::UnitDecl(identifier.value, base_unit, Box::new(def));
 
@@ -309,7 +305,7 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
 }
 
 fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
-    Ok(parse_or(context)?)
+    parse_or(context)
 }
 
 fn parse_comprehension(context: &mut Context) -> Result<Expr, CalcError> {
@@ -386,9 +382,7 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, CalcError> {
         left = match right {
             Expr::Binary(
                 inner_left,
-                inner_op
-                @
-                (TokenKind::Equals
+                inner_op @ (TokenKind::Equals
                 | TokenKind::NotEquals
                 | TokenKind::GreaterThan
                 | TokenKind::LessThan
@@ -451,11 +445,11 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
 
     if let Expr::Unary(TokenKind::Percent, percent_left) = left.clone() {
         let try_parse = parse_factor(context);
-        if !try_parse.is_err() {
+        if try_parse.is_ok() {
             left = Expr::Binary(
                 percent_left,
                 TokenKind::Percent,
-                Box::new(try_parse.unwrap()),
+                Box::new(try_parse?),
             );
         }
     }
@@ -633,7 +627,7 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
         items_in_row += 1;
     }
 
-    if peek(context).kind == TokenKind::EOF {
+    if peek(context).kind == TokenKind::Eof {
         return Err(CalcError::Expected(String::from(
             "Closing group symbol, eg. )",
         )));
@@ -674,7 +668,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
 
 fn peek(context: &Context) -> &Token {
     if context.pos >= context.tokens.len() {
-        &context.tokens.last().unwrap() // EOF
+        context.tokens.last().unwrap() // Eof
     } else {
         &context.tokens[context.pos]
     }
@@ -710,7 +704,7 @@ fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, CalcError> 
 }
 
 fn is_at_end(context: &Context) -> bool {
-    context.pos >= context.tokens.len() || peek(context).kind == TokenKind::EOF
+    context.pos >= context.tokens.len() || peek(context).kind == TokenKind::Eof
 }
 
 fn skip_newlines(context: &mut Context) {
@@ -756,8 +750,8 @@ mod tests {
         context.pos = 0;
 
         let parsed = parse_stmt(context)?;
-        let mut symbol_table = context.symbol_table.get_mut();
-        analysis::analyse_stmt(&mut symbol_table, parsed)
+        let symbol_table = context.symbol_table.get_mut();
+        analysis::analyse_stmt(symbol_table, parsed)
     }
 
     fn parse(tokens: Vec<Token>) -> Result<Stmt, CalcError> {
@@ -766,15 +760,15 @@ mod tests {
         context.pos = 0;
 
         let parsed = parse_stmt(&mut context)?;
-        let mut symbol_table = context.symbol_table.get_mut();
-        analysis::analyse_stmt(&mut symbol_table, parsed)
+        let symbol_table = context.symbol_table.get_mut();
+        analysis::analyse_stmt(symbol_table, parsed)
     }
 
     #[test]
     #[wasm_bindgen_test]
     fn test_var() {
         // x
-        let tokens = vec![token(Identifier, "x"), token(EOF, "")];
+        let tokens = vec![token(Identifier, "x"), token(Eof, "")];
 
         assert_eq!(parse(tokens).unwrap(), Stmt::Expr(var("x")));
     }
@@ -797,7 +791,7 @@ mod tests {
             token(Identifier, "xy"),
             token(Power, ""),
             token(Literal, "2"),
-            token(EOF, ""),
+            token(Eof, ""),
         ];
 
         assert_eq!(
@@ -826,7 +820,7 @@ mod tests {
             token(Slash, ""),
             token(Literal, "5"),
             token(ClosedParenthesis, ""),
-            token(EOF, ""),
+            token(Eof, ""),
         ];
 
         assert_eq!(
@@ -860,7 +854,7 @@ mod tests {
             token(Literal, "4"),
             token(Plus, ""),
             token(Literal, "5"),
-            token(EOF, ""),
+            token(Eof, ""),
         ];
 
         assert_eq!(
@@ -891,7 +885,7 @@ mod tests {
             token(Plus, ""),
             token(Literal, "5"),
             token(Percent, ""),
-            token(EOF, ""),
+            token(Eof, ""),
         ];
 
         assert_eq!(
@@ -930,7 +924,7 @@ mod tests {
             token(Literal, "1"),
             token(Plus, ""),
             token(Literal, "2"),
-            token(EOF, ""),
+            token(Eof, ""),
         ];
 
         assert_eq!(
@@ -954,7 +948,7 @@ mod tests {
             token(Literal, "1"),
             token(Plus, ""),
             token(Identifier, "x"),
-            token(EOF, ""),
+            token(Eof, ""),
         ];
 
         assert_eq!(
@@ -979,7 +973,7 @@ mod tests {
             token(ClosedParenthesis, ""),
             token(Plus, ""),
             token(Literal, "3"),
-            token(EOF, ""),
+            token(Eof, ""),
         ];
 
         let mut context = Context::new();

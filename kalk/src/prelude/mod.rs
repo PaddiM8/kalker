@@ -22,27 +22,15 @@ use crate::interpreter;
 pub use funcs::*;
 
 // `i` is added in the symbol_table module, since for some reason it didn't work here.
-pub const INIT: &'static str = "unit deg = (rad*180)/pi";
+pub const INIT: &str = "unit deg = (rad*180)/pi";
 
 lazy_static! {
     pub static ref CONSTANTS: HashMap<&'static str, f64> = {
         let mut m = HashMap::new();
-        m.insert(
-            "pi",
-            3.1415926535897932384626433832795028841971693993751058209749445923,
-        );
-        m.insert(
-            "e",
-            2.7182818284590452353602874713526624977572470936999595749669676277,
-        );
-        m.insert(
-            "tau",
-            6.2831853071795864769252867665590057683943387987502116419498891846,
-        );
-        m.insert(
-            "phi",
-            1.6180339887498948482045868343656381177203091798057628621354486227,
-        );
+        m.insert("pi", std::f64::consts::PI);
+        m.insert("e", std::f64::consts::E);
+        m.insert("tau", std::f64::consts::TAU);
+        m.insert("phi", 1.618_033_988_749_895);
         m
     };
     pub static ref UNARY_FUNCS: HashMap<&'static str, (UnaryFuncInfo, &'static str)> = {
@@ -205,7 +193,7 @@ pub fn call_unary_func(
 ) -> Option<(KalkValue, String)> {
     if let Some((func_info, func_unit)) = UNARY_FUNCS.get(name) {
         Some((
-            func_info.call(context, x, &angle_unit),
+            func_info.call(context, x, angle_unit),
             func_unit.to_string(),
         ))
     } else {
@@ -231,11 +219,7 @@ pub fn call_binary_func(
 }
 
 pub fn call_vector_func(name: &str, x: KalkValue) -> Option<KalkValue> {
-    if let Some(func_info) = VECTOR_FUNCS.get(name) {
-        Some(func_info.call(x))
-    } else {
-        None
-    }
+    VECTOR_FUNCS.get(name).map(|func_info| func_info.call(x))
 }
 
 fn to_angle_unit(context: &mut interpreter::Context, x: KalkValue, angle_unit: &str) -> KalkValue {
@@ -286,7 +270,7 @@ pub mod funcs {
             // -i * ln(i * sqrt(1 - z²) + z)
             let root =
                 sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)));
-            let iroot = multiply_with_i(root.clone());
+            let iroot = multiply_with_i(root);
             let (ln_real, ln_imaginary, ln_unit) =
                 as_number_or_return!(ln(iroot.add_without_unit(&x)));
 
@@ -305,11 +289,7 @@ pub mod funcs {
                 imaginary.clone(),
                 unit.clone(),
             ));
-            let sqrt2 = sqrt(KalkValue::Number(
-                real.clone() - 1f64,
-                imaginary.clone(),
-                unit,
-            ));
+            let sqrt2 = sqrt(KalkValue::Number(real - 1f64, imaginary, unit));
 
             ln(x.add_without_unit(&sqrt1.mul_without_unit(&sqrt2)))
         } else {
@@ -399,11 +379,7 @@ pub mod funcs {
                 inv_unit.clone(),
             ));
             // sqrt(1/z + 1)
-            let sqrt2 = sqrt(KalkValue::Number(
-                inv_real.clone() + 1f64,
-                inv_imaginary.clone(),
-                inv_unit,
-            ));
+            let sqrt2 = sqrt(KalkValue::Number(inv_real + 1f64, inv_imaginary, inv_unit));
 
             // ln(1/z + sqrt(1/z - 1) * sqrt(1/z + 1))
             ln(sqrt1.mul_without_unit(&sqrt2).add_without_unit(&inv))
@@ -418,7 +394,7 @@ pub mod funcs {
             // i * ln(sqrt(1 - z²) - iz)
             let root =
                 sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)));
-            let iz = multiply_with_i(x.clone());
+            let iz = multiply_with_i(x);
             let ln = ln(root.sub_without_unit(&iz));
             multiply_with_i(ln)
         } else {
@@ -600,10 +576,10 @@ pub mod funcs {
         }
 
         if x.has_imaginary() || y.has_imaginary() {
-            if real.clone().fract() != 0f64
-                || real_rhs.clone().fract() != 0f64
-                || imaginary.clone().fract() != 0f64
-                || imaginary_rhs.clone().fract() != 0f64
+            if real.fract() != 0f64
+                || real_rhs.fract() != 0f64
+                || imaginary.fract() != 0f64
+                || imaginary_rhs.fract() != 0f64
             {
                 // Not a Gaussian integer!
                 // TODO: throw an actual error instead of returning NaN
@@ -627,7 +603,7 @@ pub mod funcs {
 
             let (b_real, b_imaginary, b_unit) = as_number_or_return!(b.clone());
             let (c_real, c_imaginary, c_unit) =
-                as_number_or_return!(a.clone().div_without_unit(&b.clone()));
+                as_number_or_return!(a.clone().div_without_unit(&b));
             if c_imaginary.clone().fract() == 0f64 {
                 KalkValue::Number(b_real.abs(), b_imaginary, b_unit)
             } else {
@@ -646,8 +622,8 @@ pub mod funcs {
             }
 
             // Euclidean GCD algorithm, but with modulus
-            let mut x_a = real.clone();
-            let mut y_a = real_rhs.clone();
+            let mut x_a = real;
+            let mut y_a = real_rhs;
             while !y_a.eq(&0f64) {
                 let t = y_a.clone();
                 y_a = x_a % y_a;
@@ -686,10 +662,10 @@ pub mod funcs {
     pub fn lcm(x: KalkValue, y: KalkValue) -> KalkValue {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         let (real_rhs, imaginary_rhs, unit_rhs) = as_number_or_return!(y.clone());
-        let gcd = gcd(x.clone(), y.clone());
+        let gcd = gcd(x, y);
         let absx = KalkValue::Number(real.abs(), imaginary, unit);
         let absy = KalkValue::Number(real_rhs.abs(), imaginary_rhs, unit_rhs);
-        return absx.div_without_unit(&gcd).mul_without_unit(&absy);
+        absx.div_without_unit(&gcd).mul_without_unit(&absy)
     }
 
     pub fn log(x: KalkValue) -> KalkValue {
@@ -728,7 +704,7 @@ pub mod funcs {
         let values = as_vector_or_return!(x);
         let mut max = &values[0];
         for value in &values {
-            if let KalkValue::Boolean(greater) = value.greater_than_without_unit(&max) {
+            if let KalkValue::Boolean(greater) = value.greater_than_without_unit(max) {
                 if greater {
                     max = value;
                 }
@@ -742,7 +718,7 @@ pub mod funcs {
         let values = as_vector_or_return!(x);
         let mut min = &values[0];
         for value in &values {
-            if let KalkValue::Boolean(less) = value.less_than_without_unit(&min) {
+            if let KalkValue::Boolean(less) = value.less_than_without_unit(min) {
                 if less {
                     min = value;
                 }
@@ -795,7 +771,7 @@ pub mod funcs {
     pub fn sqrt(x: KalkValue) -> KalkValue {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() {
-            let (abs_real, _, abs_unit) = as_number_or_return!(abs(x.clone()));
+            let (abs_real, _, abs_unit) = as_number_or_return!(abs(x));
             let r = abs_real;
             let a = real;
             let b = imaginary;
@@ -949,6 +925,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_trig_funcs() {
         // Auto-generated using kalk/scripts/generate_funcs_test_cases.py
         let in_out = vec![
@@ -1192,7 +1169,6 @@ mod tests {
                 || actual_output.imaginary_to_f64().is_infinite();
 
             if expected_has_nan_or_inf || actual_has_nan_or_inf {
-                assert!(true);
                 continue;
             }
 

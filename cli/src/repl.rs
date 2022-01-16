@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::process;
 
-pub fn start(mut parser: &mut parser::Context, precision: u32) {
+pub fn start(parser: &mut parser::Context, precision: u32) {
     let mut editor = Editor::<RLHelper>::new();
     editor.set_helper(Some(RLHelper {
         highlighter: LineHighlighter {},
@@ -31,9 +31,9 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
     // Load history
     let mut history_path = None;
     if let Some(config_path) = dirs::config_dir() {
-        let mut config_path = config_path.clone();
+        let mut config_path = config_path;
         config_path.push("kalker");
-        if let Ok(_) = fs::create_dir_all(config_path.as_path()) {
+        if fs::create_dir_all(config_path.as_path()).is_ok() {
             config_path.push("history.txt");
             let history = config_path.into_os_string().into_string().unwrap();
             editor.load_history(&history).ok();
@@ -61,7 +61,7 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
         match readline {
             Ok(input) => {
                 editor.add_history_entry(input.as_str());
-                eval_repl(&mut parser, &input, precision);
+                eval_repl(parser, &input, precision);
             }
             Err(ReadlineError::Interrupted) => break,
             _ => break,
@@ -74,8 +74,7 @@ pub fn start(mut parser: &mut parser::Context, precision: u32) {
 }
 
 fn eval_repl(parser: &mut parser::Context, input: &str, precision: u32) {
-    if input.starts_with("load ") {
-        let file_name = &input[5..];
+    if let Some(file_name) = input.strip_prefix("load ") {
         if let Some(file_path) = crate::get_input_file_by_name(file_name) {
             crate::load_input_file(&file_path, precision, parser);
         } else {
@@ -216,7 +215,7 @@ impl Completer for RLHelper {
     fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
         line.backspace(line.pos() - start);
         line.insert_str(line.pos(), elected);
-        line.move_forward(if elected.ends_with(")") || elected.ends_with("⟧") {
+        line.move_forward(if elected.ends_with(')') || elected.ends_with('⟧') {
             elected.chars().count() - 1
         } else {
             elected.chars().count()
@@ -242,7 +241,7 @@ impl Highlighter for RLHelper {
     }
 
     fn highlight_char(&self, line: &str, _: usize) -> bool {
-        line.len() > 0
+        !line.is_empty()
     }
 }
 

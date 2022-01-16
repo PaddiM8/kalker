@@ -83,18 +83,12 @@ fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, CalcErr
                     build_fn_decl(context, *identifier_expr, *parameter_expr, *right)?
                 }
                 Expr::Var(identifier) if !context.in_conditional => {
-                    if inverter::contains_var(
-                        &mut context.symbol_table,
-                        &right,
-                        &identifier.full_name,
-                    ) {
+                    if inverter::contains_var(context.symbol_table, &right, &identifier.full_name) {
                         return Err(CalcError::VariableReferencesItself);
                     }
 
                     if prelude::is_constant(&identifier.full_name) {
-                        return Err(CalcError::UnableToOverrideConstant(
-                            identifier.pure_name.into(),
-                        ));
+                        return Err(CalcError::UnableToOverrideConstant(identifier.pure_name));
                     }
 
                     let result =
@@ -129,14 +123,10 @@ fn build_fn_decl(
                 Expr::Vector(exprs) => {
                     exprs
                         .iter()
-                        .any(|x| if let Expr::Var(_) = x { true } else { false })
+                        .any(|x| matches!(x, Expr::Var(_)))
                 }
                 Expr::Group(expr) => {
-                    if let Expr::Var(_) = &**expr {
-                        true
-                    } else {
-                        false
-                    }
+                    matches!(&**expr, Expr::Var(_))
                 }
                 _ => false,
             };
@@ -266,8 +256,8 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, CalcError> {
     })
 }
 
-fn analyse_binary<'a>(
-    context: &'a mut Context,
+fn analyse_binary(
+    context: &mut Context,
     left: Expr,
     op: TokenKind,
     right: Expr,
@@ -286,7 +276,7 @@ fn analyse_binary<'a>(
 
             // If it has already been set to false manually somewhere else,
             // abort and analyse as a comparison instead.
-            if context.in_equation == false {
+            if !context.in_equation {
                 context.in_conditional = true;
                 let result = analyse_binary(context, left, op, right);
                 context.in_conditional = previous_in_conditional;
@@ -306,7 +296,7 @@ fn analyse_binary<'a>(
                 return result;
             };
 
-            let inverted = if inverter::contains_var(&mut context.symbol_table, &left, var_name) {
+            let inverted = if inverter::contains_var(context.symbol_table, &left, var_name) {
                 left.invert_to_target(context.symbol_table, right, var_name)?
             } else {
                 right.invert_to_target(context.symbol_table, left, var_name)?
@@ -441,20 +431,20 @@ fn analyse_comparison_with_var(
             match op {
                 TokenKind::GreaterThan => {
                     ranged_var.min = Expr::Binary(
-                        Box::new(right.clone()),
+                        Box::new(right),
                         TokenKind::Plus,
                         Box::new(Expr::Literal(1f64)),
                     );
                 }
                 TokenKind::LessThan => {
-                    ranged_var.max = right.clone();
+                    ranged_var.max = right;
                 }
                 TokenKind::GreaterOrEquals => {
-                    ranged_var.min = right.clone();
+                    ranged_var.min = right;
                 }
                 TokenKind::LessOrEquals => {
                     ranged_var.max = Expr::Binary(
-                        Box::new(right.clone()),
+                        Box::new(right),
                         TokenKind::Plus,
                         Box::new(Expr::Literal(1f64)),
                     );
@@ -526,7 +516,7 @@ fn analyse_var(
         )
     } else if context
         .symbol_table
-        .contains_var(&identifier.get_name_without_lowered())
+        .contains_var(identifier.get_name_without_lowered())
     {
         with_adjacent(
             build_indexed_var(context, identifier)?,
@@ -653,21 +643,22 @@ fn build_fn_call(
         context.in_sum_prod = false;
     }
 
-    return Ok(Expr::FnCall(identifier, arguments));
+    Ok(Expr::FnCall(identifier, arguments))
 }
 
 fn build_indexed_var(context: &mut Context, identifier: Identifier) -> Result<Expr, CalcError> {
     let underscore_pos = identifier.pure_name.find('_').unwrap();
     let var_name = &identifier.pure_name[0..underscore_pos];
     let lowered = &identifier.pure_name[underscore_pos + 1..];
-    let lowered_expr = if lowered.len() > 0 && lowered.chars().nth(0).unwrap_or('\0').is_digit(10) {
+    let lowered_expr = if !lowered.is_empty() && lowered.chars().next().unwrap_or('\0').is_digit(10)
+    {
         Expr::Literal(lowered.parse::<f64>().unwrap_or(f64::NAN))
     } else {
         build_var(context, lowered)
     };
 
     Ok(Expr::Indexer(
-        Box::new(build_var(context, &var_name)),
+        Box::new(build_var(context, var_name)),
         vec![lowered_expr],
     ))
 }
@@ -677,10 +668,10 @@ fn build_dx(
     name_without_dx: &str,
     char_after_d: char,
 ) -> Result<Expr, CalcError> {
-    if name_without_dx.len() == 0 {
+    if name_without_dx.is_empty() {
         Ok(Expr::Var(Identifier::from_full_name(&format!(
             "d{}",
-            char_after_d.to_string()
+            char_after_d
         ))))
     } else {
         Ok(Expr::Binary(
@@ -693,7 +684,7 @@ fn build_dx(
             TokenKind::Star,
             Box::new(Expr::Var(Identifier::from_full_name(&format!(
                 "d{}",
-                char_after_d.to_string()
+                char_after_d
             )))),
         ))
     }
@@ -754,7 +745,7 @@ fn build_var(context: &mut Context, name: &str) -> Expr {
         context.current_function_name.as_ref(),
         context.current_function_parameters.as_ref(),
     ) {
-        let identifier = Identifier::parameter_from_name(name, &function_name);
+        let identifier = Identifier::parameter_from_name(name, function_name);
         if params.contains(&identifier.full_name) {
             return Expr::Var(identifier);
         }

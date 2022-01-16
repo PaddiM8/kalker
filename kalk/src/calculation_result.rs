@@ -22,8 +22,8 @@ impl CalculationResult {
     }
 
     #[wasm_bindgen(js_name = toString)]
-    pub fn to_string(&self) -> String {
-        self.value.to_string()
+    pub fn to_js_string(&self) -> String {
+        self.to_string()
     }
 
     #[wasm_bindgen(js_name = toStringBig)]
@@ -69,5 +69,11 @@ impl CalculationResult {
     #[wasm_bindgen(js_name = estimate)]
     pub fn estimate_js(&self) -> Option<String> {
         self.value.estimate()
+    }
+}
+
+impl std::fmt::Display for CalculationResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
     }
 }

@@ -1,18 +1,10 @@
 pub fn is_superscript(c: &char) -> bool {
-    match c {
-        '⁰' | '¹' | '²' | '³' | '⁴' | '⁵' | '⁶' | '⁷' | '⁸' | '⁹' | '⁺' | '⁻' | '⁼' | '⁽' | '⁾' => {
-            true
-        }
-        _ => false,
-    }
+    matches!(c, '⁰' | '¹' | '²' | '³' | '⁴' | '⁵' | '⁶' | '⁷' | '⁸' | '⁹' | '⁺' | '⁻' | '⁼' | '⁽' | '⁾')
 }
 
 pub fn is_subscript(c: &char) -> bool {
-    match c {
-        '₀' | '₁' | '₂' | '₃' | '₄' | '₅' | '₆' | '₇' | '₈' | '₉' | '₊' | '₋' | '₌' | '₍' | '₎'
-        | 'ₖ' | 'ₗ' | 'ₘ' | 'ₙ' | 'ₓ' => true,
-        _ => false,
-    }
+    matches!(c, '₀' | '₁' | '₂' | '₃' | '₄' | '₅' | '₆' | '₇' | '₈' | '₉' | '₊' | '₋' | '₌' | '₍' | '₎'
+        | 'ₖ' | 'ₗ' | 'ₘ' | 'ₙ' | 'ₓ')
 }
 
 pub fn parse_subscript(chars: impl Iterator<Item = char>) -> Option<u8> {
@@ -82,5 +74,5 @@ pub fn normal_to_subscript(chars: impl Iterator<Item = char>) -> String {
         });
     }
 
-    return subscript;
+    subscript
 }

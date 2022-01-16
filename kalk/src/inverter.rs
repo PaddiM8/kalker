@@ -70,11 +70,11 @@ fn invert(
 ) -> Result<(Expr, Expr), CalcError> {
     match expr {
         Expr::Binary(left, op, right) => {
-            invert_binary(target_expr, symbol_table, &left, op, &right, unknown_var)
+            invert_binary(target_expr, symbol_table, left, op, right, unknown_var)
         }
-        Expr::Unary(op, expr) => invert_unary(target_expr, op, &expr),
+        Expr::Unary(op, expr) => invert_unary(target_expr, op, expr),
         Expr::Unit(identifier, expr) => {
-            invert_unit(target_expr, symbol_table, &identifier, &expr, unknown_var)
+            invert_unit(target_expr, symbol_table, identifier, expr, unknown_var)
         }
         Expr::Var(identifier) => invert_var(target_expr, symbol_table, identifier, unknown_var),
         Expr::Group(expr) => Ok((target_expr, *expr.clone())),
@@ -153,7 +153,7 @@ fn invert_binary(
                 return invert(
                     target_expr,
                     symbol_table,
-                    &Expr::Binary(inside_group.clone(), op.clone(), Box::new(right.clone())),
+                    &Expr::Binary(inside_group.clone(), *op, Box::new(right.clone())),
                     unknown_var,
                 );
             }
@@ -164,7 +164,7 @@ fn invert_binary(
                 return invert(
                     target_expr,
                     symbol_table,
-                    &Expr::Binary(Box::new(left.clone()), op.clone(), inside_group.clone()),
+                    &Expr::Binary(Box::new(left.clone()), *op, inside_group.clone()),
                     unknown_var,
                 );
             }
@@ -208,17 +208,17 @@ fn invert_binary(
             )));
         }
 
-        return Ok(invert(
+        return invert(
             Expr::Binary(Box::new(target_expr), op_inv, Box::new(right.clone())),
             symbol_table,
             left,
             unknown_var,
-        )?);
+        );
     }
 
     // Otherwise, invert the left side.
     let final_target_expr = Expr::Binary(Box::new(target_expr), op_inv, Box::new(left.clone()));
-    Ok(invert(
+    invert(
         // Eg. 2-a
         // If the operator is minus (and the left expression is being inverted),
         // make the target expression negative to keep balance.
@@ -230,7 +230,7 @@ fn invert_binary(
         symbol_table,
         right, // Then invert the right expression.
         unknown_var,
-    )?)
+    )
 }
 
 fn invert_unary(target_expr: Expr, op: &TokenKind, expr: &Expr) -> Result<(Expr, Expr), CalcError> {
@@ -240,7 +240,7 @@ fn invert_unary(target_expr: Expr, op: &TokenKind, expr: &Expr) -> Result<(Expr,
             Expr::Unary(TokenKind::Minus, Box::new(target_expr)),
             expr.clone(), // And then continue inverting the inner-expression.
         )),
-        _ => return Err(CalcError::UnableToInvert(String::new())),
+        _ => Err(CalcError::UnableToInvert(String::new())),
     }
 }
 
@@ -280,7 +280,7 @@ fn invert_fn_call(
     target_expr: Expr,
     symbol_table: &mut SymbolTable,
     identifier: &Identifier,
-    arguments: &Vec<Expr>,
+    arguments: &[Expr],
     unknown_var: &str,
 ) -> Result<(Expr, Expr), CalcError> {
     // If prelude function
@@ -409,17 +409,17 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
         Expr::Binary(left, op, right) => match op {
             // If + or -, multiply the expression with each term.
             TokenKind::Plus | TokenKind::Minus => Ok(Expr::Binary(
-                Box::new(multiply_into(expr, &left)?),
-                op.clone(),
-                Box::new(multiply_into(expr, &right)?),
+                Box::new(multiply_into(expr, left)?),
+                *op,
+                Box::new(multiply_into(expr, right)?),
             )),
             // If * or /, only multiply with the first factor.
             TokenKind::Star | TokenKind::Slash => Ok(Expr::Binary(
-                Box::new(multiply_into(expr, &left)?),
-                op.clone(),
+                Box::new(multiply_into(expr, left)?),
+                *op,
                 right.clone(),
             )),
-            _ => return Err(CalcError::UnableToInvert(String::new())),
+            _ => Err(CalcError::UnableToInvert(String::new())),
         },
         // If it's a literal, just multiply them together.
         Expr::Literal(_) | Expr::Var(_) => Ok(Expr::Binary(
@@ -430,7 +430,7 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
         Expr::Group(_) => Err(CalcError::UnableToInvert(String::from(
             "Parenthesis multiplied with parenthesis (this should be possible in the future).",
         ))),
-        _ => return Err(CalcError::UnableToInvert(String::new())),
+        _ => Err(CalcError::UnableToInvert(String::new())),
     }
 }
 
