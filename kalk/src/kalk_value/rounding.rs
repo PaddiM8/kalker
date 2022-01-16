@@ -1,6 +1,47 @@
-use crate::float;
+use std::{collections::HashMap};
 
-use super::{ComplexNumberType, KalkValue, CONSTANTS};
+use crate::{float, primitive};
+use lazy_static::lazy_static;
+
+use super::{ComplexNumberType, KalkValue};
+
+lazy_static! {
+    static ref CONSTANTS: HashMap<&'static str, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert("3.141592", "π");
+        m.insert("9.869604", "π²");
+        m.insert("0.318309", "1/π");
+        m.insert("0.636619", "2/π");
+        m.insert("2.718281", "e");
+        m.insert("7.389056", "e²");
+        m.insert("6.283185", "τ");
+        m.insert("1.618033", "ϕ");
+        m.insert("1.414213", "√2");
+        m.insert("0.707106", "1/√2");
+        m.insert("0.693147", "ln(2)");
+        m.insert("2.302585", "ln(10)");
+        // Radian values for common angles
+        m.insert("0.392699", "π/8");
+        m.insert("0.523598", "π/6");
+        m.insert("0.785398", "π/4");
+        m.insert("1.047197", "π/3");
+        m.insert("1.570796", "π/2");
+        m.insert("2.094395", "2π/3");
+        m.insert("2.356194", "3π/4");
+        m.insert("2.617993", "5π/6");
+        m.insert("3.665191", "7π/6");
+        m.insert("3.926990", "5π/4");
+        m.insert("4.188790", "4π/3");
+        m.insert("4.712388", "3π/2");
+        m.insert("5.23598", "5π/3");
+        m.insert("5.497787", "7π/4");
+        m.insert("5.759586", "11π/6");
+        m.insert("6.283185", "2π");
+        m.insert("0.866025", "√3/2");
+        m
+    };
+}
+
 
 pub(super) fn estimate(
     input: &KalkValue,
@@ -80,7 +121,7 @@ pub(super) fn estimate(
             .values()
             .0;
         if squared.clone().sqrt().fract() != 0f64 && squared.clone().fract() == 0f64 {
-            return Some(format!("√{}", squared));
+            return Some(format!("√{}", primitive!(squared) as i32));
         }
     }
 
