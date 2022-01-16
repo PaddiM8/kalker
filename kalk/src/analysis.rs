@@ -14,6 +14,7 @@ pub(crate) struct Context<'a> {
     equation_variable: Option<String>,
     in_integral: bool,
     in_sum_prod: bool,
+    sum_variable_name: Option<String>,
     in_unit_decl: bool,
     in_conditional: bool,
     in_equation: bool,
@@ -32,6 +33,7 @@ pub(crate) fn analyse_stmt(
         equation_variable: None,
         in_integral: false,
         in_sum_prod: false,
+        sum_variable_name: None,
         in_unit_decl: false,
         in_conditional: false,
         in_equation: false,
@@ -612,8 +614,22 @@ fn build_fn_call(
     let arguments = match adjacent_expr {
         Expr::Vector(arguments) => {
             let mut new_arguments = Vec::new();
-            for argument in arguments {
-                new_arguments.push(analyse_expr(context, argument)?);
+            for (i, argument) in arguments.iter().enumerate() {
+                if i == 0 && context.in_sum_prod {
+                    context.in_conditional = true;
+                    if let Expr::Binary(left, TokenKind::Equals, _) = argument {
+                        if let Expr::Var(var_identifier) = &**left {
+                            context.sum_variable_name = Some(var_identifier.pure_name.clone());
+                        } else {
+                            context.sum_variable_name = Some(String::from("n"));
+                        }
+                    } else {
+                        context.sum_variable_name = Some(String::from("n"));
+                    }
+                }
+
+                new_arguments.push(analyse_expr(context, argument.to_owned())?);
+                context.in_conditional = false;
             }
 
             new_arguments
@@ -751,7 +767,7 @@ fn build_var(context: &mut Context, name: &str) -> Expr {
         }
     }
 
-    if context.in_sum_prod && name == "n" {
+    if context.in_sum_prod && name == context.sum_variable_name.as_ref().unwrap() {
         return Expr::Var(Identifier::from_full_name(name));
     }
 

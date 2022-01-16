@@ -14,7 +14,8 @@ pub struct Context<'a> {
     angle_unit: String,
     #[cfg(feature = "rug")]
     precision: u32,
-    sum_n_value: Option<i128>,
+    sum_variable_name: Option<String>,
+    sum_variable_value: Option<i128>,
     #[cfg(not(target_arch = "wasm32"))]
     timeout: Option<u128>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -33,7 +34,8 @@ impl<'a> Context<'a> {
             symbol_table,
             #[cfg(feature = "rug")]
             precision,
-            sum_n_value: None,
+            sum_variable_name: None,
+            sum_variable_value: None,
             #[cfg(not(target_arch = "wasm32"))]
             timeout,
             #[cfg(not(target_arch = "wasm32"))]
@@ -246,9 +248,9 @@ fn eval_var_expr(
         return eval_expr(context, &Expr::Literal(*value), unit);
     }
 
-    if identifier.full_name == "n" {
-        if let Some(value) = context.sum_n_value {
-            return Ok(KalkValue::from(value));
+    if let Some(sum_variable_name) = &context.sum_variable_name {
+        if &identifier.full_name == sum_variable_name {
+            return Ok(KalkValue::from(context.sum_variable_value.unwrap()));
         }
     }
 
@@ -422,7 +424,19 @@ pub(crate) fn eval_fn_call_expr(
                 ));
             }
 
-            let start = eval_expr(context, &expressions[0], "")?.to_f64() as i128;
+            let (var_name, start_expr) = if let Expr::Binary(left, TokenKind::Equals, right) = &expressions[0] {
+                if let Expr::Var(var_identifier) = &**left {
+                    (var_identifier.pure_name.as_ref(), &**right)
+                } else {
+                    ("n", &**right)
+                }
+            } else {
+                ("n", &expressions[0])
+            };
+
+            context.sum_variable_name = Some(var_name.into());
+
+            let start = eval_expr(context, start_expr, "")?.to_f64() as i128;
             let end = eval_expr(context, &expressions[1], "")?.to_f64() as i128;
             let sum_else_prod = match identifier.full_name.as_ref() {
                 "sum" => true,
@@ -436,7 +450,7 @@ pub(crate) fn eval_fn_call_expr(
             };
 
             for n in start..=end {
-                context.sum_n_value = Some(n);
+                context.sum_variable_value = Some(n);
                 let eval = eval_expr(context, &expressions[2], "")?;
                 if sum_else_prod {
                     sum = sum.add(context, eval);
@@ -445,7 +459,8 @@ pub(crate) fn eval_fn_call_expr(
                 }
             }
 
-            context.sum_n_value = None;
+            context.sum_variable_name = None;
+            context.sum_variable_value = None;
             let (sum_real, sum_imaginary, _) = as_number_or_zero!(sum);
 
             // Set the unit as well
