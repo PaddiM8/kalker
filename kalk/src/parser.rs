@@ -264,6 +264,7 @@ fn parse_piecewise(context: &mut Context) -> Result<Expr, CalcError> {
         (previous(context).kind == TokenKind::Semicolon
             || previous(context).kind == TokenKind::Newline)
             && !reached_otherwise
+            && !match_token(context, TokenKind::ClosedBrace)
     } {}
 
     advance(context);
