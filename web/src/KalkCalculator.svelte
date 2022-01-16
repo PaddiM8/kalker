@@ -139,6 +139,10 @@
             const input = inputElement.value;
             let output: string;
 
+            if (input == "") {
+                return;
+            }
+
             if (input.trim() == "help") {
                 output = `<a style="color: ${linkcolor}"
                              href="https://kalker.xyz/#usage"
