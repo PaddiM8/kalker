@@ -597,10 +597,12 @@ fn build_fn_call(
     log_base: Option<Expr>,
 ) -> Result<Expr, CalcError> {
     let is_integral = identifier.pure_name == "integrate";
+    let prev_in_integral = context.in_integral;
     if is_integral {
         context.in_integral = true;
     }
 
+    let prev_in_sum_prod = context.in_sum_prod;
     let is_sum_prod = identifier.pure_name == "sum" || identifier.pure_name == "prod";
     if is_sum_prod {
         context.in_sum_prod = true;
@@ -652,11 +654,11 @@ fn build_fn_call(
     };
 
     if is_integral {
-        context.in_integral = false;
+        context.in_integral = prev_in_integral;
     }
 
     if is_sum_prod {
-        context.in_sum_prod = false;
+        context.in_sum_prod = prev_in_sum_prod;
     }
 
     Ok(Expr::FnCall(identifier, arguments))
