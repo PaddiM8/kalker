@@ -1,2 +1,3 @@
 n = 10
-sum(1, 5, 2n) = 30 and n = 10
+sum(1, 5, 2n) = 30 and n = 10 and
+sum(k=1, 5, 2k) = 30
