@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{float, primitive};
 use lazy_static::lazy_static;
@@ -42,7 +42,6 @@ lazy_static! {
     };
 }
 
-
 pub(super) fn estimate(
     input: &KalkValue,
     complex_number_type: ComplexNumberType,
@@ -53,76 +52,37 @@ pub(super) fn estimate(
         return None;
     };
 
-    let (value, value_string) = match complex_number_type {
-        ComplexNumberType::Real => (real, input.to_string_real(10)),
-        ComplexNumberType::Imaginary => (imaginary, input.to_string_imaginary(10, true)),
+    let value = match complex_number_type {
+        ComplexNumberType::Real => real,
+        ComplexNumberType::Imaginary => imaginary,
     };
 
-    let fract = value.clone().fract().abs();
-    let integer = value.clone().trunc();
-
-    #[cfg(feature = "rug")]
-    let fract_as_string = fract.to_f64().to_string();
-    #[cfg(not(feature = "rug"))]
-    let fract_as_string = fract.to_string();
-
-    // If it's an integer, there's nothing that would be done to it.
-    if fract == 0f64 {
+    if value > &f64::MAX {
         return None;
     }
 
-    // Eg. 0.5 to 1/2
-    let as_abs_string = value_string.trim_start_matches('-').to_string();
-    let sign = if value < &0f64 { "-" } else { "" };
-    if as_abs_string.starts_with("0.5")
-        && (as_abs_string.len() == 3 || (as_abs_string.len() > 6 && &as_abs_string[3..5] == "00"))
-    {
-        return Some(format!("{}1/2", sign));
+    let value = primitive!(value);
+
+    // If it's an integer, there's nothing that would be done to it.
+    if value.fract() == 0f64 {
+        return None;
     }
 
-    // Eg. 1.33333333 to 1 + 1/3
-    if fract_as_string.len() >= 7 {
-        let first_five_decimals = &fract_as_string[2..7];
-        if first_five_decimals == "33333" || first_five_decimals == "66666" {
-            let fraction = match first_five_decimals {
-                "33333" => "1/3",
-                "66666" => "2/3",
-                _ => "?",
-            };
-
-            if integer == 0f64 {
-                return Some(format!("{}{}", sign, fraction));
-            } else {
-                let explicit_sign = if sign.is_empty() { "+" } else { "-" };
-                return Some(format!(
-                    "{} {} {}",
-                    trim_zeroes(&integer.to_string()),
-                    explicit_sign,
-                    fraction
-                ));
-            }
-        }
+    if let Some(equivalent_fraction) = equivalent_fraction(value) {
+        return Some(equivalent_fraction);
     }
 
     // Match with common numbers, eg. π, 2π/3, √2
-    if as_abs_string.len() >= 8 {
-        if let Some(constant) = CONSTANTS.get(&as_abs_string[0..8]) {
-            return Some(format!("{}{}", sign, constant));
-        }
+    if let Some(equivalent_constant) = equivalent_constant(&value.to_string()) {
+        return Some(equivalent_constant);
     }
 
     // If the value squared (and rounded) is an integer,
     // eg. x² is an integer,
     // then it can be expressed as sqrt(x²).
     // Ignore it if the square root of the result is an integer.
-    if fract != 0f64 {
-        let squared = KalkValue::Number(value.clone() * value, float!(0), String::new())
-            .round_if_needed()
-            .values()
-            .0;
-        if squared.clone().sqrt().fract() != 0f64 && squared.clone().fract() == 0f64 {
-            return Some(format!("√{}", primitive!(squared) as i32));
-        }
+    if let Some(equivalent_root) = equivalent_root(value) {
+        return Some(equivalent_root);
     }
 
     // If nothing above was relevant, simply round it off a bit, eg. from 0.99999 to 1
@@ -136,6 +96,145 @@ pub(super) fn estimate(
     } else {
         &rounded_str
     }))
+}
+
+fn equivalent_fraction(value: f64) -> Option<String> {
+    fn gcd(mut a: i64, mut b: i64) -> i64 {
+        while a != 0 {
+            let old_a = a;
+            a = b % a;
+            b = old_a;
+        }
+
+        b.abs()
+    }
+
+    let original_sign = value.signum();
+    let value = value.abs();
+    let abs_value_str = value.to_string();
+
+    // https://goodcalculators.com/repeating-decimal-to-fraction-conversion-calculator/
+    let (mut numer, mut denom) = if let Some(repeatend_str) = find_repeatend(&abs_value_str) {
+        let repeatend_pos = abs_value_str.find(&repeatend_str)?;
+        let non_repeating_str = &abs_value_str[..repeatend_pos];
+
+        // non-repeating
+        let non_repeating = non_repeating_str.parse::<f64>().unwrap_or(0f64);
+        let non_repeating_dec_count =
+            non_repeating_str.len() - non_repeating_str.find('.').unwrap_or(0) - 1;
+        let a = non_repeating.fract();
+
+        // repeatend
+        let b = match repeatend_str.parse::<i64>() {
+            Ok(b) => b,
+            Err(_) => return None,
+        };
+
+        let factor = 10i64.pow(non_repeating_dec_count as u32) as f64;
+        let nines = (10i64.pow(repeatend_str.len() as u32) - 1) as f64;
+
+        let a_numer = a as f64 * factor * nines;
+        let b_numer = b as f64;
+        let ab_denom = nines * factor;
+        let integer_part_as_numer = non_repeating.trunc() * ab_denom;
+
+        (a_numer + b_numer + integer_part_as_numer, ab_denom)
+    } else {
+        const PREC: f64 = 10e10f64;
+
+        (value * PREC, PREC)
+    };
+
+    let gcd = gcd(numer as i64, denom as i64) as f64;
+    numer /= gcd;
+    denom /= gcd;
+
+    if denom <= 1f64 || denom >= 100f64 || denom == 10f64 {
+        return None;
+    }
+
+    let integer_part = (numer / denom).trunc();
+    if integer_part > 1f64 {
+        numer -= integer_part * denom;
+        let sign = if original_sign.is_sign_positive() {
+            "+"
+        } else {
+            "-"
+        };
+
+        Some(format!(
+            "{} {} {}/{}",
+            integer_part * original_sign,
+            sign,
+            numer.abs(),
+            denom.abs()
+        ))
+    } else {
+        Some(format!("{}/{}", numer * original_sign, denom))
+    }
+}
+
+fn find_repeatend(input: &str) -> Option<String> {
+    if input.len() < 10 {
+        return None;
+    }
+
+    for len in 1..=9 {
+        for offset in 1..=len {
+            let chars: Vec<char> = input[..input.len() - offset].chars().rev().collect();
+            let mut chunks = chars.chunks(len);
+            let mut repeats = 1;
+            let mut prev: &[char] = chunks.next()?;
+            for chunk in chunks {
+                if chunk == prev {
+                    repeats += 1;
+                } else {
+                    repeats = 0;
+                    prev = chunk;
+                }
+
+                let required_repeats = match len {
+                    1..=3 => 4,
+                    _ => 2,
+                };
+                if repeats >= required_repeats && !prev.iter().all(|x| x == &'0') {
+                    return Some(prev.iter().rev().cloned().collect::<String>());
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn equivalent_constant(value_str: &str) -> Option<String> {
+    if value_str.trim_start_matches('-').len() < 8 {
+        return None;
+    }
+
+    let (abs_value_str, sign) = if let Some(abs_value_str) = value_str.strip_prefix('-') {
+        (abs_value_str, "-")
+    } else {
+        (value_str, "")
+    };
+
+    CONSTANTS
+        .get(&abs_value_str[..8])
+        .map(|constant| format!("{}{}", sign, constant))
+}
+
+fn equivalent_root(value: f64) -> Option<String> {
+    if value.fract() != 0f64 {
+        let squared = KalkValue::Number(float!(value * value), float!(0), String::new())
+            .round_if_needed()
+            .values()
+            .0;
+        if squared.clone().sqrt().fract() != 0f64 && squared.clone().fract() == 0f64 {
+            return Some(format!("√{}", primitive!(squared) as i32));
+        }
+    }
+
+    None
 }
 
 pub(super) fn round(
@@ -203,5 +302,94 @@ pub(super) fn trim_zeroes(input: &str) -> String {
             .to_string()
     } else {
         input.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_estimate() {
+        let in_out = vec![
+            (0.99999999, Some(String::from("1"))),
+            (-0.9999999, Some(String::from("-1"))),
+            (0.0000000001, Some(String::from("0"))),
+            (-0.000000001, Some(String::from("0"))),
+            (1.99999999, Some(String::from("2"))),
+            (-1.9999999, Some(String::from("-2"))),
+            (1.000000001, Some(String::from("1"))),
+            (-1.000001, Some(String::from("-1"))),
+            (0.5, Some(String::from("1/2"))),
+            (-0.5, Some(String::from("-1/2"))),
+            (0.3333333333, Some(String::from("1/3"))),
+            (1.3333333333, Some(String::from("4/3"))),
+            (-0.666666666, Some(String::from("-2/3"))),
+            (-1.666666666, Some(String::from("-5/3"))),
+            (100.33333333, Some(String::from("100 + 1/3"))),
+            (-100.6666666, Some(String::from("-100 - 2/3"))),
+            (0.9932611, None),
+            (-0.9932611, None),
+            (-0.00001, None),
+            (1.9932611, None),
+            (-1.9932611, None),
+            (24f64, None),
+            (-24f64, None),
+            (1.23456f64, None),
+            (-1.23456f64, None),
+            (9999999999f64, None),
+            (-9999999999f64, None),
+            (1000000001f64, None),
+            (-1000000001f64, None),
+            (0.53f64, None),
+            (-0.53f64, None),
+            (-1.51f64, None),
+            (0.335f64, None),
+            (-0.335f64, None),
+            (0.665f64, None),
+            (-0.665f64, None),
+            (100f64, None),
+            (-100f64, None),
+            (1f64, None),
+            (0.1f64, None),
+            (1.23f64, None),
+            (1.234f64, None),
+            (1.2345f64, None),
+            (1.23456f64, None),
+            (1.234567f64, None),
+            (1.2345678f64, None),
+            (1.23456789f64, None),
+            (-0.1f64, None),
+            (-1.23f64, None),
+            (-1.234f64, None),
+            (-1.2345f64, None),
+            (-1.23456f64, None),
+            (-1.234567f64, None),
+            (-1.2345678f64, None),
+            (-1.23456789f64, None),
+        ];
+
+        for (input, output) in in_out {
+            let result = KalkValue::from(input).estimate();
+            println!("{}", input);
+            assert_eq!(output, result);
+        }
+    }
+
+    #[test]
+    fn test_equivalent_fraction() {
+        assert_eq!(equivalent_fraction(0.5f64).unwrap(), "1/2");
+        assert_eq!(equivalent_fraction(-0.5f64).unwrap(), "-1/2");
+        assert_eq!(equivalent_fraction(1f64 / 3f64).unwrap(), "1/3");
+        assert_eq!(equivalent_fraction(4f64 / 3f64).unwrap(), "4/3");
+        assert_eq!(equivalent_fraction(7f64 / 3f64).unwrap(), "2 + 1/3");
+        assert_eq!(equivalent_fraction(-1f64 / 12f64).unwrap(), "-1/12");
+        assert_eq!(equivalent_fraction(-16f64 / -7f64).unwrap(), "2 + 2/7");
+        assert!(equivalent_fraction(0.123f64).is_none());
+        assert!(equivalent_fraction(1f64).is_none());
+        assert!(equivalent_fraction(0.01f64).is_none());
+        assert!(equivalent_fraction(-0.9999999f64).is_none());
+        assert!(equivalent_fraction(0.9999999f64).is_none());
+        assert!(equivalent_fraction(1.9999999f64).is_none());
     }
 }
