@@ -433,7 +433,7 @@ fn parse_sum(context: &mut Context) -> Result<Expr, CalcError> {
     while match_token(context, TokenKind::Plus) || match_token(context, TokenKind::Minus) {
         let op = peek(context).kind;
         advance(context);
-        let right = parse_factor(context)?;
+        let right = parse_sum(context)?;
 
         left = Expr::Binary(Box::new(left), op, Box::new(right));
     }
@@ -447,11 +447,7 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
     if let Expr::Unary(TokenKind::Percent, percent_left) = left.clone() {
         let try_parse = parse_factor(context);
         if try_parse.is_ok() {
-            left = Expr::Binary(
-                percent_left,
-                TokenKind::Percent,
-                Box::new(try_parse?),
-            );
+            left = Expr::Binary(percent_left, TokenKind::Percent, Box::new(try_parse?));
         }
     }
 
@@ -477,7 +473,7 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
             _ => advance(context).kind,
         };
 
-        let right = parse_unit(context)?;
+        let right = parse_factor(context)?;
         left = Expr::Binary(Box::new(left), op, Box::new(right));
     }
 
