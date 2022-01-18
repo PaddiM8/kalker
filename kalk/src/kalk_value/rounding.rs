@@ -6,38 +6,38 @@ use lazy_static::lazy_static;
 use super::{ComplexNumberType, KalkValue};
 
 lazy_static! {
-    static ref CONSTANTS: HashMap<&'static str, &'static str> = {
+    static ref CONSTANTS: HashMap<u32, (u32, &'static str)> = {
         let mut m = HashMap::new();
-        m.insert("3.141592", "π");
-        m.insert("9.869604", "π²");
-        m.insert("0.318309", "1/π");
-        m.insert("0.636619", "2/π");
-        m.insert("2.718281", "e");
-        m.insert("7.389056", "e²");
-        m.insert("6.283185", "τ");
-        m.insert("1.618033", "ϕ");
-        m.insert("1.414213", "√2");
-        m.insert("0.707106", "1/√2");
-        m.insert("0.693147", "ln(2)");
-        m.insert("2.302585", "ln(10)");
+        m.insert(141592, (3, "π"));
+        m.insert(869604, (9, "π²"));
+        m.insert(318909, (0, "1/π"));
+        m.insert(636619, (0, "2/π"));
+        m.insert(718281, (2, "e"));
+        m.insert(389056, (7, "e²"));
+        m.insert(283185, (6, "τ"));
+        m.insert(618033, (1, "ϕ"));
+        m.insert(414213, (1, "√2"));
+        m.insert(707106, (0, "1/√2"));
+        m.insert(693147, (0, "ln(2)"));
+        m.insert(302585, (2, "ln(10)"));
         // Radian values for common angles
-        m.insert("0.392699", "π/8");
-        m.insert("0.523598", "π/6");
-        m.insert("0.785398", "π/4");
-        m.insert("1.047197", "π/3");
-        m.insert("1.570796", "π/2");
-        m.insert("2.094395", "2π/3");
-        m.insert("2.356194", "3π/4");
-        m.insert("2.617993", "5π/6");
-        m.insert("3.665191", "7π/6");
-        m.insert("3.926990", "5π/4");
-        m.insert("4.188790", "4π/3");
-        m.insert("4.712388", "3π/2");
-        m.insert("5.23598", "5π/3");
-        m.insert("5.497787", "7π/4");
-        m.insert("5.759586", "11π/6");
-        m.insert("6.283185", "2π");
-        m.insert("0.866025", "√3/2");
+        m.insert(392699, (0, "π/8"));
+        m.insert(523598, (0, "π/6"));
+        m.insert(785398, (0, "π/4"));
+        m.insert(47197, (1, "π/3"));
+        m.insert(570796, (1, "π/2"));
+        m.insert(94395, (2, "2π/3"));
+        m.insert(356194, (2, "3π/4"));
+        m.insert(617993, (2, "5π/6"));
+        m.insert(665191, (3, "7π/6"));
+        m.insert(926990, (3, "5π/4"));
+        m.insert(188790, (4, "4π/3"));
+        m.insert(712388, (4, "3π/2"));
+        m.insert(23598, (5, "5π/3"));
+        m.insert(497787, (5, "7π/4"));
+        m.insert(759586, (5, "11π/6"));
+        m.insert(283185, (6, "2π"));
+        m.insert(866025, (0, "√3/2"));
         m
     };
 }
@@ -73,7 +73,7 @@ pub(super) fn estimate(
     }
 
     // Match with common numbers, eg. π, 2π/3, √2
-    if let Some(equivalent_constant) = equivalent_constant(&value.to_string()) {
+    if let Some(equivalent_constant) = equivalent_constant(value) {
         return Some(equivalent_constant);
     }
 
@@ -207,20 +207,28 @@ fn find_repeatend(input: &str) -> Option<String> {
     None
 }
 
-fn equivalent_constant(value_str: &str) -> Option<String> {
-    if value_str.trim_start_matches('-').len() < 8 {
-        return None;
-    }
+fn equivalent_constant(value: f64) -> Option<String> {
+    if let Some((constant_trunc, constant)) = CONSTANTS.get(&((value.abs().fract() * 10e5) as u32))
+    {
+        let additional = value.trunc() as i32 - (*constant_trunc as f64 * value.signum()) as i32;
+        let constant_sign = if value.is_sign_positive() { "" } else { "-" };
 
-    let (abs_value_str, sign) = if let Some(abs_value_str) = value_str.strip_prefix('-') {
-        (abs_value_str, "-")
+        if additional == 0 {
+            Some(format!("{}{}", constant_sign, constant))
+        } else {
+            let additional_sign = if additional.is_positive() { "+" } else { "-" };
+
+            Some(format!(
+                "{}{} {} {}",
+                constant_sign,
+                constant,
+                additional_sign,
+                additional.abs()
+            ))
+        }
     } else {
-        (value_str, "")
-    };
-
-    CONSTANTS
-        .get(&abs_value_str[..8])
-        .map(|constant| format!("{}{}", sign, constant))
+        None
+    }
 }
 
 fn equivalent_root(value: f64) -> Option<String> {
