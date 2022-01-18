@@ -747,30 +747,28 @@ impl KalkValue {
                 KalkValue::Vector(new_values)
             }
             (KalkValue::Matrix(rows), KalkValue::Matrix(rows_rhs)) => {
-                if rows.first().unwrap().len() != rows_rhs.len() {
+                let lhs_columns = rows.first().unwrap();
+                if lhs_columns.len() != rows_rhs.len() {
                     return KalkValue::nan();
                 }
 
-                let mut result = Vec::new();
+                let rhs_columns = rows_rhs.first().unwrap();
+                let mut result = vec![vec![KalkValue::from(0f64); rhs_columns.len()]; rows.len()];
+
                 // For every row in lhs
                 for i in 0..rows.len() {
-                    let mut dot_products = Vec::new();
-
                     // For every column in rhs
-                    for j in 0..rows.len() {
-                        let mut dot_product = KalkValue::from(0f64);
+                    for j in 0..rhs_columns.len() {
+                        let mut sum = KalkValue::from(0f64);
 
                         // For every value in the current lhs row
                         for (k, value) in rows[i].iter().enumerate() {
                             let value_rhs = &rows_rhs[k][j];
-                            dot_product = dot_product
-                                .add_without_unit(&value.clone().mul_without_unit(value_rhs));
+                            sum = sum.add_without_unit(&value.clone().mul_without_unit(value_rhs));
                         }
 
-                        dot_products.push(dot_product);
+                        result[i][j] = sum;
                     }
-
-                    result.push(dot_products);
                 }
 
                 KalkValue::Matrix(result)
