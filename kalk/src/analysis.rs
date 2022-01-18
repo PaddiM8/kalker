@@ -122,11 +122,7 @@ fn build_fn_decl(
             // Check if all the expressions in the parameter_expr are
             // variables. If not, it can't be turned into a function declaration.
             let all_are_vars = match &parameter_expr {
-                Expr::Vector(exprs) => {
-                    exprs
-                        .iter()
-                        .any(|x| matches!(x, Expr::Var(_)))
-                }
+                Expr::Vector(exprs) => exprs.iter().any(|x| matches!(x, Expr::Var(_))),
                 Expr::Group(expr) => {
                     matches!(&**expr, Expr::Var(_))
                 }
@@ -610,7 +606,7 @@ fn build_fn_call(
             context.sum_variable_names = Some(Vec::new());
         }
     }
-    
+
     // Don't perform equation solving on special functions
     if is_integral || is_sum_prod {
         context.in_equation = false;
@@ -775,7 +771,13 @@ fn build_var(context: &mut Context, name: &str) -> Expr {
         }
     }
 
-    if context.in_sum_prod && context.sum_variable_names.as_ref().unwrap().contains(&name.to_string()) {
+    if context.in_sum_prod
+        && context
+            .sum_variable_names
+            .as_ref()
+            .unwrap()
+            .contains(&name.to_string())
+    {
         return Expr::Var(Identifier::from_full_name(name));
     }
 
