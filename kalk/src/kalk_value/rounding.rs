@@ -57,7 +57,7 @@ pub(super) fn estimate(
         ComplexNumberType::Imaginary => imaginary,
     };
 
-    if value > &f64::MAX {
+    if value >= &f64::MAX {
         return None;
     }
 
@@ -224,17 +224,20 @@ fn equivalent_constant(value_str: &str) -> Option<String> {
 }
 
 fn equivalent_root(value: f64) -> Option<String> {
-    if value.fract() != 0f64 {
-        let squared = KalkValue::Number(float!(value * value), float!(0), String::new())
-            .round_if_needed()
-            .values()
-            .0;
-        if squared.clone().sqrt().fract() != 0f64 && squared.clone().fract() == 0f64 {
-            return Some(format!("√{}", primitive!(squared) as i32));
-        }
+    if value.fract().abs() == 0f64 || value > 10e5f64 {
+        return None;
     }
 
-    None
+    let squared = KalkValue::Number(float!(value * value), float!(0), String::new())
+        .round_if_needed()
+        .values()
+        .0;
+
+    if squared.clone().sqrt().fract() != 0f64 && squared.clone().fract() == 0f64 {
+        Some(format!("√{}", primitive!(squared) as i32))
+    } else {
+        None
+    }
 }
 
 pub(super) fn round(
