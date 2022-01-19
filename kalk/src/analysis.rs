@@ -312,7 +312,7 @@ fn analyse_binary(
             ));
             context.equation_variable = None;
 
-            return Ok(inverted);
+            Ok(inverted)
         }
         (Expr::Var(_), TokenKind::Star, _) => {
             if let Expr::Var(identifier) = left {
@@ -321,13 +321,18 @@ fn analyse_binary(
                 unreachable!()
             }
         }
-        (Expr::Var(_), TokenKind::Power, _) => {
-            if let Expr::Var(identifier) = left {
-                analyse_var(context, identifier, None, Some(right))
-            } else {
-                unreachable!()
-            }
-        }
+        (_, TokenKind::Power, _) => match (left, right) {
+            (left, Expr::Var(identifier)) if &identifier.full_name == "T" => Ok(Expr::FnCall(
+                Identifier::from_full_name("transpose"),
+                vec![analyse_expr(context, left)?],
+            )),
+            (Expr::Var(identifier), right) => analyse_var(context, identifier, None, Some(right)),
+            (left, right) => Ok(Expr::Binary(
+                Box::new(analyse_expr(context, left)?),
+                TokenKind::Power,
+                Box::new(analyse_expr(context, right)?),
+            )),
+        },
         (_, TokenKind::Colon, _) => {
             context.in_comprehension = true;
             context.in_conditional = true;

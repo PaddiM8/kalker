@@ -78,9 +78,13 @@ impl<'a> Lexer<'a> {
         let mut tokens = Vec::new();
 
         loop {
-            let next = self.next();
-
-            if let TokenKind::Eof = next.kind {
+            let mut next = self.next();
+            if next.kind == TokenKind::Power && !next.value.is_empty() {
+                let value: String = next.value.drain(..).collect();
+                let span = next.span;
+                tokens.push(next);
+                tokens.push(build(TokenKind::Identifier, &value, span));
+            } else if TokenKind::Eof == next.kind {
                 tokens.push(next);
                 break;
             } else {
@@ -158,6 +162,8 @@ impl<'a> Lexer<'a> {
             '≠' => build(TokenKind::NotEquals, "", span),
             '≥' => build(TokenKind::GreaterOrEquals, "", span),
             '≤' => build(TokenKind::LessOrEquals, "", span),
+            // A bit hacky. When the result is handled, this token is turned into two tokens
+            'ᵀ' => build(TokenKind::Power, "T", span),
             // Some of the special symbols will be lexed here,
             // so that they don't merge with other symbols.
             'π' => build(TokenKind::Identifier, "pi", span),
@@ -385,9 +391,8 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
-            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '∧' | '∨' | ':' | '\n' => {
-                false
-            }
+            | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '∧' | '∨' | ':' | 'ᵀ'
+            | '\n' => false,
             _ => !c.is_digit(10) || is_superscript(c) || is_subscript(c),
         }
     } else {

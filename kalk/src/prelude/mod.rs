@@ -63,23 +63,24 @@ lazy_static! {
 
         m.insert("abs", (UnaryFuncInfo(abs, Other), ""));
         m.insert("arg", (UnaryFuncInfo(arg, Other), ""));
+        m.insert("bitcmp", (UnaryFuncInfo(bitcmp, Other), ""));
         m.insert("cbrt", (UnaryFuncInfo(cbrt, Other), ""));
         m.insert("ceil", (UnaryFuncInfo(ceil, Other), ""));
-        m.insert("iverson", (UnaryFuncInfo(iverson, Other), ""));
         m.insert("exp", (UnaryFuncInfo(exp, Other), ""));
         m.insert("floor", (UnaryFuncInfo(floor, Other), ""));
         m.insert("frac", (UnaryFuncInfo(frac, Other), ""));
-        m.insert("Im", (UnaryFuncInfo(im, Other), ""));
         m.insert("gamma", (UnaryFuncInfo(gamma, Other), ""));
         m.insert("Γ", (UnaryFuncInfo(gamma, Other), ""));
-        m.insert("log", (UnaryFuncInfo(log, Other), ""));
+        m.insert("iverson", (UnaryFuncInfo(iverson, Other), ""));
+        m.insert("Im", (UnaryFuncInfo(im, Other), ""));
         m.insert("ln", (UnaryFuncInfo(ln, Other), ""));
+        m.insert("log", (UnaryFuncInfo(log, Other), ""));
         m.insert("Re", (UnaryFuncInfo(re, Other), ""));
         m.insert("round", (UnaryFuncInfo(round, Other), ""));
         m.insert("sqrt", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("√", (UnaryFuncInfo(sqrt, Other), ""));
+        m.insert("transpose", (UnaryFuncInfo(transpose, Other), ""));
         m.insert("trunc", (UnaryFuncInfo(trunc, Other), ""));
-        m.insert("bitcmp", (UnaryFuncInfo(bitcmp, Other), ""));
         m
     };
     pub static ref BINARY_FUNCS: HashMap<&'static str, (BinaryFuncInfo, &'static str)> = {
@@ -821,6 +822,25 @@ pub mod funcs {
         }
     }
 
+    #[allow(clippy::needless_range_loop)]
+    pub fn transpose(x: KalkValue) -> KalkValue {
+        if let KalkValue::Matrix(rows) = x {
+            let original_row_count = rows.len();
+            let original_column_count = rows.first().unwrap().len();
+            let mut result =
+                vec![vec![KalkValue::from(0f64); original_row_count]; original_column_count];
+            for i in 0..original_row_count {
+                for j in 0..original_column_count {
+                    result[j][i] = rows[i][j].clone();
+                }
+            }
+
+            KalkValue::Matrix(result)
+        } else {
+            KalkValue::nan()
+        }
+    }
+
     pub fn trunc(x: KalkValue) -> KalkValue {
         let (real, imaginary, unit) = as_number_or_return!(x);
         KalkValue::Number(real.trunc(), imaginary.trunc(), unit)
@@ -922,6 +942,38 @@ mod tests {
             assert!(cmp(expected_output.0, actual_output.to_f64()));
             assert!(cmp(expected_output.1, actual_output.imaginary_to_f64()));
         }
+    }
+
+    #[test]
+    fn test_transpose() {
+        fn to_matrix(rows: Vec<Vec<i32>>) -> KalkValue {
+            let mut new_rows = Vec::new();
+            for row in rows {
+                let mut new_row = Vec::new();
+                for value in row {
+                    new_row.push(KalkValue::from(value as f64));
+                }
+
+                new_rows.push(new_row);
+            }
+
+            KalkValue::Matrix(new_rows)
+        }
+
+        assert_eq!(
+            transpose(to_matrix(vec![vec![1, 2], vec![3, 4]])),
+            to_matrix(vec![vec![1, 3], vec![2, 4]])
+        );
+
+        assert_eq!(
+            transpose(to_matrix(vec![vec![1, 2], vec![3, 4], vec![5, 6]])),
+            to_matrix(vec![vec![1, 3, 5], vec![2, 4, 6]])
+        );
+
+        assert_eq!(
+            transpose(to_matrix(vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]])),
+            to_matrix(vec![vec![1, 4, 7], vec![2, 5, 8], vec![3, 6, 9]])
+        );
     }
 
     #[test]
