@@ -310,9 +310,10 @@
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<brackets>\[\[)|(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷⋅∧∨]|if|otherwise|and|or|mod)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)\(?)/g,
+            /(?<power>\^[0-9T])|(?<brackets>\[\[)|(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷⋅∧∨ᵀ]|if|otherwise|and|or|mod)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎×÷⋅∧∨ᵀ]+(_\d+)?)\(?)/g,
             (
                 substring,
+                power,
                 brackets,
                 _radix,
                 _2,
@@ -323,6 +324,12 @@
                 op,
                 identifier
             ) => {
+                if (power) {
+                    if (substring == "^T") {
+                        substring = "ᵀ";
+                    }
+                }
+
                 if (brackets) {
                     if (substring == "[[") {
                         offset -= 1;

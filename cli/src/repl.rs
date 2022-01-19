@@ -105,9 +105,9 @@ impl Highlighter for LineHighlighter {
 
         let reg = Regex::new(
             r"(?x)
-            (?P<op>([+\-/*%^!×÷⋅∧∨]|if|otherwise|\sand|\sor|\smod|load|exit|clear|help)) |
+            (?P<op>([+\-/*%^!×÷⋅∧∨ᵀ]|if|otherwise|\sand|\sor|\smod|load|exit|clear|help)) |
             (?P<radix>0[box][a-zA-Z0-9]+) |
-            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+(_\d+)?)",
+            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ᵀ]+(_\d+)?)",
         )
         .unwrap();
 
@@ -161,6 +161,7 @@ lazy_static! {
         m.insert(" or", " ∨");
         m.insert("*", "×");
         m.insert("/", "÷");
+        m.insert("^T", "ᵀ");
         m.insert("asin", "sin⁻¹()");
         m.insert("acos", "cos⁻¹()");
         m.insert("atan", "tan⁻¹()");
