@@ -481,7 +481,7 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
 }
 
 fn parse_unit(context: &mut Context) -> Result<Expr, CalcError> {
-    let expr = parse_unary(context)?;
+    let expr = parse_exponent(context)?;
 
     if match_token(context, TokenKind::Identifier) {
         let peek = &peek(context).value.clone();
@@ -496,23 +496,8 @@ fn parse_unit(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(expr)
 }
 
-fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
-    if match_token(context, TokenKind::Minus) {
-        let op = advance(context).kind;
-        let expr = Box::new(parse_unary(context)?);
-        return Ok(Expr::Unary(op, expr));
-    }
-
-    let expr = parse_exponent(context)?;
-    if match_token(context, TokenKind::Percent) {
-        Ok(Expr::Unary(advance(context).kind, Box::new(expr)))
-    } else {
-        Ok(expr)
-    }
-}
-
 fn parse_exponent(context: &mut Context) -> Result<Expr, CalcError> {
-    let left = parse_indexer(context)?;
+    let left = parse_unary(context)?;
 
     if match_token(context, TokenKind::Power) {
         let op = advance(context).kind;
@@ -521,6 +506,21 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, CalcError> {
     }
 
     Ok(left)
+}
+
+fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
+    if match_token(context, TokenKind::Minus) {
+        let op = advance(context).kind;
+        let expr = Box::new(parse_unary(context)?);
+        return Ok(Expr::Unary(op, expr));
+    }
+
+    let expr = parse_indexer(context)?;
+    if match_token(context, TokenKind::Percent) {
+        Ok(Expr::Unary(advance(context).kind, Box::new(expr)))
+    } else {
+        Ok(expr)
+    }
 }
 
 fn parse_indexer(context: &mut Context) -> Result<Expr, CalcError> {
@@ -869,6 +869,22 @@ mod tests {
                 Plus,
                 literal(5f64)
             )),
+        );
+    }
+
+    #[wasm_bindgen_test]
+    fn test_pow_unary() {
+        let tokens = vec![
+            token(Literal, "10"),
+            token(Power, ""),
+            token(Minus, ""),
+            token(Literal, "1"),
+            token(Eof, ""),
+        ];
+
+        assert_eq!(
+            parse(tokens).unwrap(),
+            Stmt::Expr(binary(literal(10f64), Power, unary(Minus, literal(1f64)))),
         );
     }
 
