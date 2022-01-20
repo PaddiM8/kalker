@@ -77,6 +77,7 @@ lazy_static! {
         m.insert("log", (UnaryFuncInfo(log, Other), ""));
         m.insert("Re", (UnaryFuncInfo(re, Other), ""));
         m.insert("round", (UnaryFuncInfo(round, Other), ""));
+        m.insert("sgn", (UnaryFuncInfo(sgn, Other), ""));
         m.insert("sqrt", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("√", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("transpose", (UnaryFuncInfo(transpose, Other), ""));
@@ -781,6 +782,16 @@ pub mod funcs {
             real.cosh() * imaginary.sin(),
             unit,
         )
+    }
+
+    pub fn sgn(x: KalkValue) -> KalkValue {
+        if x.has_imaginary() {
+            x.clone().div_without_unit(&abs(x))
+        } else {
+            let (real, _, unit) = as_number_or_return!(x);
+
+            KalkValue::Number(real.signum(), float!(0), unit)
+        }
     }
 
     pub fn sqrt(x: KalkValue) -> KalkValue {
