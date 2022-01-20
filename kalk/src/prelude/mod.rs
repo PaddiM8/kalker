@@ -103,6 +103,7 @@ lazy_static! {
     pub static ref VECTOR_FUNCS: HashMap<&'static str, VectorFuncInfo> = {
         let mut m = HashMap::new();
         m.insert("average", VectorFuncInfo(average, Other));
+        m.insert("diag", VectorFuncInfo(diag, Other));
         m.insert("max", VectorFuncInfo(max, Other));
         m.insert("min", VectorFuncInfo(min, Other));
         m
@@ -535,6 +536,19 @@ pub mod funcs {
             b.clone().sin() / (b.cos() - a.cosh()),
             unit,
         )
+    }
+
+    pub fn diag(x: KalkValue) -> KalkValue {
+        if let KalkValue::Vector(values) = x {
+            let mut result = vec![vec![KalkValue::from(0f64); values.len()]; values.len()];
+            for (i, value) in values.iter().enumerate() {
+                result[i][i] = value.clone();
+            }
+
+            KalkValue::Matrix(result)
+        } else {
+            KalkValue::nan()
+        }
     }
 
     pub fn exp(x: KalkValue) -> KalkValue {
