@@ -89,6 +89,7 @@ impl Default for Context {
 /// Error that occured during parsing or evaluation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalcError {
+    CannotIndexByImaginary,
     CanOnlyIndexX,
     Expected(String),
     ExpectedDx,
@@ -118,6 +119,7 @@ pub enum CalcError {
 impl ToString for CalcError {
     fn to_string(&self) -> String {
         match self {
+            CalcError::CannotIndexByImaginary => String::from("Cannot index by imaginary numbers."),
             CalcError::CanOnlyIndexX => String::from("Indexing (getting an item with a specific index) is only possible on vectors and matrices."),
             CalcError::Expected(description) => format!("Expected: {}", description),
             CalcError::ExpectedDx => String::from("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
