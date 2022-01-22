@@ -78,6 +78,7 @@ lazy_static! {
         m.insert("Re", (UnaryFuncInfo(re, Other), ""));
         m.insert("round", (UnaryFuncInfo(round, Other), ""));
         m.insert("sgn", (UnaryFuncInfo(sgn, Other), ""));
+        m.insert("sort", (UnaryFuncInfo(sort, Other), ""));
         m.insert("sqrt", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("√", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("transpose", (UnaryFuncInfo(transpose, Other), ""));
@@ -107,6 +108,7 @@ lazy_static! {
         m.insert("diag", VectorFuncInfo(diag, Other));
         m.insert("max", VectorFuncInfo(max, Other));
         m.insert("min", VectorFuncInfo(min, Other));
+        m.insert("perms", VectorFuncInfo(perms, Other));
         m
     };
 }
@@ -246,6 +248,8 @@ fn from_angle_unit(
 }
 
 pub mod funcs {
+    use std::cmp::Ordering;
+
     #[cfg(not(feature = "rug"))]
     pub use super::regular::funcs::*;
     use super::special_funcs::factorial;
@@ -748,6 +752,71 @@ pub mod funcs {
         x.pow_without_unit(&KalkValue::from(1f64).div_without_unit(&n))
     }
 
+    pub fn perms(x: KalkValue) -> KalkValue {
+        if let KalkValue::Vector(values) = sort(x) {
+            let mut result: Vec<Vec<KalkValue>> = vec![values];
+
+            // Permutations in lexographic order: https://www.baeldung.com/cs/array-generate-all-permutations
+            loop {
+                let prev_values = result.last().unwrap();
+                let mut i = prev_values.len() - 1;
+                for _ in (1..prev_values.len()).rev() {
+                    if let (KalkValue::Number(real, _, _), KalkValue::Number(real_2, _, _)) =
+                        (&prev_values[i - 1], &prev_values[i])
+                    {
+                        if real >= real_2 {
+                            i -= 1;
+                        } else {
+                            break;
+                        }
+
+                        // Needs to be checked inside the loop as well
+                        // since the counter is of type usize, which
+                        // can't be negative.
+                        if i == 0 {
+                            return KalkValue::Matrix(result);
+                        }
+                    }
+                }
+
+                if i == 0 {
+                    return KalkValue::Matrix(result);
+                }
+
+                let pivot = if let KalkValue::Number(real, _, _) = &prev_values[i - 1] {
+                    real
+                } else {
+                    return KalkValue::nan();
+                };
+
+                let mut j = prev_values.len() - 1;
+                while let KalkValue::Number(real, _, _) = &prev_values[j] {
+                    if real <= pivot {
+                        j -= 1;
+                    } else {
+                        break;
+                    }
+                }
+
+                let mut new_values = prev_values.clone();
+                new_values.swap(i - 1, j);
+
+                // Reverse the part after new_values[i]
+                i += 1;
+                j = new_values.len();
+                while i < j {
+                    new_values.swap(i - 1, j - 1);
+                    i += 1;
+                    j -= 1;
+                }
+
+                result.push(new_values);
+            }
+        } else {
+            KalkValue::nan()
+        }
+    }
+
     pub fn re(x: KalkValue) -> KalkValue {
         let (real, _, unit) = as_number_or_return!(x);
         KalkValue::Number(real, float!(0), unit)
@@ -791,6 +860,24 @@ pub mod funcs {
             let (real, _, unit) = as_number_or_return!(x);
 
             KalkValue::Number(real.signum(), float!(0), unit)
+        }
+    }
+
+    pub fn sort(x: KalkValue) -> KalkValue {
+        if let KalkValue::Vector(mut values) = x {
+            values.sort_by(|a, b| {
+                if let KalkValue::Boolean(true) = a.eq_without_unit(b) {
+                    Ordering::Equal
+                } else if let KalkValue::Boolean(true) = a.greater_than_without_unit(b) {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            });
+
+            KalkValue::Vector(values)
+        } else {
+            KalkValue::nan()
         }
     }
 
@@ -896,6 +983,10 @@ mod tests {
     use crate::prelude::KalkValue;
     use crate::test_helpers::cmp;
 
+    fn val(x: f64) -> KalkValue {
+        KalkValue::from(x)
+    }
+
     #[test]
     fn test_unary_funcs() {
         let in_out = vec![
@@ -966,6 +1057,35 @@ mod tests {
             );
             assert!(cmp(expected_output.0, actual_output.to_f64()));
             assert!(cmp(expected_output.1, actual_output.imaginary_to_f64()));
+        }
+    }
+
+    #[test]
+    fn test_perms() {
+        let vecs = vec![
+            (KalkValue::Vector(vec![val(1f64)]), 1),
+            (KalkValue::Vector(vec![val(1f64), val(2f64)]), 2),
+            (KalkValue::Vector(vec![val(1f64), val(2f64), val(3f64)]), 6),
+            (KalkValue::Vector(vec![val(2f64), val(3f64), val(1f64)]), 6),
+            (
+                KalkValue::Vector(vec![val(2f64), val(3f64), val(1f64), val(3f64)]),
+                12,
+            ),
+        ];
+        for (vec, expected_len) in vecs {
+            let permutations = if let KalkValue::Matrix(permutations) = perms(vec) {
+                permutations
+            } else {
+                unreachable!()
+            };
+            assert_eq!(permutations.len(), expected_len);
+
+            let mut results = std::collections::HashSet::with_capacity(permutations.len());
+            for permutation in permutations {
+                let as_str = format!("{:?}", permutation);
+                assert!(!results.contains(&as_str));
+                results.insert(as_str);
+            }
         }
     }
 

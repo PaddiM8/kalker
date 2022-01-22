@@ -1,5 +1,6 @@
 #[cfg(feature = "rug")]
 pub mod with_rug;
+
 #[cfg(feature = "rug")]
 use rug::Float;
 #[cfg(feature = "rug")]
