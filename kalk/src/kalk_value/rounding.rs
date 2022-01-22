@@ -115,13 +115,17 @@ fn equivalent_fraction(value: f64) -> Option<String> {
 
     // https://goodcalculators.com/repeating-decimal-to-fraction-conversion-calculator/
     let (mut numer, mut denom) = if let Some(repeatend_str) = find_repeatend(&abs_value_str) {
-        let repeatend_pos = abs_value_str.find(&repeatend_str)?;
-        let non_repeating_str = &abs_value_str[..repeatend_pos];
+        let dot_pos = abs_value_str.find('.')?;
+        let repeatend_pos = abs_value_str[dot_pos..].find(&repeatend_str)? + dot_pos;
+        let non_repeating_str = &abs_value_str[..repeatend_pos].trim_end_matches('.');
 
         // non-repeating
         let non_repeating = non_repeating_str.parse::<f64>().unwrap_or(0f64);
-        let non_repeating_dec_count =
-            non_repeating_str.len() - non_repeating_str.find('.').unwrap_or(0) - 1;
+        let non_repeating_dec_count = if let Some(dot_pos) = non_repeating_str.find('.') {
+            non_repeating_str.len() - dot_pos - 1
+        } else {
+            0
+        };
         let a = non_repeating.fract();
 
         // repeatend
