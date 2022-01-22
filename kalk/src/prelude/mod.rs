@@ -74,6 +74,7 @@ lazy_static! {
         m.insert("iverson", (UnaryFuncInfo(iverson, Other), ""));
         m.insert("Im", (UnaryFuncInfo(im, Other), ""));
         m.insert("ln", (UnaryFuncInfo(ln, Other), ""));
+        m.insert("length", (UnaryFuncInfo(length, Other), ""));
         m.insert("log", (UnaryFuncInfo(log, Other), ""));
         m.insert("Re", (UnaryFuncInfo(re, Other), ""));
         m.insert("round", (UnaryFuncInfo(round, Other), ""));
@@ -109,6 +110,7 @@ lazy_static! {
         m.insert("max", VectorFuncInfo(max, Other));
         m.insert("min", VectorFuncInfo(min, Other));
         m.insert("perms", VectorFuncInfo(perms, Other));
+        m.insert("permutations", VectorFuncInfo(perms, Other));
         m
     };
 }
@@ -717,6 +719,14 @@ pub mod funcs {
             ln(r).add_without_unit(&multiply_with_i(arg(x)))
         } else {
             KalkValue::Number(real.ln(), float!(0), unit)
+        }
+    }
+
+    pub fn length(x: KalkValue) -> KalkValue {
+        match x {
+            KalkValue::Vector(values) => KalkValue::from(values.len() as f64),
+            KalkValue::Matrix(rows) => KalkValue::from(rows.len() as f64),
+            _ => KalkValue::from(0f64),
         }
     }
 
