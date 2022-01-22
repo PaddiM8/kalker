@@ -620,30 +620,30 @@ fn eval_matrix(context: &mut Context, rows: &[Vec<Expr>]) -> Result<KalkValue, C
 fn eval_indexer(
     context: &mut Context,
     var: &Expr,
-    indexes: &[Expr],
+    index_expressions: &[Expr],
     unit: &str,
 ) -> Result<KalkValue, CalcError> {
     let var_value = eval_expr(context, var, unit)?;
     match var_value {
         KalkValue::Vector(values) => {
-            if indexes.len() != 1 {
-                return Err(CalcError::IncorrectAmountOfIndexes(indexes.len(), 1));
+            if index_expressions.len() != 1 {
+                return Err(CalcError::IncorrectAmountOfIndexes(
+                    index_expressions.len(),
+                    1,
+                ));
             }
 
-            let index_value = eval_expr(context, &indexes[0], unit)?.to_f64() as usize;
-            if index_value == 0 {
-                return Err(CalcError::ItemOfIndexDoesNotExist(vec![index_value]));
-            }
-
-            if let Some(value) = values.get(index_value - 1) {
+            let index = as_indices(context, index_expressions)?[0];
+            if let Some(value) = values.get(index - 1) {
                 Ok(value.clone())
             } else {
-                Err(CalcError::ItemOfIndexDoesNotExist(vec![index_value]))
+                Err(CalcError::ItemOfIndexDoesNotExist(vec![index]))
             }
         }
         KalkValue::Matrix(rows) => {
-            if indexes.len() == 1 {
-                let row_index = eval_expr(context, &indexes[0], unit)?.to_f64() as usize;
+            let indices = as_indices(context, index_expressions)?;
+            if indices.len() == 1 {
+                let row_index = indices[0];
                 return if let Some(row) = rows.get(row_index - 1) {
                     Ok(KalkValue::Vector(row.clone()))
                 } else {
@@ -651,12 +651,12 @@ fn eval_indexer(
                 };
             }
 
-            if indexes.len() != 2 {
-                return Err(CalcError::IncorrectAmountOfIndexes(indexes.len(), 2));
+            if indices.len() != 2 {
+                return Err(CalcError::IncorrectAmountOfIndexes(indices.len(), 2));
             }
 
-            let row_index = eval_expr(context, &indexes[0], unit)?.to_f64() as usize;
-            let column_index = eval_expr(context, &indexes[1], unit)?.to_f64() as usize;
+            let row_index = indices[0];
+            let column_index = indices[1];
             if row_index == 0 || column_index == 0 {
                 return Err(CalcError::ItemOfIndexDoesNotExist(vec![
                     row_index,
@@ -677,6 +677,25 @@ fn eval_indexer(
         }
         _ => Err(CalcError::CanOnlyIndexX),
     }
+}
+
+fn as_indices(context: &mut Context, expressions: &[Expr]) -> Result<Vec<usize>, CalcError> {
+    let mut indices = Vec::new();
+    for expr in expressions {
+        let value = eval_expr(context, expr, "")?;
+        if value.has_imaginary() {
+            return Err(CalcError::CannotIndexByImaginary);
+        }
+
+        let index = value.to_f64() as usize;
+        if index == 0 {
+            return Err(CalcError::ItemOfIndexDoesNotExist(vec![index]));
+        }
+
+        indices.push(index);
+    }
+
+    Ok(indices)
 }
 
 fn eval_comprehension(
