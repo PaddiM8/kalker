@@ -89,7 +89,7 @@ impl Default for Context {
 /// Error that occured during parsing or evaluation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalcError {
-    CanOnlyIndexVectors,
+    CanOnlyIndexX,
     Expected(String),
     ExpectedDx,
     ExpectedIf,
@@ -118,7 +118,7 @@ pub enum CalcError {
 impl ToString for CalcError {
     fn to_string(&self) -> String {
         match self {
-            CalcError::CanOnlyIndexVectors => String::from("Indexing (getting an item with a specific index) is only possible on vectors."),
+            CalcError::CanOnlyIndexX => String::from("Indexing (getting an item with a specific index) is only possible on vectors and matrices."),
             CalcError::Expected(description) => format!("Expected: {}", description),
             CalcError::ExpectedDx => String::from("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
             CalcError::ExpectedIf => String::from("Expected 'if', with a condition after it."),
@@ -411,7 +411,7 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, CalcError> {
 }
 
 fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
-    let left = parse_sum(context)?;
+    let left = parse_term(context)?;
 
     if match_token(context, TokenKind::ToKeyword) {
         advance(context);
@@ -427,13 +427,13 @@ fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_sum(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_term(context: &mut Context) -> Result<Expr, CalcError> {
     let mut left = parse_factor(context)?;
 
     while match_token(context, TokenKind::Plus) || match_token(context, TokenKind::Minus) {
         let op = peek(context).kind;
         advance(context);
-        let right = parse_sum(context)?;
+        let right = parse_factor(context)?;
 
         left = Expr::Binary(Box::new(left), op, Box::new(right));
     }
@@ -445,7 +445,7 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
     let mut left = parse_unit(context)?;
 
     if let Expr::Unary(TokenKind::Percent, percent_left) = left.clone() {
-        let try_parse = parse_factor(context);
+        let try_parse = parse_unit(context);
         if try_parse.is_ok() {
             left = Expr::Binary(percent_left, TokenKind::Percent, Box::new(try_parse?));
         }
@@ -473,7 +473,8 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
             _ => advance(context).kind,
         };
 
-        let right = parse_factor(context)?;
+        let right = parse_unit(context)?;
+
         left = Expr::Binary(Box::new(left), op, Box::new(right));
     }
 
@@ -650,6 +651,16 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     let identifier = Identifier::from_full_name(&advance(context).value);
+
+    let mut log_base = None;
+    if identifier.full_name.starts_with("log") {
+        if let Some(lowered) = identifier.get_lowered_part() {
+            if let Ok(lowered_float) = lowered.parse::<f64>() {
+                log_base = Some(Expr::Literal(lowered_float));
+            }
+        }
+    }
+
     if context.parsing_unit_decl
         && !context
             .symbol_table
@@ -658,6 +669,28 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
     {
         context.unit_decl_base_unit = Some(identifier.full_name);
         Ok(Expr::Var(Identifier::from_full_name(DECL_UNIT)))
+    } else if log_base.is_some()
+        || context
+            .symbol_table
+            .get_mut()
+            .contains_fn(&identifier.pure_name)
+    {
+        // Function call
+        let mut arguments = match parse_vector(context)? {
+            Expr::Vector(arguments) => arguments,
+            Expr::Group(argument) => vec![*argument],
+            argument => vec![argument],
+        };
+
+        if let Some(log_base) = log_base {
+            let log_arg = arguments.remove(0);
+            Ok(Expr::FnCall(
+                Identifier::from_full_name("log"),
+                vec![log_arg, log_base],
+            ))
+        } else {
+            Ok(Expr::FnCall(identifier, arguments))
+        }
     } else {
         Ok(Expr::Var(identifier))
     }

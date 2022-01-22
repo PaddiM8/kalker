@@ -252,7 +252,9 @@ fn eval_var_expr(
     }
 
     if let Some(sum_variables) = &context.sum_variables {
-        let sum_variable = sum_variables.iter().find(|x| x.name == identifier.full_name);
+        let sum_variable = sum_variables
+            .iter()
+            .find(|x| x.name == identifier.full_name);
         if let Some(sum_variable) = sum_variable {
             return Ok(KalkValue::from(sum_variable.value));
         }
@@ -428,15 +430,16 @@ pub(crate) fn eval_fn_call_expr(
                 ));
             }
 
-            let (var_name, start_expr) = if let Expr::Binary(left, TokenKind::Equals, right) = &expressions[0] {
-                if let Expr::Var(var_identifier) = &**left {
-                    (var_identifier.pure_name.as_ref(), &**right)
+            let (var_name, start_expr) =
+                if let Expr::Binary(left, TokenKind::Equals, right) = &expressions[0] {
+                    if let Expr::Var(var_identifier) = &**left {
+                        (var_identifier.pure_name.as_ref(), &**right)
+                    } else {
+                        ("n", &**right)
+                    }
                 } else {
-                    ("n", &**right)
-                }
-            } else {
-                ("n", &expressions[0])
-            };
+                    ("n", &expressions[0])
+                };
 
             if context.sum_variables.is_none() {
                 context.sum_variables = Some(Vec::new());
@@ -444,7 +447,10 @@ pub(crate) fn eval_fn_call_expr(
 
             {
                 let sum_variables = context.sum_variables.as_mut().unwrap();
-                sum_variables.push(SumVar { name: var_name.into(), value: 0 });
+                sum_variables.push(SumVar {
+                    name: var_name.into(),
+                    value: 0,
+                });
             }
 
             let start = eval_expr(context, start_expr, "")?.to_f64() as i128;
@@ -636,6 +642,15 @@ fn eval_indexer(
             }
         }
         KalkValue::Matrix(rows) => {
+            if indexes.len() == 1 {
+                let row_index = eval_expr(context, &indexes[0], unit)?.to_f64() as usize;
+                return if let Some(row) = rows.get(row_index - 1) {
+                    Ok(KalkValue::Vector(row.clone()))
+                } else {
+                    Err(CalcError::ItemOfIndexDoesNotExist(vec![row_index]))
+                };
+            }
+
             if indexes.len() != 2 {
                 return Err(CalcError::IncorrectAmountOfIndexes(indexes.len(), 2));
             }
@@ -660,7 +675,7 @@ fn eval_indexer(
                 column_index,
             ]))
         }
-        _ => Err(CalcError::CanOnlyIndexVectors),
+        _ => Err(CalcError::CanOnlyIndexX),
     }
 }
 

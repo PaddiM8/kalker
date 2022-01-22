@@ -197,14 +197,7 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, CalcError> {
         Expr::Unit(name, value) => Expr::Unit(name, Box::new(analyse_expr(context, *value)?)),
         Expr::Var(identifier) => analyse_var(context, identifier, None, None)?,
         Expr::Group(value) => Expr::Group(Box::new(analyse_expr(context, *value)?)),
-        Expr::FnCall(identifier, arguments) => {
-            let mut analysed_arguments = Vec::new();
-            for argument in arguments {
-                analysed_arguments.push(analyse_expr(context, argument)?);
-            }
-
-            Expr::FnCall(identifier, analysed_arguments)
-        }
+        Expr::FnCall(identifier, arguments) => analyse_fn(context, identifier, arguments)?,
         Expr::Literal(_) => expr,
         Expr::Piecewise(pieces) => {
             let mut analysed_pieces = Vec::new();
@@ -472,29 +465,6 @@ fn analyse_var(
     adjacent_factor: Option<Expr>,
     adjacent_exponent: Option<Expr>,
 ) -> Result<Expr, CalcError> {
-    let mut log_base = None;
-    if identifier.full_name.starts_with("log") {
-        if let Some(lowered) = identifier.get_lowered_part() {
-            if let Ok(lowered_float) = lowered.parse::<f64>() {
-                log_base = Some(Expr::Literal(lowered_float));
-            }
-        }
-    }
-
-    // Eg. f(1, 2, 3), f(3) or f3
-    let exists_as_fn = context.symbol_table.contains_fn(&identifier.pure_name)
-        || context.current_function_name.as_ref() == Some(&identifier.pure_name)
-        || log_base.is_some();
-    if exists_as_fn {
-        if let Some(adjacent_expr) = adjacent_factor {
-            return with_adjacent(
-                build_fn_call(context, identifier, adjacent_expr, log_base)?,
-                None,
-                adjacent_exponent,
-            );
-        }
-    }
-
     let adjacent_factor = if let Some(adjacent_factor) = adjacent_factor {
         Some(analyse_expr(context, adjacent_factor)?)
     } else {
@@ -589,86 +559,6 @@ fn with_adjacent(
     } else {
         Ok(expr)
     }
-}
-
-fn build_fn_call(
-    context: &mut Context,
-    identifier: Identifier,
-    adjacent_expr: Expr,
-    log_base: Option<Expr>,
-) -> Result<Expr, CalcError> {
-    let is_integral = identifier.pure_name == "integrate";
-    let prev_in_integral = context.in_integral;
-    if is_integral {
-        context.in_integral = true;
-    }
-
-    let prev_in_sum_prod = context.in_sum_prod;
-    let is_sum_prod = identifier.pure_name == "sum" || identifier.pure_name == "prod";
-    if is_sum_prod {
-        context.in_sum_prod = true;
-        if context.sum_variable_names.is_none() {
-            context.sum_variable_names = Some(Vec::new());
-        }
-    }
-
-    // Don't perform equation solving on special functions
-    if is_integral || is_sum_prod {
-        context.in_equation = false;
-    }
-
-    let arguments = match adjacent_expr {
-        Expr::Vector(arguments) => {
-            let mut new_arguments = Vec::new();
-            for (i, argument) in arguments.iter().enumerate() {
-                if i == 0 && context.in_sum_prod {
-                    context.in_conditional = true;
-                    let vars = context.sum_variable_names.as_mut().unwrap();
-                    if let Expr::Binary(left, TokenKind::Equals, _) = argument {
-                        if let Expr::Var(var_identifier) = &**left {
-                            vars.push(var_identifier.pure_name.clone());
-                        } else {
-                            vars.push(String::from("n"));
-                        }
-                    } else {
-                        vars.push(String::from("n"));
-                    }
-                }
-
-                new_arguments.push(analyse_expr(context, argument.to_owned())?);
-                context.in_conditional = false;
-            }
-
-            new_arguments
-        }
-        _ => {
-            let argument = if let Expr::Group(argument) = adjacent_expr {
-                *argument
-            } else {
-                adjacent_expr
-            };
-            if let Some(log_base) = log_base {
-                return Ok(Expr::FnCall(
-                    Identifier::from_full_name("log"),
-                    vec![analyse_expr(context, argument)?, log_base],
-                ));
-            } else {
-                vec![analyse_expr(context, argument)?]
-            }
-        }
-    };
-
-    if is_integral {
-        context.in_integral = prev_in_integral;
-    }
-
-    if is_sum_prod {
-        context.in_sum_prod = prev_in_sum_prod;
-        let vars = context.sum_variable_names.as_mut().unwrap();
-        vars.pop();
-    }
-
-    Ok(Expr::FnCall(identifier, arguments))
 }
 
 fn build_indexed_var(context: &mut Context, identifier: Identifier) -> Result<Expr, CalcError> {
@@ -802,4 +692,60 @@ fn build_var(context: &mut Context, name: &str) -> Expr {
     }
 
     Expr::Var(Identifier::from_full_name(name))
+}
+
+fn analyse_fn(
+    context: &mut Context,
+    identifier: Identifier,
+    arguments: Vec<Expr>,
+) -> Result<Expr, CalcError> {
+    let is_integral = identifier.pure_name == "integrate";
+    let prev_in_integral = context.in_integral;
+    if is_integral {
+        context.in_integral = true;
+    }
+
+    let prev_in_sum_prod = context.in_sum_prod;
+    let is_sum_prod = identifier.pure_name == "sum" || identifier.pure_name == "prod";
+    if is_sum_prod {
+        context.in_sum_prod = true;
+        if context.sum_variable_names.is_none() {
+            context.sum_variable_names = Some(Vec::new());
+        }
+    }
+
+    // Don't perform equation solving on special functions
+    if is_integral || is_sum_prod {
+        context.in_equation = false;
+    }
+
+    let mut analysed_arguments = Vec::new();
+    for (i, argument) in arguments.iter().enumerate() {
+        if i == 0 && context.in_sum_prod {
+            context.in_conditional = true;
+            let vars = context.sum_variable_names.as_mut().unwrap();
+            if let Expr::Binary(left, TokenKind::Equals, _) = argument {
+                if let Expr::Var(var_identifier) = &**left {
+                    vars.push(var_identifier.pure_name.clone());
+                } else {
+                    vars.push(String::from("n"));
+                }
+            } else {
+                vars.push(String::from("n"));
+            }
+        }
+
+        analysed_arguments.push(analyse_expr(context, argument.to_owned())?);
+        context.in_conditional = false;
+    }
+
+    context.in_integral = prev_in_integral;
+
+    if is_sum_prod {
+        context.in_sum_prod = prev_in_sum_prod;
+        let vars = context.sum_variable_names.as_mut().unwrap();
+        vars.pop();
+    }
+
+    Ok(Expr::FnCall(identifier, analysed_arguments))
 }
