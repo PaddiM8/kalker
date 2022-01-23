@@ -82,7 +82,46 @@ fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, CalcErr
         if let Expr::Binary(left, TokenKind::Equals, right) = value {
             match *left {
                 Expr::Binary(identifier_expr, TokenKind::Star, parameter_expr) => {
-                    build_fn_decl(context, *identifier_expr, *parameter_expr, *right)?
+                    build_fn_decl_from_scratch(context, *identifier_expr, *parameter_expr, *right)?
+                }
+                Expr::FnCall(identifier, arguments) => {
+                    // First loop through with a reference
+                    // to arguments, to be able to back-track if
+                    // one of the arguments can't be made into a parameter.
+                    if identifier.prime_count != 0
+                        || arguments
+                            .iter()
+                            .any(|argument| !matches!(argument, Expr::Var(_)))
+                    {
+                        // Analyse as 0f64 + fn_call = right so that
+                        // it won't come here again.
+                        return analyse_stmt_expr(
+                            context,
+                            Expr::Binary(
+                                Box::new(Expr::Binary(
+                                    Box::new(Expr::Literal(0f64)),
+                                    TokenKind::Plus,
+                                    Box::new(Expr::FnCall(identifier, arguments)),
+                                )),
+                                TokenKind::Equals,
+                                right,
+                            ),
+                        );
+                    }
+
+                    let mut parameters = Vec::new();
+                    for argument in arguments {
+                        if let Expr::Var(parameter_identifier) = argument {
+                            parameters.push(parameter_identifier.full_name);
+                        } else {
+                            unreachable!()
+                        }
+                    }
+
+                    let fn_decl = Stmt::FnDecl(identifier, parameters, right);
+                    context.symbol_table.insert(fn_decl.clone());
+
+                    fn_decl
                 }
                 Expr::Var(identifier) if !context.in_conditional => {
                     if inverter::contains_var(context.symbol_table, &right, &identifier.full_name) {
@@ -111,7 +150,7 @@ fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, CalcErr
     )
 }
 
-fn build_fn_decl(
+fn build_fn_decl_from_scratch(
     context: &mut Context,
     identifier_expr: Expr,
     parameter_expr: Expr,
