@@ -53,7 +53,7 @@ impl<'a> Context<'a> {
                 Stmt::VarDecl(
                     Identifier::from_full_name("ans"),
                     Box::new(Expr::Unit(
-                        num.get_unit().clone(),
+                        num.get_unit().unwrap().to_string(),
                         Box::new(crate::ast::build_literal_ast(&num)),
                     )),
                 )
@@ -103,13 +103,13 @@ fn eval_unit_decl_stmt() -> Result<KalkValue, CalcError> {
 }
 
 fn eval_expr_stmt(context: &mut Context, expr: &Expr) -> Result<KalkValue, CalcError> {
-    eval_expr(context, expr, "")
+    eval_expr(context, expr, None)
 }
 
 pub(crate) fn eval_expr(
     context: &mut Context,
     expr: &Expr,
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     #[cfg(not(target_arch = "wasm32"))]
     if let (Ok(elapsed), Some(timeout)) = (context.start_time.elapsed(), context.timeout) {
@@ -143,20 +143,25 @@ fn eval_binary_expr(
     left_expr: &Expr,
     op: &TokenKind,
     right_expr: &Expr,
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     if let TokenKind::ToKeyword = op {
         // TODO: When the unit conversion function takes a Float instead of Expr,
         // move this to the match statement further down.
         if let Expr::Var(right_unit) = right_expr {
-            let left_unit = eval_expr(context, left_expr, "")?.get_unit();
-            return convert_unit(context, left_expr, &left_unit, &right_unit.full_name);
+            let left_unit = eval_expr(context, left_expr, None)?.get_unit().cloned();
+            return convert_unit(
+                context,
+                left_expr,
+                left_unit.as_ref(),
+                Some(&right_unit.full_name),
+            );
             // TODO: Avoid evaluating this twice.
         }
     }
 
-    let left = eval_expr(context, left_expr, "")?;
-    let mut right = eval_expr(context, right_expr, "")?;
+    let left = eval_expr(context, left_expr, None)?;
+    let mut right = eval_expr(context, right_expr, None)?;
     if let Expr::Unary(TokenKind::Percent, _) = right_expr {
         right = right.mul(context, left.clone());
         if let TokenKind::Star = op {
@@ -179,12 +184,12 @@ fn eval_binary_expr(
         TokenKind::LessOrEquals => left.less_or_equals(context, right),
         TokenKind::And => left.and(&right),
         TokenKind::Or => left.or(&right),
-        _ => KalkValue::from(1),
+        _ => KalkValue::from(1f64),
     };
 
-    if !unit.is_empty() {
+    if unit.is_some() {
         if let KalkValue::Number(real, imaginary, _) = result {
-            return Ok(KalkValue::Number(real, imaginary, unit.to_string()));
+            return Ok(KalkValue::Number(real, imaginary, unit.cloned()));
         }
     };
 
@@ -195,7 +200,7 @@ fn eval_unary_expr(
     context: &mut Context,
     op: &TokenKind,
     expr: &Expr,
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     let num = eval_expr(context, expr, unit)?;
 
@@ -214,18 +219,29 @@ fn eval_unit_expr(
 ) -> Result<KalkValue, CalcError> {
     let angle_unit = &context.angle_unit.clone();
     if (identifier == "rad" || identifier == "deg") && angle_unit != identifier {
-        return convert_unit(context, expr, identifier, angle_unit);
+        return convert_unit(
+            context,
+            expr,
+            Some(&identifier.to_string()),
+            Some(angle_unit),
+        );
     }
 
-    eval_expr(context, expr, identifier)
+    eval_expr(context, expr, Some(&identifier.to_string()))
 }
 
 pub fn convert_unit(
     context: &mut Context,
     expr: &Expr,
-    from_unit: &str,
-    to_unit: &str,
+    from_unit: Option<&String>,
+    to_unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
+    let (from_unit, to_unit) = if let (Some(from_unit), Some(to_unit)) = (from_unit, to_unit) {
+        (from_unit, to_unit)
+    } else {
+        return Err(CalcError::InvalidUnit);
+    };
+
     if let Some(Stmt::UnitDecl(_, _, unit_def)) =
         context.symbol_table.get_unit(to_unit, from_unit).cloned()
     {
@@ -234,8 +250,8 @@ pub fn convert_unit(
             Box::new(expr.clone()),
         ));
 
-        let (real, imaginary, _) = as_number_or_zero!(eval_expr(context, &unit_def, "")?);
-        Ok(KalkValue::Number(real, imaginary, to_unit.into()))
+        let (real, imaginary, _) = as_number_or_zero!(eval_expr(context, &unit_def, None)?);
+        Ok(KalkValue::Number(real, imaginary, Some(to_unit.clone())))
     } else {
         Err(CalcError::InvalidUnit)
     }
@@ -244,7 +260,7 @@ pub fn convert_unit(
 fn eval_var_expr(
     context: &mut Context,
     identifier: &Identifier,
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     // If there is a constant with this name, return a literal expression with its value
     if let Some(value) = prelude::CONSTANTS.get(identifier.full_name.as_ref() as &str) {
@@ -277,12 +293,12 @@ fn eval_var_expr(
 fn eval_literal_expr(
     context: &mut Context,
     value: f64,
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     let mut float = float!(value);
     float.set_prec(context.precision);
 
-    Ok(KalkValue::Number(float, float!(0), unit.to_string()))
+    Ok(KalkValue::Number(float, float!(0), unit.cloned()))
 }
 
 #[allow(unused_variables)]
@@ -290,7 +306,7 @@ fn eval_literal_expr(
 fn eval_literal_expr(
     context: &mut Context,
     value: f64,
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     Ok(KalkValue::Number(
         float!(value),
@@ -299,7 +315,11 @@ fn eval_literal_expr(
     ))
 }
 
-fn eval_group_expr(context: &mut Context, expr: &Expr, unit: &str) -> Result<KalkValue, CalcError> {
+fn eval_group_expr(
+    context: &mut Context,
+    expr: &Expr,
+    unit: Option<&String>,
+) -> Result<KalkValue, CalcError> {
     eval_expr(context, expr, unit)
 }
 
@@ -307,13 +327,13 @@ pub(crate) fn eval_fn_call_expr(
     context: &mut Context,
     identifier: &Identifier,
     expressions: &[Expr],
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     // Prelude vector function
     if prelude::is_vector_func(&identifier.full_name) {
         let mut values = Vec::new();
         for expression in expressions {
-            let value = eval_expr(context, expression, "")?;
+            let value = eval_expr(context, expression, None)?;
             if expressions.len() == 1 {
                 if let KalkValue::Vector(internal_values) = value {
                     values = internal_values;
@@ -333,7 +353,7 @@ pub(crate) fn eval_fn_call_expr(
     // Prelude
     let prelude_func = match expressions.len() {
         1 => {
-            let x = eval_expr(context, &expressions[0], "")?;
+            let x = eval_expr(context, &expressions[0], None)?;
             if identifier.prime_count > 0 {
                 return calculus::derive_func(context, identifier, x);
             } else {
@@ -346,8 +366,8 @@ pub(crate) fn eval_fn_call_expr(
             }
         }
         2 => {
-            let x = eval_expr(context, &expressions[0], "")?;
-            let y = eval_expr(context, &expressions[1], "")?;
+            let x = eval_expr(context, &expressions[0], None)?;
+            let y = eval_expr(context, &expressions[1], None)?;
             prelude::call_binary_func(
                 context,
                 &identifier.full_name,
@@ -363,7 +383,7 @@ pub(crate) fn eval_fn_call_expr(
         // If the result is nan and only one argument was given,
         // it may be due to incompatible types.
         if result.is_nan() && expressions.len() == 1 {
-            let x = eval_expr(context, &expressions[0], "")?;
+            let x = eval_expr(context, &expressions[0], None)?;
 
             // If a vector/matrix was given, call the function on every item
             // in the vector/matrix.
@@ -453,8 +473,8 @@ pub(crate) fn eval_fn_call_expr(
                 });
             }
 
-            let start = eval_expr(context, start_expr, "")?.to_f64() as i128;
-            let end = eval_expr(context, &expressions[1], "")?.to_f64() as i128;
+            let start = eval_expr(context, start_expr, None)?.to_f64() as i128;
+            let end = eval_expr(context, &expressions[1], None)?.to_f64() as i128;
             let sum_else_prod = match identifier.full_name.as_ref() {
                 "sum" => true,
                 "prod" => false,
@@ -470,7 +490,7 @@ pub(crate) fn eval_fn_call_expr(
                 let sum_variables = context.sum_variables.as_mut().unwrap();
                 sum_variables.last_mut().unwrap().value = n;
 
-                let eval = eval_expr(context, &expressions[2], "")?;
+                let eval = eval_expr(context, &expressions[2], None)?;
                 if sum_else_prod {
                     sum = sum.add(context, eval);
                 } else {
@@ -484,7 +504,7 @@ pub(crate) fn eval_fn_call_expr(
             let (sum_real, sum_imaginary, _) = as_number_or_zero!(sum);
 
             // Set the unit as well
-            return Ok(KalkValue::Number(sum_real, sum_imaginary, unit.to_string()));
+            return Ok(KalkValue::Number(sum_real, sum_imaginary, unit.cloned()));
         }
         "integrate" => {
             return match expressions.len() {
@@ -542,7 +562,7 @@ pub(crate) fn eval_fn_call_expr(
                     Box::new(crate::ast::build_literal_ast(&eval_expr(
                         context,
                         &expressions[i],
-                        "",
+                        None,
                     )?)),
                 );
 
@@ -581,7 +601,7 @@ pub(crate) fn eval_fn_call_expr(
 fn eval_piecewise(
     context: &mut Context,
     pieces: &[crate::ast::ConditionalPiece],
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     for piece in pieces {
         if let KalkValue::Boolean(condition_is_true) = eval_expr(context, &piece.condition, unit)? {
@@ -597,7 +617,7 @@ fn eval_piecewise(
 fn eval_vector(context: &mut Context, values: &[Expr]) -> Result<KalkValue, CalcError> {
     let mut eval_values = Vec::new();
     for value in values {
-        eval_values.push(eval_expr(context, value, "")?);
+        eval_values.push(eval_expr(context, value, None)?);
     }
 
     Ok(KalkValue::Vector(eval_values))
@@ -608,7 +628,7 @@ fn eval_matrix(context: &mut Context, rows: &[Vec<Expr>]) -> Result<KalkValue, C
     for row in rows {
         let mut eval_row = Vec::new();
         for value in row {
-            eval_row.push(eval_expr(context, value, "")?)
+            eval_row.push(eval_expr(context, value, None)?)
         }
 
         eval_rows.push(eval_row);
@@ -621,7 +641,7 @@ fn eval_indexer(
     context: &mut Context,
     var: &Expr,
     index_expressions: &[Expr],
-    unit: &str,
+    unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
     let var_value = eval_expr(context, var, unit)?;
     match var_value {
@@ -682,7 +702,7 @@ fn eval_indexer(
 fn as_indices(context: &mut Context, expressions: &[Expr]) -> Result<Vec<usize>, CalcError> {
     let mut indices = Vec::new();
     for expr in expressions {
-        let value = eval_expr(context, expr, "")?;
+        let value = eval_expr(context, expr, None)?;
         if value.has_imaginary() {
             return Err(CalcError::CannotIndexByImaginary);
         }
@@ -715,8 +735,8 @@ fn eval_comprehension(
         Box::new(Expr::Literal(0f64)),
     ));
 
-    let min = eval_expr(context, &var.min, "")?.to_f64() as i32;
-    let max = eval_expr(context, &var.max, "")?.to_f64() as i32;
+    let min = eval_expr(context, &var.min, None)?.to_f64() as i32;
+    let max = eval_expr(context, &var.max, None)?.to_f64() as i32;
 
     let mut values = Vec::new();
     for i in min..max {
@@ -732,10 +752,10 @@ fn eval_comprehension(
             }
         }
 
-        let condition = eval_expr(context, condition, "")?;
+        let condition = eval_expr(context, condition, None)?;
         if let KalkValue::Boolean(boolean) = condition {
             if boolean && vars.len() == 1 {
-                values.push(eval_expr(context, left, "")?);
+                values.push(eval_expr(context, left, None)?);
             }
         }
     }
@@ -800,7 +820,7 @@ mod tests {
     }
 
     #[cfg(not(feature = "rug"))]
-    fn context<'a>(symbol_table: &'a mut SymbolTable, angle_unit: &str) -> Context<'a> {
+    fn context<'a>(symbol_table: &'a mut SymbolTable, angle_unit: Option<&String>) -> Context<'a> {
         Context::new(symbol_table, angle_unit, None)
     }
 

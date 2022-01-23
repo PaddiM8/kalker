@@ -240,7 +240,7 @@ fn equivalent_root(value: f64) -> Option<String> {
         return None;
     }
 
-    let squared = KalkValue::Number(float!(value * value), float!(0), String::new())
+    let squared = KalkValue::Number(float!(value * value), float!(0), None)
         .round_if_needed()
         .values()
         .0;
@@ -282,10 +282,10 @@ pub(super) fn round(
         let new_value = integer * sign;
         let new_num = match complex_number_type {
             ComplexNumberType::Real => {
-                KalkValue::Number(new_value, imaginary.clone(), input.get_unit())
+                KalkValue::Number(new_value, imaginary.clone(), input.get_unit().cloned())
             }
             ComplexNumberType::Imaginary => {
-                KalkValue::Number(real.clone(), new_value, input.get_unit())
+                KalkValue::Number(real.clone(), new_value, input.get_unit().cloned())
             }
         };
 
@@ -296,10 +296,10 @@ pub(super) fn round(
         let new_value = value.clone().abs().ceil() * sign;
         let new_num = match complex_number_type {
             ComplexNumberType::Real => {
-                KalkValue::Number(new_value, imaginary.clone(), input.get_unit())
+                KalkValue::Number(new_value, imaginary.clone(), input.get_unit().cloned())
             }
             ComplexNumberType::Imaginary => {
-                KalkValue::Number(real.clone(), new_value, input.get_unit())
+                KalkValue::Number(real.clone(), new_value, input.get_unit().cloned())
             }
         };
 

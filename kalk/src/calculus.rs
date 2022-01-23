@@ -15,15 +15,24 @@ pub fn derive_func(
     argument: KalkValue,
 ) -> Result<KalkValue, CalcError> {
     const H: f64 = 0.000001;
-    let unit = &argument.get_unit();
 
+    let unit = argument.get_unit().cloned();
     let argument_with_h = ast::build_literal_ast(&argument.clone().add_without_unit(&H.into()));
     let argument_without_h = ast::build_literal_ast(&argument.sub_without_unit(&H.into()));
     let new_identifier = Identifier::from_name_and_primes(&name.pure_name, name.prime_count - 1);
 
-    let f_x_h = interpreter::eval_fn_call_expr(context, &new_identifier, &[argument_with_h], unit)?;
-    let f_x =
-        interpreter::eval_fn_call_expr(context, &new_identifier, &[argument_without_h], unit)?;
+    let f_x_h = interpreter::eval_fn_call_expr(
+        context,
+        &new_identifier,
+        &[argument_with_h],
+        unit.as_ref(),
+    )?;
+    let f_x = interpreter::eval_fn_call_expr(
+        context,
+        &new_identifier,
+        &[argument_without_h],
+        unit.as_ref(),
+    )?;
 
     Ok(f_x_h
         .sub_without_unit(&f_x)
@@ -87,8 +96,8 @@ fn simpsons_rule(
         .get_and_remove_var(integration_variable);
 
     const N: i32 = 900;
-    let a = interpreter::eval_expr(context, a_expr, "")?;
-    let b = interpreter::eval_expr(context, b_expr, "")?;
+    let a = interpreter::eval_expr(context, a_expr, None)?;
+    let b = interpreter::eval_expr(context, b_expr, None)?;
     let h = (b.sub_without_unit(&a)).div_without_unit(&KalkValue::from(N));
     for i in 0..=N {
         let variable_value = a
@@ -103,11 +112,11 @@ fn simpsons_rule(
             0 | N => 1,
             _ if i % 3 == 0 => 2,
             _ => 3,
-        });
+        } as f64);
 
         // factor * f(x_n)
         let (mul_real, mul_imaginary, _) = as_number_or_zero!(
-            factor.mul_without_unit(&interpreter::eval_expr(context, expr, "")?)
+            factor.mul_without_unit(&interpreter::eval_expr(context, expr, None)?)
         );
         result_real += mul_real;
         result_imaginary += mul_imaginary;
@@ -121,7 +130,7 @@ fn simpsons_rule(
             .get_and_remove_var(integration_variable);
     }
 
-    let result = KalkValue::Number(result_real, result_imaginary, String::new());
+    let result = KalkValue::Number(result_real, result_imaginary, None);
     let (h_real, h_imaginary, h_unit) = as_number_or_zero!(h);
 
     Ok(result.mul_without_unit(&KalkValue::Number(
@@ -219,7 +228,7 @@ mod tests {
         let result = super::derive_func(
             &mut context,
             &Identifier::from_full_name("f'"),
-            KalkValue::Number(float!(2f64), float!(3f64), String::new()),
+            KalkValue::Number(float!(2f64), float!(3f64), None),
         )
         .unwrap();
         assert!(cmp(result.to_f64(), -4.5f64) || cmp(result.to_f64(), -4.499999f64));
@@ -264,11 +273,7 @@ mod tests {
         let result = super::integrate(
             &mut context,
             &*literal(2f64),
-            &ast::build_literal_ast(&KalkValue::Number(
-                float!(3f64),
-                float!(4f64),
-                String::new(),
-            )),
+            &ast::build_literal_ast(&KalkValue::Number(float!(3f64), float!(4f64), None)),
             &*binary(var("x"), Star, var("i")),
             "x",
         )
