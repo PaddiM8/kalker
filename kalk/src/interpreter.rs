@@ -308,11 +308,7 @@ fn eval_literal_expr(
     value: f64,
     unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
-    Ok(KalkValue::Number(
-        float!(value),
-        float!(0),
-        unit.to_string(),
-    ))
+    Ok(KalkValue::Number(float!(value), float!(0), unit.cloned()))
 }
 
 fn eval_group_expr(
