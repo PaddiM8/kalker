@@ -232,8 +232,13 @@ pub fn call_vector_func(name: &str, x: KalkValue) -> Option<KalkValue> {
 fn to_angle_unit(context: &mut interpreter::Context, x: KalkValue, angle_unit: &str) -> KalkValue {
     match angle_unit {
         "rad" => x,
-        _ => interpreter::convert_unit(context, &Expr::Literal(x.to_f64()), "rad", angle_unit)
-            .unwrap(),
+        _ => interpreter::convert_unit(
+            context,
+            &Expr::Literal(x.to_f64()),
+            Some(&String::from("rad")),
+            Some(&angle_unit.to_string()),
+        )
+        .unwrap(),
     }
 }
 
@@ -244,8 +249,13 @@ fn from_angle_unit(
 ) -> KalkValue {
     match angle_unit {
         "rad" => x,
-        _ => interpreter::convert_unit(context, &Expr::Literal(x.to_f64()), angle_unit, "rad")
-            .unwrap(),
+        _ => interpreter::convert_unit(
+            context,
+            &Expr::Literal(x.to_f64()),
+            Some(&angle_unit.to_string()),
+            Some(&String::from("rad")),
+        )
+        .unwrap(),
     }
 }
 
@@ -478,8 +488,7 @@ pub mod funcs {
             sum_imaginary += imaginary;
         }
 
-        KalkValue::Number(sum_real, sum_imaginary, String::new())
-            .div_without_unit(&KalkValue::from(count))
+        KalkValue::Number(sum_real, sum_imaginary, None).div_without_unit(&KalkValue::from(count))
     }
 
     pub fn cbrt(x: KalkValue) -> KalkValue {
@@ -1011,11 +1020,7 @@ mod tests {
         ];
 
         for (i, (func, input, expected_output)) in in_out.iter().enumerate() {
-            let actual_output = func(KalkValue::Number(
-                float!(input.0),
-                float!(input.1),
-                String::new(),
-            ));
+            let actual_output = func(KalkValue::Number(float!(input.0), float!(input.1), None));
 
             println!(
                 "{} | expected: {}, {}",
@@ -1051,8 +1056,8 @@ mod tests {
 
         for (i, (func, input, expected_output)) in in_out.iter().enumerate() {
             let actual_output = func(
-                KalkValue::Number(float!(input.0 .0), float!(input.0 .1), String::new()),
-                KalkValue::Number(float!(input.1 .0), float!(input.1 .1), String::new()),
+                KalkValue::Number(float!(input.0 .0), float!(input.0 .1), None),
+                KalkValue::Number(float!(input.1 .0), float!(input.1 .1), None),
             );
 
             println!(
@@ -1360,11 +1365,7 @@ mod tests {
         ];
 
         for (i, (func, input, expected_output)) in in_out.iter().enumerate() {
-            let actual_output = func(KalkValue::Number(
-                float!(input.0),
-                float!(input.1),
-                String::new(),
-            ));
+            let actual_output = func(KalkValue::Number(float!(input.0), float!(input.1), None));
 
             let expected_has_nan_or_inf = expected_output.0.is_nan()
                 || expected_output.0.is_infinite()

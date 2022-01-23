@@ -93,7 +93,7 @@ macro_rules! as_number_or_zero {
         if let KalkValue::Number(real, imaginary, unit) = $x {
             (real, imaginary, unit)
         } else {
-            (float!(0), float!(0), String::new())
+            (float!(0), float!(0), None)
         }
     }};
 }
@@ -145,9 +145,9 @@ impl std::fmt::Display for ScientificNotation {
 #[derive(PartialEq, Debug, Clone)]
 pub enum KalkValue {
     #[cfg(not(feature = "rug"))]
-    Number(f64, f64, String),
+    Number(f64, f64, Option<String>),
     #[cfg(feature = "rug")]
-    Number(Float, Float, String),
+    Number(Float, Float, Option<String>),
     Boolean(bool),
     Vector(Vec<KalkValue>),
     Matrix(Vec<Vec<KalkValue>>),
@@ -227,7 +227,7 @@ impl std::fmt::Display for KalkValue {
 
 impl KalkValue {
     pub fn nan() -> Self {
-        KalkValue::Number(float!(f64::NAN), float!(0f64), String::new())
+        KalkValue::Number(float!(f64::NAN), float!(0f64), None)
     }
 
     pub fn to_string_big(&self) -> String {
@@ -325,7 +325,7 @@ impl KalkValue {
             }
         }
 
-        if !unit.is_empty() {
+        if let Some(unit) = unit {
             output.push_str(&format!(" {}", unit));
         }
 
@@ -346,7 +346,9 @@ impl KalkValue {
 
     pub fn to_string_with_unit(&self) -> String {
         match self {
-            KalkValue::Number(_, _, unit) => format!("{} {}", self, unit),
+            KalkValue::Number(_, _, unit) => {
+                format!("{} {}", self, unit.as_ref().unwrap_or(&String::new()))
+            }
             _ => self.to_string(),
         }
     }
@@ -432,7 +434,7 @@ impl KalkValue {
             } else {
                 original_imaginary.clone()
             },
-            unit.to_string(),
+            unit.clone(),
         ))
     }
 
@@ -489,17 +491,17 @@ impl KalkValue {
 
     pub fn has_unit(&self) -> bool {
         if let KalkValue::Number(_, _, unit) = self {
-            !unit.is_empty()
+            unit.is_some()
         } else {
             false
         }
     }
 
-    pub fn get_unit(&self) -> String {
+    pub fn get_unit(&self) -> Option<&String> {
         if let KalkValue::Number(_, _, unit) = self {
-            unit.to_string()
+            unit.as_ref()
         } else {
-            String::new()
+            None
         }
     }
 
@@ -512,8 +514,8 @@ impl KalkValue {
             let result = crate::interpreter::convert_unit(
                 context,
                 &Expr::Literal(primitive!(real)),
-                unit,
-                to_unit,
+                unit.as_ref(),
+                Some(&to_unit.to_string()),
             );
 
             if let Ok(num) = result {
@@ -675,7 +677,7 @@ impl KalkValue {
             (
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
-            ) => KalkValue::Number(real + real_rhs, imaginary + imaginary_rhs, unit.to_string()),
+            ) => KalkValue::Number(real + real_rhs, imaginary + imaginary_rhs, unit.clone()),
             (KalkValue::Matrix(_), _) | (_, KalkValue::Matrix(_)) => {
                 calculate_matrix(self, rhs, &KalkValue::add_without_unit)
             }
@@ -691,7 +693,7 @@ impl KalkValue {
             (
                 KalkValue::Number(real, imaginary, _),
                 KalkValue::Number(real_rhs, imaginary_rhs, unit),
-            ) => KalkValue::Number(real - real_rhs, imaginary - imaginary_rhs, unit.to_string()),
+            ) => KalkValue::Number(real - real_rhs, imaginary - imaginary_rhs, unit.clone()),
             (KalkValue::Matrix(_), _) | (_, KalkValue::Matrix(_)) => {
                 calculate_matrix(self, rhs, &KalkValue::sub_without_unit)
             }
@@ -719,7 +721,7 @@ impl KalkValue {
                 // (a + bi)(c + di) = ac + adi + bci + bdi²
                 real.clone() * real_rhs - imaginary.clone() * imaginary_rhs,
                 real.clone() * imaginary_rhs + imaginary * real_rhs,
-                unit.to_string(),
+                unit.clone(),
             ),
             (KalkValue::Matrix(rows), KalkValue::Number(_, _, _)) => KalkValue::Matrix(
                 rows.iter()
@@ -849,10 +851,10 @@ impl KalkValue {
                     KalkValue::Number(
                         polar.clone().cos() * exp.clone(),
                         polar.sin() * exp,
-                        unit.to_string(),
+                        unit.clone(),
                     )
                 } else {
-                    KalkValue::Number(pow(real, real_rhs.clone()), float!(0), unit.to_string())
+                    KalkValue::Number(pow(real, real_rhs.clone()), float!(0), unit.clone())
                 }
             }
             (KalkValue::Matrix(rows), KalkValue::Number(real, imaginary, _)) => {
@@ -1107,12 +1109,12 @@ fn calculate_unit(
         (left, &right)
     {
         if left.has_unit() && right.has_unit() {
-            right.convert_to_unit(context, unit_left)
+            right.convert_to_unit(context, unit_left.as_ref().unwrap())
         } else {
             Some(KalkValue::Number(
                 real_right.clone(),
                 imaginary_right.clone(),
-                unit_left.to_string(),
+                unit_left.clone(),
             ))
         }
     } else {
@@ -1165,31 +1167,31 @@ impl From<KalkValue> for f64 {
 
 impl From<f64> for KalkValue {
     fn from(x: f64) -> Self {
-        KalkValue::Number(float!(x), float!(0), String::new())
+        KalkValue::Number(float!(x), float!(0), None)
     }
 }
 
 impl From<f32> for KalkValue {
     fn from(x: f32) -> Self {
-        KalkValue::Number(float!(x), float!(0), String::new())
+        KalkValue::Number(float!(x), float!(0), None)
     }
 }
 
 impl From<i128> for KalkValue {
     fn from(x: i128) -> Self {
-        KalkValue::Number(float!(x), float!(0), String::new())
+        KalkValue::Number(float!(x), float!(0), None)
     }
 }
 
 impl From<i64> for KalkValue {
     fn from(x: i64) -> Self {
-        KalkValue::Number(float!(x), float!(0), String::new())
+        KalkValue::Number(float!(x), float!(0), None)
     }
 }
 
 impl From<i32> for KalkValue {
     fn from(x: i32) -> Self {
-        KalkValue::Number(float!(x), float!(0), String::new())
+        KalkValue::Number(float!(x), float!(0), None)
     }
 }
 
@@ -1208,8 +1210,8 @@ mod tests {
         ];
 
         for (a, b, expected_result) in in_out {
-            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .add_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), None)
+                .add_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), None));
             assert_eq!(actual_result.to_f64(), expected_result.0);
             assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
         }
@@ -1225,8 +1227,8 @@ mod tests {
         ];
 
         for (a, b, expected_result) in in_out {
-            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .sub_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), None)
+                .sub_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), None));
             assert_eq!(actual_result.to_f64(), expected_result.0);
             assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
         }
@@ -1242,8 +1244,8 @@ mod tests {
         ];
 
         for (a, b, expected_result) in in_out {
-            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .mul_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), None)
+                .mul_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), None));
             assert_eq!(actual_result.to_f64(), expected_result.0);
             assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
         }
@@ -1258,8 +1260,8 @@ mod tests {
         ];
 
         for (a, b, expected_result) in in_out {
-            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .div_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), None)
+                .div_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), None));
             assert_eq!(actual_result.to_f64(), expected_result.0);
             assert_eq!(actual_result.imaginary_to_f64(), expected_result.1);
         }
@@ -1286,8 +1288,8 @@ mod tests {
         ];
 
         for (a, b, expected_result) in in_out {
-            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), String::new())
-                .pow_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), String::new()));
+            let actual_result = KalkValue::Number(float!(a.0), float!(a.1), None)
+                .pow_without_unit(&KalkValue::Number(float!(b.0), float!(b.1), None));
             assert!(cmp(actual_result.to_f64(), expected_result.0));
             assert!(cmp(actual_result.imaginary_to_f64(), expected_result.1));
         }
@@ -1320,8 +1322,8 @@ mod tests {
             (3.00000000004, 0.0, "3"),
         ];
         for (real, imaginary, output) in in_out {
-            let result = KalkValue::Number(float!(real), float!(imaginary), String::new())
-                .to_string_pretty();
+            let result =
+                KalkValue::Number(float!(real), float!(imaginary), None).to_string_pretty();
             assert_eq!(output, result);
         }
     }
