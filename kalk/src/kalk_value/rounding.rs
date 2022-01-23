@@ -153,6 +153,9 @@ fn equivalent_fraction(value: f64) -> Option<String> {
     numer /= gcd;
     denom /= gcd;
 
+    numer = numer.trunc();
+    denom = denom.trunc();
+
     if denom <= 1f64 || denom >= 100f64 || denom == 10f64 {
         return None;
     }
