@@ -1,0 +1,11 @@
+f(x) = {
+    f(x - 1) if x >= 1
+    x otherwise
+}
+
+g(x, y) = {
+    g(x - 1, y + 1) if x >= 1
+    y otherwise
+}
+
+f(5) = 0 and g(5, 0) = 5
