@@ -51,6 +51,7 @@ mod tests {
     #[test_case("matrices/operations")]
     #[test_case("matrices/transpose")]
     #[test_case("radix")]
+    #[test_case("recursion")]
     #[test_case("redefining")]
     #[test_case("sum")]
     #[test_case("variables")]

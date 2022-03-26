@@ -1,4 +1,5 @@
 #![allow(clippy::unused_unit)]
+#![allow(clippy::float_cmp)]
 mod analysis;
 pub mod ast;
 pub mod calculation_result;
