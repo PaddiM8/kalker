@@ -325,6 +325,63 @@ pub(crate) fn eval_fn_call_expr(
     expressions: &[Expr],
     unit: Option<&String>,
 ) -> Result<KalkValue, CalcError> {
+    // Special functions
+    match identifier.full_name.as_ref() {
+        "sum" | "prod" => {
+            // If loop, eg. sum(k=1, 100, k)
+            if let Expr::Binary(left, TokenKind::Equals, right) = &expressions[0] {
+                if let Expr::Var(var_identifier) = &**left {
+                    // Make sure exactly 3 arguments were supplied.
+                    if expressions.len() != 3 {
+                        return Err(CalcError::IncorrectAmountOfArguments(
+                            3,
+                            "sum/prod".into(),
+                            expressions.len(),
+                        ));
+                    }
+
+                    //(var_identifier.pure_name.as_ref(), &**right);
+                    return eval_loop(
+                        context,
+                        identifier,
+                        &var_identifier.pure_name,
+                        &**right,
+                        &expressions[1],
+                        &expressions[2],
+                        unit.cloned(),
+                    );
+                }
+            }
+        }
+        "integrate" => {
+            return match expressions.len() {
+                3 => calculus::integrate_with_unknown_variable(
+                    context,
+                    &expressions[0],
+                    &expressions[1],
+                    &expressions[2],
+                ),
+                4 => calculus::integrate(
+                    context,
+                    &expressions[0],
+                    &expressions[1],
+                    &expressions[2],
+                    if let Expr::Var(integration_variable) = &expressions[3] {
+                        &integration_variable.full_name[1..]
+                    } else {
+                        return Err(CalcError::ExpectedDx);
+                    },
+                ),
+                _ => Err(CalcError::IncorrectAmountOfArguments(
+                    3,
+                    "integrate".into(),
+                    expressions.len(),
+                )),
+            };
+        }
+        _ => (),
+    }
+
     // Prelude vector function
     if prelude::is_vector_func(&identifier.full_name) {
         let mut values = Vec::new();
@@ -433,104 +490,6 @@ pub(crate) fn eval_fn_call_expr(
 
         return Ok(result);
     }
-
-    // Special functions
-    match identifier.full_name.as_ref() {
-        "sum" | "prod" => {
-            // Make sure exactly 3 arguments were supplied.
-            if expressions.len() != 3 {
-                return Err(CalcError::IncorrectAmountOfArguments(
-                    3,
-                    "sum/prod".into(),
-                    expressions.len(),
-                ));
-            }
-
-            let (var_name, start_expr) =
-                if let Expr::Binary(left, TokenKind::Equals, right) = &expressions[0] {
-                    if let Expr::Var(var_identifier) = &**left {
-                        (var_identifier.pure_name.as_ref(), &**right)
-                    } else {
-                        ("n", &**right)
-                    }
-                } else {
-                    ("n", &expressions[0])
-                };
-
-            if context.sum_variables.is_none() {
-                context.sum_variables = Some(Vec::new());
-            }
-
-            {
-                let sum_variables = context.sum_variables.as_mut().unwrap();
-                sum_variables.push(SumVar {
-                    name: var_name.into(),
-                    value: 0,
-                });
-            }
-
-            let start = eval_expr(context, start_expr, None)?.to_f64() as i128;
-            let end = eval_expr(context, &expressions[1], None)?.to_f64() as i128;
-            let sum_else_prod = match identifier.full_name.as_ref() {
-                "sum" => true,
-                "prod" => false,
-                _ => unreachable!(),
-            };
-            let mut sum = if sum_else_prod {
-                KalkValue::from(0f64)
-            } else {
-                KalkValue::from(1f64)
-            };
-
-            for n in start..=end {
-                let sum_variables = context.sum_variables.as_mut().unwrap();
-                sum_variables.last_mut().unwrap().value = n;
-
-                let eval = eval_expr(context, &expressions[2], None)?;
-                if sum_else_prod {
-                    sum = sum.add(context, eval);
-                } else {
-                    sum = sum.mul(context, eval);
-                }
-            }
-
-            let sum_variables = context.sum_variables.as_mut().unwrap();
-            sum_variables.pop();
-
-            let (sum_real, sum_imaginary, _) = as_number_or_zero!(sum);
-
-            // Set the unit as well
-            return Ok(KalkValue::Number(sum_real, sum_imaginary, unit.cloned()));
-        }
-        "integrate" => {
-            return match expressions.len() {
-                3 => calculus::integrate_with_unknown_variable(
-                    context,
-                    &expressions[0],
-                    &expressions[1],
-                    &expressions[2],
-                ),
-                4 => calculus::integrate(
-                    context,
-                    &expressions[0],
-                    &expressions[1],
-                    &expressions[2],
-                    if let Expr::Var(integration_variable) = &expressions[3] {
-                        &integration_variable.full_name[1..]
-                    } else {
-                        return Err(CalcError::ExpectedDx);
-                    },
-                ),
-                _ => Err(CalcError::IncorrectAmountOfArguments(
-                    3,
-                    "integrate".into(),
-                    expressions.len(),
-                )),
-            };
-        }
-        _ => (),
-    }
-
     // Symbol Table
     let stmt_definition = context.symbol_table.get_fn(&identifier.full_name).cloned();
 
@@ -592,6 +551,60 @@ pub(crate) fn eval_fn_call_expr(
         }
         _ => Err(CalcError::UndefinedFn(identifier.full_name.clone())),
     }
+}
+
+fn eval_loop(
+    context: &mut Context,
+    identifier: &Identifier,
+    var_name: &str,
+    start_expr: &Expr,
+    end_expr: &Expr,
+    expression: &Expr,
+    unit: Option<String>,
+) -> Result<KalkValue, CalcError> {
+    if context.sum_variables.is_none() {
+        context.sum_variables = Some(Vec::new());
+    }
+
+    {
+        let sum_variables = context.sum_variables.as_mut().unwrap();
+        sum_variables.push(SumVar {
+            name: var_name.into(),
+            value: 0,
+        });
+    }
+
+    let start = eval_expr(context, start_expr, None)?.to_f64() as i128;
+    let end = eval_expr(context, end_expr, None)?.to_f64() as i128;
+    let sum_else_prod = match identifier.full_name.as_ref() {
+        "sum" => true,
+        "prod" => false,
+        _ => unreachable!(),
+    };
+    let mut sum = if sum_else_prod {
+        KalkValue::from(0f64)
+    } else {
+        KalkValue::from(1f64)
+    };
+
+    for n in start..=end {
+        let sum_variables = context.sum_variables.as_mut().unwrap();
+        sum_variables.last_mut().unwrap().value = n;
+
+        let eval = eval_expr(context, expression, None)?;
+        if sum_else_prod {
+            sum = sum.add(context, eval);
+        } else {
+            sum = sum.mul(context, eval);
+        }
+    }
+
+    let sum_variables = context.sum_variables.as_mut().unwrap();
+    sum_variables.pop();
+
+    let (sum_real, sum_imaginary, _) = as_number_or_zero!(sum);
+
+    Ok(KalkValue::Number(sum_real, sum_imaginary, unit))
 }
 
 fn eval_piecewise(
@@ -1013,7 +1026,7 @@ mod tests {
         let stmt = Stmt::Expr(fn_call(
             "sum",
             vec![
-                *literal(start),
+                *binary(var("n"), TokenKind::Equals, literal(start)),
                 *literal(to),
                 *binary(var("n"), TokenKind::Plus, literal(3f64)),
             ],

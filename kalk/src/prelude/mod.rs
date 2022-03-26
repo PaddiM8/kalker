@@ -111,6 +111,8 @@ lazy_static! {
         m.insert("min", VectorFuncInfo(min, Other));
         m.insert("perms", VectorFuncInfo(perms, Other));
         m.insert("permutations", VectorFuncInfo(perms, Other));
+        m.insert("prod", VectorFuncInfo(prod, Other));
+        m.insert("sum", VectorFuncInfo(sum, Other));
         m
     };
 }
@@ -836,6 +838,16 @@ pub mod funcs {
         }
     }
 
+    pub fn prod(x: KalkValue) -> KalkValue {
+        let values = as_vector_or_return!(x);
+        let mut prod = KalkValue::from(1f64);
+        for value in values {
+            prod = prod.mul_without_unit(&value);
+        }
+
+        prod
+    }
+
     pub fn re(x: KalkValue) -> KalkValue {
         let (real, _, unit) = as_number_or_return!(x);
         KalkValue::Number(real, float!(0), unit)
@@ -919,6 +931,16 @@ pub mod funcs {
         } else {
             KalkValue::Number(real.sqrt(), float!(0), unit)
         }
+    }
+
+    pub fn sum(x: KalkValue) -> KalkValue {
+        let values = as_vector_or_return!(x);
+        let mut sum = KalkValue::from(0f64);
+        for value in values {
+            sum = sum.add_without_unit(&value);
+        }
+
+        sum
     }
 
     pub fn tan(x: KalkValue) -> KalkValue {
