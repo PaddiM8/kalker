@@ -1,7 +1,7 @@
 use crate::ast::Identifier;
 use crate::ast::{Expr, Stmt};
 use crate::lexer::TokenKind;
-use crate::parser::CalcError;
+use crate::parser::KalkError;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
 use lazy_static::lazy_static;
@@ -44,7 +44,7 @@ impl Expr {
         &self,
         symbol_table: &mut SymbolTable,
         unknown_var: &str,
-    ) -> Result<Self, CalcError> {
+    ) -> Result<Self, KalkError> {
         let target_expr = Expr::Var(Identifier::from_full_name(unknown_var));
         let result = invert(target_expr, symbol_table, self, unknown_var);
 
@@ -56,7 +56,7 @@ impl Expr {
         symbol_table: &mut SymbolTable,
         target_expr: Expr,
         unknown_var: &str,
-    ) -> Result<Self, CalcError> {
+    ) -> Result<Self, KalkError> {
         let x = invert(target_expr, symbol_table, self, unknown_var)?;
         Ok(x.0)
     }
@@ -67,7 +67,7 @@ fn invert(
     symbol_table: &mut SymbolTable,
     expr: &Expr,
     unknown_var: &str,
-) -> Result<(Expr, Expr), CalcError> {
+) -> Result<(Expr, Expr), KalkError> {
     match expr {
         Expr::Binary(left, op, right) => {
             invert_binary(target_expr, symbol_table, left, op, right, unknown_var)
@@ -86,12 +86,12 @@ fn invert(
             unknown_var,
         ),
         Expr::Literal(_) => Ok((target_expr, expr.clone())),
-        Expr::Piecewise(_) => Err(CalcError::UnableToInvert(String::from("Piecewise"))),
-        Expr::Vector(_) => Err(CalcError::UnableToInvert(String::from("Vector"))),
-        Expr::Matrix(_) => Err(CalcError::UnableToInvert(String::from("Matrix"))),
-        Expr::Indexer(_, _) => Err(CalcError::UnableToInvert(String::from("Inverter"))),
+        Expr::Piecewise(_) => Err(KalkError::UnableToInvert(String::from("Piecewise"))),
+        Expr::Vector(_) => Err(KalkError::UnableToInvert(String::from("Vector"))),
+        Expr::Matrix(_) => Err(KalkError::UnableToInvert(String::from("Matrix"))),
+        Expr::Indexer(_, _) => Err(KalkError::UnableToInvert(String::from("Inverter"))),
         Expr::Comprehension(_, _, _) => {
-            Err(CalcError::UnableToInvert(String::from("Comprehension")))
+            Err(KalkError::UnableToInvert(String::from("Comprehension")))
         }
     }
 }
@@ -103,7 +103,7 @@ fn invert_binary(
     op: &TokenKind,
     right: &Expr,
     unknown_var: &str,
-) -> Result<(Expr, Expr), CalcError> {
+) -> Result<(Expr, Expr), KalkError> {
     let op_inv = match op {
         TokenKind::Plus => TokenKind::Minus,
         TokenKind::Minus => {
@@ -194,7 +194,7 @@ fn invert_binary(
                 )
             };
         }
-        _ => return Err(CalcError::UnableToInvert(String::new())),
+        _ => return Err(KalkError::UnableToInvert(String::new())),
     };
 
     // If the left expression contains the unit, invert the right one instead,
@@ -203,7 +203,7 @@ fn invert_binary(
         // But if the right expression *also* contains the unit,
         // throw an error, since it can't handle this yet.
         if contains_var(symbol_table, right, unknown_var) {
-            return Err(CalcError::UnableToInvert(String::from(
+            return Err(KalkError::UnableToInvert(String::from(
                 "Expressions with several instances of an unknown variable (this might be supported in the future). Try simplifying the expression.",
             )));
         }
@@ -233,14 +233,14 @@ fn invert_binary(
     )
 }
 
-fn invert_unary(target_expr: Expr, op: &TokenKind, expr: &Expr) -> Result<(Expr, Expr), CalcError> {
+fn invert_unary(target_expr: Expr, op: &TokenKind, expr: &Expr) -> Result<(Expr, Expr), KalkError> {
     match op {
         TokenKind::Minus => Ok((
             // Make the target expression negative
             Expr::Unary(TokenKind::Minus, Box::new(target_expr)),
             expr.clone(), // And then continue inverting the inner-expression.
         )),
-        _ => Err(CalcError::UnableToInvert(String::new())),
+        _ => Err(KalkError::UnableToInvert(String::new())),
     }
 }
 
@@ -250,7 +250,7 @@ fn invert_unit(
     identifier: &str,
     expr: &Expr,
     unknown_var: &str,
-) -> Result<(Expr, Expr), CalcError> {
+) -> Result<(Expr, Expr), KalkError> {
     let x = Expr::Binary(
         Box::new(target_expr),
         TokenKind::ToKeyword,
@@ -264,7 +264,7 @@ fn invert_var(
     symbol_table: &mut SymbolTable,
     identifier: &Identifier,
     unknown_var: &str,
-) -> Result<(Expr, Expr), CalcError> {
+) -> Result<(Expr, Expr), KalkError> {
     if identifier.full_name == unknown_var {
         Ok((target_expr, Expr::Var(identifier.clone())))
     } else if let Some(Stmt::VarDecl(_, var_expr)) =
@@ -282,7 +282,7 @@ fn invert_fn_call(
     identifier: &Identifier,
     arguments: &[Expr],
     unknown_var: &str,
-) -> Result<(Expr, Expr), CalcError> {
+) -> Result<(Expr, Expr), KalkError> {
     // If prelude function
     match arguments.len() {
         1 => {
@@ -310,7 +310,7 @@ fn invert_fn_call(
                             );
                         }
                         _ => {
-                            return Err(CalcError::UnableToInvert(format!(
+                            return Err(KalkError::UnableToInvert(format!(
                                 "Function '{}'",
                                 identifier.full_name
                             )));
@@ -321,7 +321,7 @@ fn invert_fn_call(
         }
         2 => {
             if prelude::BINARY_FUNCS.contains_key(identifier.full_name.as_ref() as &str) {
-                return Err(CalcError::UnableToInvert(format!(
+                return Err(KalkError::UnableToInvert(format!(
                     "Function '{}'",
                     identifier.full_name
                 )));
@@ -336,12 +336,12 @@ fn invert_fn_call(
     {
         (parameters, body)
     } else {
-        return Err(CalcError::UndefinedFn(identifier.full_name.clone()));
+        return Err(KalkError::UndefinedFn(identifier.full_name.clone()));
     };
 
     // Make sure the input is valid.
     if parameters.len() != arguments.len() {
-        return Err(CalcError::IncorrectAmountOfArguments(
+        return Err(KalkError::IncorrectAmountOfArguments(
             parameters.len(),
             identifier.full_name.clone(),
             arguments.len(),
@@ -404,7 +404,7 @@ pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> 
 }
 
 /// Multiply an expression into a group.
-fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
+fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, KalkError> {
     match base_expr {
         Expr::Binary(left, op, right) => match op {
             // If + or -, multiply the expression with each term.
@@ -419,7 +419,7 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
                 *op,
                 right.clone(),
             )),
-            _ => Err(CalcError::UnableToInvert(String::new())),
+            _ => Err(KalkError::UnableToInvert(String::new())),
         },
         // If it's a literal, just multiply them together.
         Expr::Literal(_) | Expr::Var(_) => Ok(Expr::Binary(
@@ -427,10 +427,10 @@ fn multiply_into(expr: &Expr, base_expr: &Expr) -> Result<Expr, CalcError> {
             TokenKind::Star,
             Box::new(base_expr.clone()),
         )),
-        Expr::Group(_) => Err(CalcError::UnableToInvert(String::from(
+        Expr::Group(_) => Err(KalkError::UnableToInvert(String::from(
             "Parenthesis multiplied with parenthesis (this should be possible in the future).",
         ))),
-        _ => Err(CalcError::UnableToInvert(String::new())),
+        _ => Err(KalkError::UnableToInvert(String::new())),
     }
 }
 

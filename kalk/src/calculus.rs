@@ -7,13 +7,13 @@ use crate::float;
 use crate::interpreter;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
-use crate::parser::CalcError;
+use crate::parser::KalkError;
 
 pub fn derive_func(
     context: &mut interpreter::Context,
     name: &Identifier,
     argument: KalkValue,
-) -> Result<KalkValue, CalcError> {
+) -> Result<KalkValue, KalkError> {
     const H: f64 = 0.000001;
 
     let unit = argument.get_unit().cloned();
@@ -45,7 +45,7 @@ pub fn integrate_with_unknown_variable(
     a: &Expr,
     b: &Expr,
     expr: &Expr,
-) -> Result<KalkValue, CalcError> {
+) -> Result<KalkValue, KalkError> {
     let mut integration_variable: Option<&str> = None;
 
     // integral(a, b, expr dx)
@@ -59,7 +59,7 @@ pub fn integrate_with_unknown_variable(
     }
 
     if integration_variable.is_none() {
-        return Err(CalcError::ExpectedDx);
+        return Err(KalkError::ExpectedDx);
     }
 
     // "dx" is still in the expression. Set dx = 1, so that it doesn't affect the expression value.
@@ -77,7 +77,7 @@ pub fn integrate(
     b: &Expr,
     expr: &Expr,
     integration_variable: &str,
-) -> Result<KalkValue, CalcError> {
+) -> Result<KalkValue, KalkError> {
     Ok(simpsons_rule(context, a, b, expr, integration_variable)?.round_if_needed())
 }
 
@@ -88,7 +88,7 @@ fn simpsons_rule(
     b_expr: &Expr,
     expr: &Expr,
     integration_variable: &str,
-) -> Result<KalkValue, CalcError> {
+) -> Result<KalkValue, KalkError> {
     let mut result_real = float!(0);
     let mut result_imaginary = float!(0);
     let original_variable_value = context
