@@ -37,7 +37,7 @@ Functions
 Functions are defined with the following syntax: name(param1, param2, etc.) = value
 Examples: f(x) = 2x+3; A(x, y) = (xy)/2
 They are used like this: name(arg1, arg2, etc.)
-Example: f(3) + 3 A(2, 3) 
+Example: f(3) + 3A(2, 3) 
 
 Predefined functions
     sin, cos, tan, cot, csc, sec
@@ -51,18 +51,23 @@ Predefined functions
     min, max, hyp
     log Eg. log(1000, 10) is the same as log10(1000)
     root Eg. root(16, 3) is the same as 3√16
-    sum Eg. sum(1, 4, 2n), example below
+    sum Eg. sum(n=1, 4, 2n), example below
 
 Sum function
     The sum function lets you sum an expression with an incrementing variable.
     It takes three arguments: start value, end value, and expression.
     If you press tab after typing out "sum", it will be replaced with a sigma symbol.
-    The expression is what will be summed, and will be able to use the "n" variable,
-    which represents the current value between the start value and the end value.
-    The value of "n" increments.
-    Example: sum(1, 4, 2n) will be the same as 2*1 + 2*2 + 2*3 + 2*4 = 20
-    This can for example be used to calculate e: Σ(0, 10000, 1/n!) = 2.7182818284590455
+    The expression is what will be summed, and will be able to use the variable defined
+    in first argument (eg. n=1). The value of the variable increments by one.
+    Example: sum(n=1, 4, 2n) will be the same as 2*1 + 2*2 + 2*3 + 2*4 = 20
+    This can for example be used to calculate e: Σ(n=0, 10000, 1/n!) = 2.7182818284590455
     More precision can be gotten by changing the "--precision" flag. Run `kalker --help` for more info.
+
+    The sum function can also be used to sum vectors, eg. sum(1, 2, 3) or sum(v) or sum[1, 2, 3].
+
+Prod function
+    The prod function works the same way as the sum function but performs
+    multiplication instead of addition.
 
 Constants
     pi or π = 3.14159265
