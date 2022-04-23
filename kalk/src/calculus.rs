@@ -3,11 +3,11 @@ use crate::ast;
 use crate::ast::Expr;
 use crate::ast::Identifier;
 use crate::ast::Stmt;
+use crate::errors::KalkError;
 use crate::float;
 use crate::interpreter;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
-use crate::parser::KalkError;
 
 pub fn derive_func(
     context: &mut interpreter::Context,
@@ -17,8 +17,8 @@ pub fn derive_func(
     const H: f64 = 0.000001;
 
     let unit = argument.get_unit().cloned();
-    let argument_with_h = ast::build_literal_ast(&argument.clone().add_without_unit(&H.into()));
-    let argument_without_h = ast::build_literal_ast(&argument.sub_without_unit(&H.into()));
+    let argument_with_h = ast::build_literal_ast(&argument.clone().add_without_unit(&H.into())?);
+    let argument_without_h = ast::build_literal_ast(&argument.sub_without_unit(&H.into())?);
     let new_identifier = Identifier::from_name_and_primes(&name.pure_name, name.prime_count - 1);
 
     let f_x_h = interpreter::eval_fn_call_expr(
@@ -35,8 +35,8 @@ pub fn derive_func(
     )?;
 
     Ok(f_x_h
-        .sub_without_unit(&f_x)
-        .div_without_unit(&(2f64 * H).into())
+        .sub_without_unit(&f_x)?
+        .div_without_unit(&(2f64 * H).into())?
         .round_if_needed())
 }
 
@@ -98,11 +98,11 @@ fn simpsons_rule(
     const N: i32 = 900;
     let a = interpreter::eval_expr(context, a_expr, None)?;
     let b = interpreter::eval_expr(context, b_expr, None)?;
-    let h = (b.sub_without_unit(&a)).div_without_unit(&KalkValue::from(N));
+    let h = (b.sub_without_unit(&a))?.div_without_unit(&KalkValue::from(N))?;
     for i in 0..=N {
         let variable_value = a
             .clone()
-            .add_without_unit(&KalkValue::from(i).mul_without_unit(&h.clone()));
+            .add_without_unit(&KalkValue::from(i).mul_without_unit(&h.clone())?)?;
         context.symbol_table.set(Stmt::VarDecl(
             Identifier::from_full_name(integration_variable),
             Box::new(crate::ast::build_literal_ast(&variable_value)),
@@ -116,7 +116,7 @@ fn simpsons_rule(
 
         // factor * f(x_n)
         let (mul_real, mul_imaginary, _) = as_number_or_zero!(
-            factor.mul_without_unit(&interpreter::eval_expr(context, expr, None)?)
+            factor.mul_without_unit(&interpreter::eval_expr(context, expr, None)?)?
         );
         result_real += mul_real;
         result_imaginary += mul_imaginary;
@@ -133,11 +133,11 @@ fn simpsons_rule(
     let result = KalkValue::Number(result_real, result_imaginary, None);
     let (h_real, h_imaginary, h_unit) = as_number_or_zero!(h);
 
-    Ok(result.mul_without_unit(&KalkValue::Number(
+    result.mul_without_unit(&KalkValue::Number(
         3f64 / 8f64 * h_real,
         3f64 / 8f64 * h_imaginary,
         h_unit,
-    )))
+    ))
 }
 
 #[cfg(test)]

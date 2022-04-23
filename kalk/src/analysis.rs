@@ -1,9 +1,9 @@
 use crate::{
     ast::{ConditionalPiece, Expr, Identifier, RangedVar, Stmt},
+    errors::KalkError,
     inverter,
     lexer::TokenKind,
-    parser::{self, KalkError},
-    prelude,
+    parser, prelude,
     symbol_table::SymbolTable,
 };
 

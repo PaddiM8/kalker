@@ -1,9 +1,9 @@
 use crate::ast::{Expr, Stmt};
 use crate::ast::{Identifier, RangedVar};
 use crate::calculation_result::CalculationResult;
+use crate::errors::KalkError;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
-use crate::parser::KalkError;
 use crate::parser::DECL_UNIT;
 use crate::symbol_table::SymbolTable;
 use crate::{as_number_or_zero, calculus};
@@ -163,7 +163,7 @@ fn eval_binary_expr(
     let left = eval_expr(context, left_expr, None)?;
     let mut right = eval_expr(context, right_expr, None)?;
     if let Expr::Unary(TokenKind::Percent, _) = right_expr {
-        right = right.mul(context, left.clone());
+        right = right.mul(context, left.clone())?;
         if let TokenKind::Star = op {
             return Ok(right);
         }
@@ -184,8 +184,8 @@ fn eval_binary_expr(
         TokenKind::LessOrEquals => left.less_or_equals(context, right),
         TokenKind::And => left.and(&right),
         TokenKind::Or => left.or(&right),
-        _ => KalkValue::from(1f64),
-    };
+        _ => Ok(KalkValue::from(1f64)),
+    }?;
 
     if unit.is_some() {
         if let KalkValue::Number(real, imaginary, _) = result {
@@ -205,9 +205,9 @@ fn eval_unary_expr(
     let num = eval_expr(context, expr, unit)?;
 
     match op {
-        TokenKind::Minus => Ok(num.mul(context, KalkValue::from(-1f64))),
-        TokenKind::Percent => Ok(num.mul(context, KalkValue::from(0.01f64))),
-        TokenKind::Exclamation => Ok(prelude::special_funcs::factorial(num)),
+        TokenKind::Minus => num.mul(context, KalkValue::from(-1f64)),
+        TokenKind::Percent => num.mul(context, KalkValue::from(0.01f64)),
+        TokenKind::Exclamation => prelude::special_funcs::factorial(num),
         _ => Err(KalkError::InvalidOperator),
     }
 }
@@ -397,10 +397,8 @@ pub(crate) fn eval_fn_call_expr(
             values.push(value);
         }
 
-        return Ok(
-            prelude::call_vector_func(&identifier.full_name, KalkValue::Vector(values))
-                .unwrap_or_else(KalkValue::nan),
-        );
+        return prelude::call_vector_func(&identifier.full_name, KalkValue::Vector(values))
+            .unwrap_or_else(|| Ok(KalkValue::nan()));
     }
 
     // Prelude
@@ -433,9 +431,7 @@ pub(crate) fn eval_fn_call_expr(
     };
 
     if let Some((result, _)) = prelude_func {
-        // If the result is nan and only one argument was given,
-        // it may be due to incompatible types.
-        if result.is_nan() && expressions.len() == 1 {
+        if result.is_err() && expressions.len() == 1 {
             let x = eval_expr(context, &expressions[0], None)?;
 
             // If a vector/matrix was given, call the function on every item
@@ -450,7 +446,7 @@ pub(crate) fn eval_fn_call_expr(
                         value,
                         &context.angle_unit.clone(),
                     ) {
-                        new_values.push(result.0);
+                        new_values.push(result.0?);
                     } else {
                         success = false;
                         break;
@@ -472,7 +468,7 @@ pub(crate) fn eval_fn_call_expr(
                             value,
                             &context.angle_unit.clone(),
                         ) {
-                            new_row.push(result.0);
+                            new_row.push(result.0?);
                         } else {
                             success = false;
                             break;
@@ -488,8 +484,9 @@ pub(crate) fn eval_fn_call_expr(
             }
         }
 
-        return Ok(result);
+        return result;
     }
+
     // Symbol Table
     let stmt_definition = context.symbol_table.get_fn(&identifier.full_name).cloned();
 
@@ -593,9 +590,9 @@ fn eval_loop(
 
         let eval = eval_expr(context, expression, None)?;
         if sum_else_prod {
-            sum = sum.add(context, eval);
+            sum = sum.add(context, eval)?;
         } else {
-            sum = sum.mul(context, eval);
+            sum = sum.mul(context, eval)?;
         }
     }
 
@@ -829,7 +826,7 @@ mod tests {
     }
 
     #[cfg(not(feature = "rug"))]
-    fn context<'a>(symbol_table: &'a mut SymbolTable, angle_unit: Option<&String>) -> Context<'a> {
+    fn context<'a>(symbol_table: &'a mut SymbolTable, angle_unit: &str) -> Context<'a> {
         Context::new(symbol_table, angle_unit, None)
     }
 
