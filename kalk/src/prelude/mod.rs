@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_clone)] // giving false flags
+use crate::errors::KalkError;
 use crate::kalk_value::KalkValue;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -123,11 +125,14 @@ enum FuncType {
     Other,
 }
 
-pub struct UnaryFuncInfo(fn(KalkValue) -> KalkValue, FuncType);
+pub struct UnaryFuncInfo(fn(KalkValue) -> Result<KalkValue, KalkError>, FuncType);
 
-pub struct BinaryFuncInfo(fn(KalkValue, KalkValue) -> KalkValue, FuncType);
+pub struct BinaryFuncInfo(
+    fn(KalkValue, KalkValue) -> Result<KalkValue, KalkError>,
+    FuncType,
+);
 
-pub struct VectorFuncInfo(fn(KalkValue) -> KalkValue, FuncType);
+pub struct VectorFuncInfo(fn(KalkValue) -> Result<KalkValue, KalkError>, FuncType);
 
 impl UnaryFuncInfo {
     fn call(
@@ -135,11 +140,11 @@ impl UnaryFuncInfo {
         context: &mut interpreter::Context,
         x: KalkValue,
         angle_unit: &str,
-    ) -> KalkValue {
+    ) -> Result<KalkValue, KalkError> {
         let func = self.0;
         match self.1 {
             FuncType::Trig => func(from_angle_unit(context, x, angle_unit)),
-            FuncType::InverseTrig => to_angle_unit(context, func(x), angle_unit),
+            FuncType::InverseTrig => Ok(to_angle_unit(context, func(x)?, angle_unit)),
             FuncType::Other => func(x),
         }
     }
@@ -152,21 +157,21 @@ impl BinaryFuncInfo {
         x: KalkValue,
         y: KalkValue,
         angle_unit: &str,
-    ) -> KalkValue {
+    ) -> Result<KalkValue, KalkError> {
         let func = self.0;
         match self.1 {
             FuncType::Trig => func(
                 from_angle_unit(context, x, angle_unit),
                 from_angle_unit(context, y, angle_unit),
             ),
-            FuncType::InverseTrig => to_angle_unit(context, func(x, y), angle_unit),
+            FuncType::InverseTrig => Ok(to_angle_unit(context, func(x, y)?, angle_unit)),
             FuncType::Other => func(x, y),
         }
     }
 }
 
 impl VectorFuncInfo {
-    fn call(&self, x: KalkValue) -> KalkValue {
+    fn call(&self, x: KalkValue) -> Result<KalkValue, KalkError> {
         let func = self.0;
         func(x)
     }
@@ -199,7 +204,7 @@ pub fn call_unary_func(
     name: &str,
     x: KalkValue,
     angle_unit: &str,
-) -> Option<(KalkValue, String)> {
+) -> Option<(Result<KalkValue, KalkError>, String)> {
     if let Some((func_info, func_unit)) = UNARY_FUNCS.get(name) {
         Some((
             func_info.call(context, x, angle_unit),
@@ -216,7 +221,7 @@ pub fn call_binary_func(
     x: KalkValue,
     y: KalkValue,
     angle_unit: &str,
-) -> Option<(KalkValue, String)> {
+) -> Option<(Result<KalkValue, KalkError>, String)> {
     if let Some((func_info, func_unit)) = BINARY_FUNCS.get(name) {
         Some((
             func_info.call(context, x, y, angle_unit),
@@ -227,7 +232,7 @@ pub fn call_binary_func(
     }
 }
 
-pub fn call_vector_func(name: &str, x: KalkValue) -> Option<KalkValue> {
+pub fn call_vector_func(name: &str, x: KalkValue) -> Option<Result<KalkValue, KalkError>> {
     VECTOR_FUNCS.get(name).map(|func_info| func_info.call(x))
 }
 
@@ -269,9 +274,11 @@ pub mod funcs {
     use super::special_funcs::factorial;
     #[cfg(feature = "rug")]
     pub use super::with_rug::funcs::*;
-    use crate::{as_number_or_return, as_vector_or_return, float, kalk_value::KalkValue};
+    use crate::{
+        as_number_or_return, as_vector_or_return, errors::KalkError, float, kalk_value::KalkValue,
+    };
 
-    pub fn abs(x: KalkValue) -> KalkValue {
+    pub fn abs(x: KalkValue) -> Result<KalkValue, KalkError> {
         let has_imaginary = x.has_imaginary();
         let (real, imaginary, unit) = as_number_or_return!(x);
         if has_imaginary {
@@ -281,165 +288,165 @@ pub mod funcs {
 
             sqrt(KalkValue::Number(a + b, float!(0), unit))
         } else {
-            KalkValue::Number(real.abs(), float!(0), unit)
+            Ok(KalkValue::Number(real.abs(), float!(0), unit))
         }
     }
 
-    pub fn acos(x: KalkValue) -> KalkValue {
+    pub fn acos(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real > 1f64 || real < -1f64 {
             // -i * ln(i * sqrt(1 - z²) + z)
             let root =
-                sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)));
-            let iroot = multiply_with_i(root);
-            let (ln_real, ln_imaginary, ln_unit) =
-                as_number_or_return!(ln(iroot.add_without_unit(&x)));
-
+                sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)?)?)?;
+            let iroot = multiply_with_i(root)?;
+            let ln = ln(iroot.add_without_unit(&x)?)?;
+            let (ln_real, ln_imaginary, ln_unit) = as_number_or_return!(ln);
             // -iz = -i(a + bi) = b - ai
-            KalkValue::Number(ln_imaginary, -ln_real, ln_unit)
+            Ok(KalkValue::Number(ln_imaginary, -ln_real, ln_unit))
         } else {
-            KalkValue::Number(real.acos(), float!(0), unit)
+            Ok(KalkValue::Number(real.acos(), float!(0), unit))
         }
     }
 
-    pub fn acosh(x: KalkValue) -> KalkValue {
+    pub fn acosh(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real < 1f64 {
             let sqrt1 = sqrt(KalkValue::Number(
                 real.clone() + 1f64,
                 imaginary.clone(),
                 unit.clone(),
-            ));
-            let sqrt2 = sqrt(KalkValue::Number(real - 1f64, imaginary, unit));
+            ))?;
+            let sqrt2 = sqrt(KalkValue::Number(real - 1f64, imaginary, unit))?;
 
-            ln(x.add_without_unit(&sqrt1.mul_without_unit(&sqrt2)))
+            ln(x.add_without_unit(&sqrt1.mul_without_unit(&sqrt2)?)?)
         } else {
-            KalkValue::Number(real.acosh(), float!(0), unit)
+            Ok(KalkValue::Number(real.acosh(), float!(0), unit))
         }
     }
 
-    pub fn acot(x: KalkValue) -> KalkValue {
+    pub fn acot(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() {
             // atan(1/z)
-            atan(KalkValue::from(1f64).div_without_unit(&x))
+            atan(KalkValue::from(1f64).div_without_unit(&x)?)
         } else {
-            KalkValue::Number((1f64 / real).atan(), float!(0), unit)
+            Ok(KalkValue::Number((1f64 / real).atan(), float!(0), unit))
         }
     }
 
-    pub fn acoth(x: KalkValue) -> KalkValue {
+    pub fn acoth(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real <= 1f64 || real >= -1f64 {
             // 1 / z
             let (inv_real, inv_imaginary, inv_unit) =
-                as_number_or_return!(KalkValue::from(1f64).div_without_unit(&x));
+                as_number_or_return!(KalkValue::from(1f64).div_without_unit(&x)?);
             let ln1 = ln(KalkValue::Number(
                 1f64 + inv_real.clone(),
                 inv_imaginary.clone(),
                 inv_unit.clone(),
-            ));
-            let ln2 = ln(KalkValue::Number(1f64 - inv_real, -inv_imaginary, inv_unit));
+            ))?;
+            let ln2 = ln(KalkValue::Number(1f64 - inv_real, -inv_imaginary, inv_unit))?;
 
-            ln1.sub_without_unit(&ln2)
+            ln1.sub_without_unit(&ln2)?
                 .div_without_unit(&KalkValue::from(2f64))
         } else {
-            KalkValue::Number((1f64 / real).atanh(), float!(0), unit)
+            Ok(KalkValue::Number((1f64 / real).atanh(), float!(0), unit))
         }
     }
 
-    pub fn acsc(x: KalkValue) -> KalkValue {
+    pub fn acsc(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real < 1f64 || real > -1f64 {
             // asin(1/z)
-            asin(KalkValue::from(1f64).div_without_unit(&x))
+            asin(KalkValue::from(1f64).div_without_unit(&x)?)
         } else {
-            KalkValue::Number((1f64 / real).asin(), float!(0), unit)
+            Ok(KalkValue::Number((1f64 / real).asin(), float!(0), unit))
         }
     }
 
-    pub fn acsch(x: KalkValue) -> KalkValue {
+    pub fn acsch(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real == 0f64 {
             let (inv_x2_real, inv_x2_imaginary, inv_x2_unit) = as_number_or_return!(
-                KalkValue::from(1f64).div_without_unit(&x.clone().mul_without_unit(&x))
+                KalkValue::from(1f64).div_without_unit(&x.clone().mul_without_unit(&x)?)?
             );
             let sqrt = sqrt(KalkValue::Number(
                 1f64 + inv_x2_real,
                 inv_x2_imaginary,
                 inv_x2_unit,
-            ));
-            let inv_x = KalkValue::from(1f64).div_without_unit(&x);
+            ))?;
+            let inv_x = KalkValue::from(1f64).div_without_unit(&x)?;
 
-            ln(sqrt.add_without_unit(&inv_x))
+            ln(sqrt.add_without_unit(&inv_x)?)
         } else {
-            KalkValue::Number((1f64 / real).asinh(), float!(0), unit)
+            Ok(KalkValue::Number((1f64 / real).asinh(), float!(0), unit))
         }
     }
 
-    pub fn asec(x: KalkValue) -> KalkValue {
+    pub fn asec(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real < 1f64 || real > -1f64 {
             // acos(1/z)
-            acos(KalkValue::from(1f64).div_without_unit(&x))
+            acos(KalkValue::from(1f64).div_without_unit(&x)?)
         } else {
-            KalkValue::Number((1f64 / real).acos(), float!(0), unit)
+            Ok(KalkValue::Number((1f64 / real).acos(), float!(0), unit))
         }
     }
 
-    pub fn asech(x: KalkValue) -> KalkValue {
+    pub fn asech(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real <= 0f64 || real > 1f64 {
             // 1/z
-            let inv = KalkValue::from(1f64).div_without_unit(&x);
+            let inv = KalkValue::from(1f64).div_without_unit(&x)?;
             let (inv_real, inv_imaginary, inv_unit) = as_number_or_return!(inv.clone());
             // sqrt(1/z - 1)
             let sqrt1 = sqrt(KalkValue::Number(
                 inv_real.clone() - 1f64,
                 inv_imaginary.clone(),
                 inv_unit.clone(),
-            ));
+            ))?;
             // sqrt(1/z + 1)
-            let sqrt2 = sqrt(KalkValue::Number(inv_real + 1f64, inv_imaginary, inv_unit));
+            let sqrt2 = sqrt(KalkValue::Number(inv_real + 1f64, inv_imaginary, inv_unit))?;
 
             // ln(1/z + sqrt(1/z - 1) * sqrt(1/z + 1))
-            ln(sqrt1.mul_without_unit(&sqrt2).add_without_unit(&inv))
+            ln(sqrt1.mul_without_unit(&sqrt2)?.add_without_unit(&inv)?)
         } else {
-            KalkValue::Number((1f64 / real).acosh(), float!(0), unit)
+            Ok(KalkValue::Number((1f64 / real).acosh(), float!(0), unit))
         }
     }
 
-    pub fn asin(x: KalkValue) -> KalkValue {
+    pub fn asin(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real > 1f64 || real < -1f64 {
             // i * ln(sqrt(1 - z²) - iz)
             let root =
-                sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)));
-            let iz = multiply_with_i(x);
-            let ln = ln(root.sub_without_unit(&iz));
+                sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)?)?)?;
+            let iz = multiply_with_i(x)?;
+            let ln = ln(root.sub_without_unit(&iz)?)?;
             multiply_with_i(ln)
         } else {
-            KalkValue::Number(real.asin(), float!(0), unit)
+            Ok(KalkValue::Number(real.asin(), float!(0), unit))
         }
     }
 
-    pub fn asinh(x: KalkValue) -> KalkValue {
+    pub fn asinh(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() {
             let (x2_real, x2_imaginary, x2_unit) =
-                as_number_or_return!(x.clone().mul_without_unit(&x));
-            let sqrt = sqrt(KalkValue::Number(x2_real + 1f64, x2_imaginary, x2_unit));
+                as_number_or_return!(x.clone().mul_without_unit(&x)?);
+            let sqrt = sqrt(KalkValue::Number(x2_real + 1f64, x2_imaginary, x2_unit))?;
 
-            ln(x.add_without_unit(&sqrt))
+            ln(x.add_without_unit(&sqrt)?)
         } else {
-            KalkValue::Number(real.asinh(), float!(0), unit)
+            Ok(KalkValue::Number(real.asinh(), float!(0), unit))
         }
     }
 
-    pub fn atan(x: KalkValue) -> KalkValue {
+    pub fn atan(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() {
-            let (iz_real, iz_imaginary, iz_unit) = as_number_or_return!(multiply_with_i(x));
+            let mul_i = multiply_with_i(x)?;
+            let (iz_real, iz_imaginary, iz_unit) = as_number_or_return!(mul_i);
 
             // 1 - iz
             let neg = KalkValue::Number(
@@ -452,15 +459,15 @@ pub mod funcs {
             let pos = KalkValue::Number(1f64 + iz_real, iz_imaginary, iz_unit);
 
             // ln(1 - iz) - ln(1 + iz)
-            let ln = ln(neg).sub_without_unit(&ln(pos));
+            let ln = ln(neg)?.sub_without_unit(&ln(pos)?)?;
 
-            multiply_with_i(ln).div_without_unit(&KalkValue::from(2f64))
+            multiply_with_i(ln)?.div_without_unit(&KalkValue::from(2f64))
         } else {
-            KalkValue::Number(real.atan(), float!(0), unit)
+            Ok(KalkValue::Number(real.atan(), float!(0), unit))
         }
     }
 
-    pub fn atanh(x: KalkValue) -> KalkValue {
+    pub fn atanh(x: KalkValue) -> Result<KalkValue, KalkError> {
         let has_imaginary = x.has_imaginary();
         let (real, imaginary, unit) = as_number_or_return!(x);
         if has_imaginary || real >= 1f64 || real <= -1f64 {
@@ -469,17 +476,17 @@ pub mod funcs {
                 1f64 + real.clone(),
                 imaginary.clone(),
                 unit.clone(),
-            ));
-            let log2 = ln(KalkValue::Number(1f64 - real, -imaginary, unit));
+            ))?;
+            let log2 = ln(KalkValue::Number(1f64 - real, -imaginary, unit))?;
 
-            log1.sub_without_unit(&log2)
+            log1.sub_without_unit(&log2)?
                 .div_without_unit(&KalkValue::from(2f64))
         } else {
-            KalkValue::Number(real.atanh(), float!(0), unit)
+            Ok(KalkValue::Number(real.atanh(), float!(0), unit))
         }
     }
 
-    pub fn average(x: KalkValue) -> KalkValue {
+    pub fn average(x: KalkValue) -> Result<KalkValue, KalkError> {
         let values = as_vector_or_return!(x);
         let count = values.len() as i64;
         let mut sum_real = float!(0);
@@ -493,119 +500,126 @@ pub mod funcs {
         KalkValue::Number(sum_real, sum_imaginary, None).div_without_unit(&KalkValue::from(count))
     }
 
-    pub fn cbrt(x: KalkValue) -> KalkValue {
+    pub fn cbrt(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x);
 
-        KalkValue::Number(real.cbrt(), float!(0), unit)
+        Ok(KalkValue::Number(real.cbrt(), float!(0), unit))
     }
 
-    pub fn ceil(x: KalkValue) -> KalkValue {
+    pub fn ceil(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
 
-        KalkValue::Number(real.ceil(), imaginary.ceil(), unit)
+        Ok(KalkValue::Number(real.ceil(), imaginary.ceil(), unit))
     }
 
-    pub fn cos(x: KalkValue) -> KalkValue {
+    pub fn cos(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
 
-        KalkValue::Number(
+        Ok(KalkValue::Number(
             real.clone().cos() * imaginary.clone().cosh(),
             -real.sin() * imaginary.sinh(),
             unit,
-        )
+        ))
     }
 
-    pub fn cosh(x: KalkValue) -> KalkValue {
+    pub fn cosh(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
 
-        KalkValue::Number(
+        Ok(KalkValue::Number(
             real.clone().cosh() * imaginary.clone().cos(),
             real.sinh() * imaginary.sin(),
             unit,
-        )
+        ))
     }
 
-    pub fn csc(x: KalkValue) -> KalkValue {
-        KalkValue::from(1f64).div_without_unit(&sin(x))
+    pub fn csc(x: KalkValue) -> Result<KalkValue, KalkError> {
+        KalkValue::from(1f64).div_without_unit(&sin(x)?)
     }
 
-    pub fn csch(x: KalkValue) -> KalkValue {
-        KalkValue::from(1f64).div_without_unit(&sinh(x))
+    pub fn csch(x: KalkValue) -> Result<KalkValue, KalkError> {
+        KalkValue::from(1f64).div_without_unit(&sinh(x)?)
     }
 
-    pub fn cot(x: KalkValue) -> KalkValue {
+    pub fn cot(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
 
         let a = real * 2f64;
         let b = imaginary * 2f64;
-        KalkValue::Number(
+        Ok(KalkValue::Number(
             -a.clone().sin() / (a.clone().cos() - b.clone().cosh()),
             b.clone().sinh() / (a.cos() - b.cosh()),
             unit,
-        )
+        ))
     }
 
-    pub fn coth(x: KalkValue) -> KalkValue {
+    pub fn coth(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
         let a = real * 2f64;
         let b = imaginary * 2f64;
-        KalkValue::Number(
+        Ok(KalkValue::Number(
             -a.clone().sinh() / (b.clone().cos() - a.clone().cosh()),
             b.clone().sin() / (b.cos() - a.cosh()),
             unit,
-        )
+        ))
     }
 
-    pub fn diag(x: KalkValue) -> KalkValue {
+    pub fn diag(x: KalkValue) -> Result<KalkValue, KalkError> {
         if let KalkValue::Vector(values) = x {
             let mut result = vec![vec![KalkValue::from(0f64); values.len()]; values.len()];
             for (i, value) in values.iter().enumerate() {
                 result[i][i] = value.clone();
             }
 
-            KalkValue::Matrix(result)
+            Ok(KalkValue::Matrix(result))
         } else {
-            KalkValue::nan()
+            Err(KalkError::UnexpectedType(
+                x.get_type_name(),
+                vec![String::from("vector")],
+            ))
         }
     }
 
-    pub fn exp(x: KalkValue) -> KalkValue {
+    pub fn exp(x: KalkValue) -> Result<KalkValue, KalkError> {
         let has_imaginary = x.has_imaginary();
         let (real, imaginary, unit) = as_number_or_return!(x);
         if has_imaginary {
             // e^a*cos(b) + ie^a*sin(b)
             let exp_a = real.exp();
             let b = imaginary;
-            KalkValue::Number(exp_a.clone() * b.clone().cos(), exp_a * b.sin(), unit)
+            Ok(KalkValue::Number(
+                exp_a.clone() * b.clone().cos(),
+                exp_a * b.sin(),
+                unit,
+            ))
         } else {
-            KalkValue::Number(real.exp(), float!(0), unit)
+            Ok(KalkValue::Number(real.exp(), float!(0), unit))
         }
     }
 
-    pub fn floor(x: KalkValue) -> KalkValue {
+    pub fn floor(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
 
-        KalkValue::Number(real.floor(), imaginary.floor(), unit)
+        Ok(KalkValue::Number(real.floor(), imaginary.floor(), unit))
     }
 
-    pub fn frac(x: KalkValue) -> KalkValue {
+    pub fn frac(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
 
-        KalkValue::Number(real.fract(), imaginary.fract(), unit)
+        Ok(KalkValue::Number(real.fract(), imaginary.fract(), unit))
     }
 
-    pub fn gcd(x: KalkValue, y: KalkValue) -> KalkValue {
+    pub fn gcd(x: KalkValue, y: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         let (real_rhs, imaginary_rhs, _) = as_number_or_return!(y.clone());
 
         // Find the norm of a Gaussian integer
-        fn norm(x: KalkValue) -> KalkValue {
+        fn norm(x: KalkValue) -> Result<KalkValue, KalkError> {
             let (real, imaginary, unit) = as_number_or_return!(x);
-            KalkValue::Number(
+            Ok(KalkValue::Number(
                 (real.clone() * real) + (imaginary.clone() * imaginary),
                 float!(0),
                 unit,
-            )
+            ))
         }
 
         if x.has_imaginary() || y.has_imaginary() {
@@ -615,8 +629,7 @@ pub mod funcs {
                 || imaginary_rhs.fract() != 0f64
             {
                 // Not a Gaussian integer!
-                // TODO: throw an actual error instead of returning NaN
-                return KalkValue::from(f64::NAN);
+                return Err(KalkError::Expected(String::from("a gaussian integer")));
             }
 
             // Partially derived from:
@@ -626,7 +639,7 @@ pub mod funcs {
             let b;
 
             // Ensure a > b
-            if norm(x.clone()).values().0 < norm(y.clone()).values().0 {
+            if norm(x.clone())?.values().0 < norm(y.clone())?.values().0 {
                 a = y;
                 b = x;
             } else {
@@ -636,13 +649,13 @@ pub mod funcs {
 
             let (b_real, b_imaginary, b_unit) = as_number_or_return!(b.clone());
             let (c_real, c_imaginary, c_unit) =
-                as_number_or_return!(a.clone().div_without_unit(&b));
+                as_number_or_return!(a.clone().div_without_unit(&b)?);
             if c_imaginary.clone().fract() == 0f64 {
-                KalkValue::Number(b_real.abs(), b_imaginary, b_unit)
+                Ok(KalkValue::Number(b_real.abs(), b_imaginary, b_unit))
             } else {
                 let rounded_c = KalkValue::Number(c_real.round(), c_imaginary.round(), c_unit);
                 gcd(
-                    a.sub_without_unit(&b.clone().mul_without_unit(&rounded_c)),
+                    a.sub_without_unit(&b.clone().mul_without_unit(&rounded_c)?)?,
                     b,
                 )
             }
@@ -665,26 +678,28 @@ pub mod funcs {
 
             // Usually we'd need to return max(x, -x), but since we've handled negative
             // values above, that is unnecessary.
-            KalkValue::Number(x_a, float!(0), unit)
+            Ok(KalkValue::Number(x_a, float!(0), unit))
         }
     }
 
-    pub fn im(x: KalkValue) -> KalkValue {
+    pub fn im(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (_, imaginary, unit) = as_number_or_return!(x);
 
-        KalkValue::Number(imaginary, float!(0), unit)
+        Ok(KalkValue::Number(imaginary, float!(0), unit))
     }
 
-    pub fn iverson(x: KalkValue) -> KalkValue {
-        KalkValue::from(if let KalkValue::Boolean(boolean_value) = x {
-            if boolean_value {
-                1
+    pub fn iverson(x: KalkValue) -> Result<KalkValue, KalkError> {
+        Ok(KalkValue::from(
+            if let KalkValue::Boolean(boolean_value) = x {
+                if boolean_value {
+                    1
+                } else {
+                    0
+                }
             } else {
-                0
-            }
-        } else {
-            1
-        })
+                1
+            },
+        ))
     }
 
     //              ⎛           ⎞
@@ -692,89 +707,93 @@ pub mod funcs {
     // lcm(a, b) =  ⎜ ───────── ⎟ × ⎜b⎜
     //              ⎜ gcd(a, b) ⎟
     //              ⎝           ⎠
-    pub fn lcm(x: KalkValue, y: KalkValue) -> KalkValue {
+    pub fn lcm(x: KalkValue, y: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         let (real_rhs, imaginary_rhs, unit_rhs) = as_number_or_return!(y.clone());
-        let gcd = gcd(x, y);
+        let gcd = gcd(x, y)?;
         let absx = KalkValue::Number(real.abs(), imaginary, unit);
         let absy = KalkValue::Number(real_rhs.abs(), imaginary_rhs, unit_rhs);
-        absx.div_without_unit(&gcd).mul_without_unit(&absy)
+        absx.div_without_unit(&gcd)?.mul_without_unit(&absy)
     }
 
-    pub fn log(x: KalkValue) -> KalkValue {
+    pub fn log(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real < 0f64 {
             // ln(z) / ln(10)
-            ln(x).div_without_unit(&KalkValue::from(10f64.ln()))
+            ln(x)?.div_without_unit(&KalkValue::from(10f64.ln()))
         } else {
-            KalkValue::Number(real.log10(), float!(0), unit)
+            Ok(KalkValue::Number(real.log10(), float!(0), unit))
         }
     }
 
-    pub fn logx(x: KalkValue, y: KalkValue) -> KalkValue {
+    pub fn logx(x: KalkValue, y: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         let (real_rhs, _, _) = as_number_or_return!(y.clone());
         if x.has_imaginary() || y.has_imaginary() || real < 0f64 || real_rhs < 0f64 {
             // ln(z) / ln(n)
-            ln(x).div_without_unit(&ln(y))
+            ln(x)?.div_without_unit(&ln(y)?)
         } else {
-            KalkValue::Number(real.log10() / real_rhs.log10(), float!(0), unit)
+            Ok(KalkValue::Number(
+                real.log10() / real_rhs.log10(),
+                float!(0),
+                unit,
+            ))
         }
     }
 
-    pub fn ln(x: KalkValue) -> KalkValue {
+    pub fn ln(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() || real < 0f64 {
-            let r = abs(x.clone());
+            let r = abs(x.clone())?;
             // ln|z| + i * arg z
-            ln(r).add_without_unit(&multiply_with_i(arg(x)))
+            ln(r)?.add_without_unit(&multiply_with_i(arg(x)?)?)
         } else {
-            KalkValue::Number(real.ln(), float!(0), unit)
+            Ok(KalkValue::Number(real.ln(), float!(0), unit))
         }
     }
 
-    pub fn length(x: KalkValue) -> KalkValue {
-        match x {
+    pub fn length(x: KalkValue) -> Result<KalkValue, KalkError> {
+        Ok(match x {
             KalkValue::Vector(values) => KalkValue::from(values.len() as f64),
             KalkValue::Matrix(rows) => KalkValue::from(rows.len() as f64),
             _ => KalkValue::from(0f64),
-        }
+        })
     }
 
-    pub fn max(x: KalkValue) -> KalkValue {
+    pub fn max(x: KalkValue) -> Result<KalkValue, KalkError> {
         let values = as_vector_or_return!(x);
         let mut max = &values[0];
         for value in &values {
-            if let KalkValue::Boolean(greater) = value.greater_than_without_unit(max) {
+            if let KalkValue::Boolean(greater) = value.greater_than_without_unit(max)? {
                 if greater {
                     max = value;
                 }
             }
         }
 
-        max.clone()
+        Ok(max.clone())
     }
 
-    pub fn min(x: KalkValue) -> KalkValue {
+    pub fn min(x: KalkValue) -> Result<KalkValue, KalkError> {
         let values = as_vector_or_return!(x);
         let mut min = &values[0];
         for value in &values {
-            if let KalkValue::Boolean(less) = value.less_than_without_unit(min) {
+            if let KalkValue::Boolean(less) = value.less_than_without_unit(min)? {
                 if less {
                     min = value;
                 }
             }
         }
 
-        min.clone()
+        Ok(min.clone())
     }
 
-    pub fn nth_root(x: KalkValue, n: KalkValue) -> KalkValue {
-        x.pow_without_unit(&KalkValue::from(1f64).div_without_unit(&n))
+    pub fn nth_root(x: KalkValue, n: KalkValue) -> Result<KalkValue, KalkError> {
+        x.pow_without_unit(&KalkValue::from(1f64).div_without_unit(&n)?)
     }
 
-    pub fn perms(x: KalkValue) -> KalkValue {
-        if let KalkValue::Vector(values) = sort(x) {
+    pub fn perms(x: KalkValue) -> Result<KalkValue, KalkError> {
+        if let KalkValue::Vector(values) = sort(x)? {
             let mut result: Vec<Vec<KalkValue>> = vec![values];
 
             // Permutations in lexographic order: https://www.baeldung.com/cs/array-generate-all-permutations
@@ -795,19 +814,22 @@ pub mod funcs {
                         // since the counter is of type usize, which
                         // can't be negative.
                         if i == 0 {
-                            return KalkValue::Matrix(result);
+                            return Ok(KalkValue::Matrix(result));
                         }
                     }
                 }
 
                 if i == 0 {
-                    return KalkValue::Matrix(result);
+                    return Ok(KalkValue::Matrix(result));
                 }
 
                 let pivot = if let KalkValue::Number(real, _, _) = &prev_values[i - 1] {
                     real
                 } else {
-                    return KalkValue::nan();
+                    return Err(KalkError::UnexpectedType(
+                        (&prev_values[i - 1]).get_type_name(),
+                        vec![String::from("number")],
+                    ));
                 };
 
                 let mut j = prev_values.len() - 1;
@@ -834,149 +856,161 @@ pub mod funcs {
                 result.push(new_values);
             }
         } else {
-            KalkValue::nan()
+            Err(KalkError::UnexpectedType(
+                String::from("unknown"),
+                vec![String::from("vector")],
+            ))
         }
     }
 
-    pub fn prod(x: KalkValue) -> KalkValue {
+    pub fn prod(x: KalkValue) -> Result<KalkValue, KalkError> {
         let values = as_vector_or_return!(x);
         let mut prod = KalkValue::from(1f64);
         for value in values {
-            prod = prod.mul_without_unit(&value);
+            prod = prod.mul_without_unit(&value)?;
         }
 
-        prod
+        Ok(prod)
     }
 
-    pub fn re(x: KalkValue) -> KalkValue {
+    pub fn re(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x);
-        KalkValue::Number(real, float!(0), unit)
+        Ok(KalkValue::Number(real, float!(0), unit))
     }
 
-    pub fn round(x: KalkValue) -> KalkValue {
+    pub fn round(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
-        KalkValue::Number(real.round(), imaginary.round(), unit)
+        Ok(KalkValue::Number(real.round(), imaginary.round(), unit))
     }
 
-    pub fn sec(x: KalkValue) -> KalkValue {
-        KalkValue::from(1f64).div_without_unit(&cos(x))
+    pub fn sec(x: KalkValue) -> Result<KalkValue, KalkError> {
+        KalkValue::from(1f64).div_without_unit(&cos(x)?)
     }
 
-    pub fn sech(x: KalkValue) -> KalkValue {
-        KalkValue::from(1f64).div_without_unit(&cosh(x))
+    pub fn sech(x: KalkValue) -> Result<KalkValue, KalkError> {
+        KalkValue::from(1f64).div_without_unit(&cosh(x)?)
     }
 
-    pub fn sin(x: KalkValue) -> KalkValue {
+    pub fn sin(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
-        KalkValue::Number(
+        Ok(KalkValue::Number(
             real.clone().sin() * imaginary.clone().cosh(),
             real.cos() * imaginary.sinh(),
             unit,
-        )
+        ))
     }
 
-    pub fn sinh(x: KalkValue) -> KalkValue {
+    pub fn sinh(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
-        KalkValue::Number(
+        Ok(KalkValue::Number(
             real.clone().sinh() * imaginary.clone().cos(),
             real.cosh() * imaginary.sin(),
             unit,
-        )
+        ))
     }
 
-    pub fn sgn(x: KalkValue) -> KalkValue {
+    pub fn sgn(x: KalkValue) -> Result<KalkValue, KalkError> {
         if x.has_imaginary() {
-            x.clone().div_without_unit(&abs(x))
+            x.clone().div_without_unit(&abs(x)?)
         } else {
             let (real, _, unit) = as_number_or_return!(x);
 
-            KalkValue::Number(real.signum(), float!(0), unit)
+            Ok(KalkValue::Number(real.signum(), float!(0), unit))
         }
     }
 
-    pub fn sort(x: KalkValue) -> KalkValue {
+    pub fn sort(x: KalkValue) -> Result<KalkValue, KalkError> {
         if let KalkValue::Vector(mut values) = x {
             values.sort_by(|a, b| {
-                if let KalkValue::Boolean(true) = a.eq_without_unit(b) {
+                if let KalkValue::Boolean(true) =
+                    a.eq_without_unit(b).unwrap_or_else(|_| KalkValue::nan())
+                {
                     Ordering::Equal
-                } else if let KalkValue::Boolean(true) = a.greater_than_without_unit(b) {
+                } else if let KalkValue::Boolean(true) = a
+                    .greater_than_without_unit(b)
+                    .unwrap_or_else(|_| KalkValue::nan())
+                {
                     Ordering::Greater
                 } else {
                     Ordering::Less
                 }
             });
 
-            KalkValue::Vector(values)
+            Ok(KalkValue::Vector(values))
         } else {
-            KalkValue::nan()
+            Err(KalkError::UnexpectedType(
+                x.get_type_name(),
+                vec![String::from("vector")],
+            ))
         }
     }
 
-    pub fn sqrt(x: KalkValue) -> KalkValue {
+    pub fn sqrt(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x.clone());
         if x.has_imaginary() {
-            let (abs_real, _, abs_unit) = as_number_or_return!(abs(x));
+            let abs = abs(x)?;
+            let (abs_real, _, abs_unit) = as_number_or_return!(abs);
             let r = abs_real;
             let a = real;
             let b = imaginary;
 
             // sqrt((|z| + a) / 2) + i * (b / |b|) * sqrt((|z| - a) / 2)
-            KalkValue::Number(
+            Ok(KalkValue::Number(
                 ((r.clone() + a.clone()) / 2f64).sqrt(),
                 (b.clone() / b.abs()) * ((r - a) / 2f64).sqrt(),
                 abs_unit,
-            )
+            ))
         } else if real < 0f64 {
-            KalkValue::Number(float!(0), real.abs().sqrt(), unit)
+            Ok(KalkValue::Number(float!(0), real.abs().sqrt(), unit))
         } else {
-            KalkValue::Number(real.sqrt(), float!(0), unit)
+            Ok(KalkValue::Number(real.sqrt(), float!(0), unit))
         }
     }
 
-    pub fn sum(x: KalkValue) -> KalkValue {
+    pub fn sum(x: KalkValue) -> Result<KalkValue, KalkError> {
         let values = as_vector_or_return!(x);
         let mut sum = KalkValue::from(0f64);
         for value in values {
-            sum = sum.add_without_unit(&value);
+            sum = sum.add_without_unit(&value)?;
         }
 
-        sum
+        Ok(sum)
     }
 
-    pub fn tan(x: KalkValue) -> KalkValue {
+    pub fn tan(x: KalkValue) -> Result<KalkValue, KalkError> {
         let has_imaginary = x.has_imaginary();
         let (real, imaginary, unit) = as_number_or_return!(x);
         if has_imaginary {
             let a = real * 2f64;
             let b = imaginary * 2f64;
-            KalkValue::Number(
+            Ok(KalkValue::Number(
                 a.clone().sin() / (a.clone().cos() + b.clone().cosh()),
                 b.clone().sinh() / (a.cos() + b.cosh()),
                 unit,
-            )
+            ))
         } else {
-            KalkValue::Number(real.tan(), float!(0), unit)
+            Ok(KalkValue::Number(real.tan(), float!(0), unit))
         }
     }
 
-    pub fn tanh(x: KalkValue) -> KalkValue {
+    pub fn tanh(x: KalkValue) -> Result<KalkValue, KalkError> {
         let has_imaginary = x.has_imaginary();
         let (real, imaginary, unit) = as_number_or_return!(x);
         if has_imaginary {
             let a = real * 2f64;
             let b = imaginary * 2f64;
-            KalkValue::Number(
+            Ok(KalkValue::Number(
                 a.clone().sinh() / (a.clone().cosh() + b.clone().cos()),
                 b.clone().sin() / (a.cosh() + b.cos()),
                 unit,
-            )
+            ))
         } else {
-            KalkValue::Number(real.tanh(), float!(0), unit)
+            Ok(KalkValue::Number(real.tanh(), float!(0), unit))
         }
     }
 
     #[allow(clippy::needless_range_loop)]
-    pub fn transpose(x: KalkValue) -> KalkValue {
+    pub fn transpose(x: KalkValue) -> Result<KalkValue, KalkError> {
         if let KalkValue::Matrix(rows) = x {
             let original_row_count = rows.len();
             let original_column_count = rows.first().unwrap().len();
@@ -988,38 +1022,42 @@ pub mod funcs {
                 }
             }
 
-            KalkValue::Matrix(result)
+            Ok(KalkValue::Matrix(result))
         } else {
-            KalkValue::nan()
+            Err(KalkError::UnexpectedType(
+                x.get_type_name(),
+                vec![String::from("matrix")],
+            ))
         }
     }
 
-    pub fn trunc(x: KalkValue) -> KalkValue {
+    pub fn trunc(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
-        KalkValue::Number(real.trunc(), imaginary.trunc(), unit)
+        Ok(KalkValue::Number(real.trunc(), imaginary.trunc(), unit))
     }
 
-    pub fn ncr(x: KalkValue, y: KalkValue) -> KalkValue {
-        factorial(x.clone()).div_without_unit(
-            &factorial(y.clone()).mul_without_unit(&factorial(x.sub_without_unit(&y))),
+    pub fn ncr(x: KalkValue, y: KalkValue) -> Result<KalkValue, KalkError> {
+        factorial(x.clone())?.div_without_unit(
+            &factorial(y.clone())?.mul_without_unit(&factorial(x.sub_without_unit(&y)?)?)?,
         )
     }
 
-    pub fn npr(x: KalkValue, y: KalkValue) -> KalkValue {
-        factorial(x.clone()).div_without_unit(&factorial(x.sub_without_unit(&y)))
+    pub fn npr(x: KalkValue, y: KalkValue) -> Result<KalkValue, KalkError> {
+        factorial(x.clone())?.div_without_unit(&factorial(x.sub_without_unit(&y)?)?)
     }
 
-    fn multiply_with_i(z: KalkValue) -> KalkValue {
+    fn multiply_with_i(z: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(z);
 
         // iz = i(a + bi) = -b + ai
-        KalkValue::Number(-imaginary, real, unit)
+        Ok(KalkValue::Number(-imaginary, real, unit))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::funcs::*;
+    use crate::errors::KalkError;
     use crate::float;
     use crate::prelude::KalkValue;
     use crate::test_helpers::cmp;
@@ -1032,7 +1070,7 @@ mod tests {
     fn test_unary_funcs() {
         let in_out = vec![
             (
-                abs as fn(KalkValue) -> KalkValue,
+                abs as fn(KalkValue) -> Result<KalkValue, KalkError>,
                 (3f64, 4f64),
                 (5f64, 0f64),
             ),
@@ -1042,7 +1080,8 @@ mod tests {
         ];
 
         for (i, (func, input, expected_output)) in in_out.iter().enumerate() {
-            let actual_output = func(KalkValue::Number(float!(input.0), float!(input.1), None));
+            let actual_output =
+                func(KalkValue::Number(float!(input.0), float!(input.1), None)).unwrap();
 
             println!(
                 "{} | expected: {}, {}",
@@ -1063,7 +1102,7 @@ mod tests {
     fn test_binary_funcs() {
         let in_out = vec![
             (
-                gcd as fn(KalkValue, KalkValue) -> KalkValue,
+                gcd as fn(KalkValue, KalkValue) -> Result<KalkValue, KalkError>,
                 ((12f64, 0f64), (18f64, 0f64)),
                 (6f64, 0f64),
             ),
@@ -1080,7 +1119,8 @@ mod tests {
             let actual_output = func(
                 KalkValue::Number(float!(input.0 .0), float!(input.0 .1), None),
                 KalkValue::Number(float!(input.1 .0), float!(input.1 .1), None),
-            );
+            )
+            .unwrap();
 
             println!(
                 "{} | expected: {}, {}",
@@ -1110,7 +1150,7 @@ mod tests {
             ),
         ];
         for (vec, expected_len) in vecs {
-            let permutations = if let KalkValue::Matrix(permutations) = perms(vec) {
+            let permutations = if let KalkValue::Matrix(permutations) = perms(vec).unwrap() {
                 permutations
             } else {
                 unreachable!()
@@ -1143,17 +1183,17 @@ mod tests {
         }
 
         assert_eq!(
-            transpose(to_matrix(vec![vec![1, 2], vec![3, 4]])),
+            transpose(to_matrix(vec![vec![1, 2], vec![3, 4]])).unwrap(),
             to_matrix(vec![vec![1, 3], vec![2, 4]])
         );
 
         assert_eq!(
-            transpose(to_matrix(vec![vec![1, 2], vec![3, 4], vec![5, 6]])),
+            transpose(to_matrix(vec![vec![1, 2], vec![3, 4], vec![5, 6]])).unwrap(),
             to_matrix(vec![vec![1, 3, 5], vec![2, 4, 6]])
         );
 
         assert_eq!(
-            transpose(to_matrix(vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]])),
+            transpose(to_matrix(vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]])).unwrap(),
             to_matrix(vec![vec![1, 4, 7], vec![2, 5, 8], vec![3, 6, 9]])
         );
     }
@@ -1164,7 +1204,7 @@ mod tests {
         // Auto-generated using kalk/scripts/generate_funcs_test_cases.py
         let in_out = vec![
             (
-                arg as fn(KalkValue) -> KalkValue,
+                arg as fn(KalkValue) -> Result<KalkValue, KalkError>,
                 (0.3f64, 0f64),
                 (0.0f64, 0.0f64),
             ),
@@ -1387,7 +1427,8 @@ mod tests {
         ];
 
         for (i, (func, input, expected_output)) in in_out.iter().enumerate() {
-            let actual_output = func(KalkValue::Number(float!(input.0), float!(input.1), None));
+            let actual_output =
+                func(KalkValue::Number(float!(input.0), float!(input.1), None)).unwrap();
 
             let expected_has_nan_or_inf = expected_output.0.is_nan()
                 || expected_output.0.is_infinite()

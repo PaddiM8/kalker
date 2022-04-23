@@ -1,7 +1,7 @@
 use crate::ast::Identifier;
 use crate::ast::{Expr, Stmt};
+use crate::errors::KalkError;
 use crate::lexer::TokenKind;
-use crate::parser::KalkError;
 use crate::prelude;
 use crate::symbol_table::SymbolTable;
 use lazy_static::lazy_static;

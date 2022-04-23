@@ -3,6 +3,7 @@ use std::cell::Cell;
 use crate::analysis;
 use crate::ast::Identifier;
 use crate::calculation_result::CalculationResult;
+use crate::errors::KalkError;
 use crate::{
     ast::{Expr, Stmt},
     interpreter,
@@ -83,76 +84,6 @@ impl Context {
 impl Default for Context {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// Error that occured during parsing or evaluation.
-#[derive(Debug, Clone, PartialEq)]
-pub enum KalkError {
-    CannotIndexByImaginary,
-    CanOnlyIndexX,
-    Expected(String),
-    ExpectedDx,
-    ExpectedIf,
-    IncorrectAmountOfArguments(usize, String, usize),
-    IncorrectAmountOfIndexes(usize, usize),
-    ItemOfIndexDoesNotExist(Vec<usize>),
-    InconsistentColumnWidths,
-    InvalidComprehension(String),
-    InvalidNumberLiteral(String),
-    InvalidOperator,
-    InvalidUnit,
-    TimedOut,
-    VariableReferencesItself,
-    PiecewiseConditionsAreFalse,
-    UnexpectedToken(TokenKind, TokenKind),
-    UndefinedFn(String),
-    UndefinedVar(String),
-    UnableToInvert(String),
-    UnableToSolveEquation,
-    UnableToOverrideConstant(String),
-    UnableToParseExpression,
-    UnrecognizedBase,
-    Unknown,
-}
-
-impl ToString for KalkError {
-    fn to_string(&self) -> String {
-        match self {
-            KalkError::CannotIndexByImaginary => String::from("Cannot index by imaginary numbers."),
-            KalkError::CanOnlyIndexX => String::from("Indexing (getting an item with a specific index) is only possible on vectors and matrices."),
-            KalkError::Expected(description) => format!("Expected: {}", description),
-            KalkError::ExpectedDx => String::from("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
-            KalkError::ExpectedIf => String::from("Expected 'if', with a condition after it."),
-            KalkError::IncorrectAmountOfArguments(expected, func, got) => format!(
-                "Expected {} arguments for function {}, but got {}.",
-                expected, func, got
-            ),
-            KalkError::IncorrectAmountOfIndexes(expected,  got) => format!(
-                "Expected {} indexes but got {}.",
-                expected, got
-            ),
-            KalkError::ItemOfIndexDoesNotExist(indexes) => format!("Item of index ⟦{}⟧ does not exist.", indexes.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")),
-            KalkError::InconsistentColumnWidths => String::from("Inconsistent column widths. Matrix columns must be the same size."),
-            KalkError::InvalidComprehension(x) => format!("Invalid comprehension: {}", x),
-            KalkError::InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
-            KalkError::InvalidOperator => String::from("Invalid operator."),
-            KalkError::InvalidUnit => String::from("Invalid unit."),
-            KalkError::TimedOut => String::from("Operation took too long."),
-            KalkError::VariableReferencesItself => String::from("Variable references itself."),
-            KalkError::PiecewiseConditionsAreFalse => String::from("All the conditions in the piecewise are false."),
-            KalkError::UnexpectedToken(got, expected) => {
-                format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
-            }
-            KalkError::UnableToInvert(msg) => format!("Unable to invert: {}", msg),
-            KalkError::UndefinedFn(name) => format!("Undefined function: '{}'.", name),
-            KalkError::UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
-            KalkError::UnableToParseExpression => String::from("Unable to parse expression."),
-            KalkError::UnableToSolveEquation => String::from("Unable to solve equation."),
-            KalkError::UnableToOverrideConstant(name) => format!("Unable to override constant: '{}'.", name),
-            KalkError::UnrecognizedBase => String::from("Unrecognized base."),
-            KalkError::Unknown => String::from("Unknown error."),
-        }
     }
 }
 
