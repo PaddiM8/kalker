@@ -3,6 +3,7 @@ use std::cell::Cell;
 use crate::analysis;
 use crate::ast::Identifier;
 use crate::calculation_result::CalculationResult;
+use crate::errors::KalkError;
 use crate::{
     ast::{Expr, Stmt},
     interpreter,
@@ -86,76 +87,6 @@ impl Default for Context {
     }
 }
 
-/// Error that occured during parsing or evaluation.
-#[derive(Debug, Clone, PartialEq)]
-pub enum CalcError {
-    CannotIndexByImaginary,
-    CanOnlyIndexX,
-    Expected(String),
-    ExpectedDx,
-    ExpectedIf,
-    IncorrectAmountOfArguments(usize, String, usize),
-    IncorrectAmountOfIndexes(usize, usize),
-    ItemOfIndexDoesNotExist(Vec<usize>),
-    InconsistentColumnWidths,
-    InvalidComprehension(String),
-    InvalidNumberLiteral(String),
-    InvalidOperator,
-    InvalidUnit,
-    TimedOut,
-    VariableReferencesItself,
-    PiecewiseConditionsAreFalse,
-    UnexpectedToken(TokenKind, TokenKind),
-    UndefinedFn(String),
-    UndefinedVar(String),
-    UnableToInvert(String),
-    UnableToSolveEquation,
-    UnableToOverrideConstant(String),
-    UnableToParseExpression,
-    UnrecognizedBase,
-    Unknown,
-}
-
-impl ToString for CalcError {
-    fn to_string(&self) -> String {
-        match self {
-            CalcError::CannotIndexByImaginary => String::from("Cannot index by imaginary numbers."),
-            CalcError::CanOnlyIndexX => String::from("Indexing (getting an item with a specific index) is only possible on vectors and matrices."),
-            CalcError::Expected(description) => format!("Expected: {}", description),
-            CalcError::ExpectedDx => String::from("Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),
-            CalcError::ExpectedIf => String::from("Expected 'if', with a condition after it."),
-            CalcError::IncorrectAmountOfArguments(expected, func, got) => format!(
-                "Expected {} arguments for function {}, but got {}.",
-                expected, func, got
-            ),
-            CalcError::IncorrectAmountOfIndexes(expected,  got) => format!(
-                "Expected {} indexes but got {}.",
-                expected, got
-            ),
-            CalcError::ItemOfIndexDoesNotExist(indexes) => format!("Item of index ⟦{}⟧ does not exist.", indexes.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")),
-            CalcError::InconsistentColumnWidths => String::from("Inconsistent column widths. Matrix columns must be the same size."),
-            CalcError::InvalidComprehension(x) => format!("Invalid comprehension: {}", x),
-            CalcError::InvalidNumberLiteral(x) => format!("Invalid number literal: '{}'.", x),
-            CalcError::InvalidOperator => String::from("Invalid operator."),
-            CalcError::InvalidUnit => String::from("Invalid unit."),
-            CalcError::TimedOut => String::from("Operation took too long."),
-            CalcError::VariableReferencesItself => String::from("Variable references itself."),
-            CalcError::PiecewiseConditionsAreFalse => String::from("All the conditions in the piecewise are false."),
-            CalcError::UnexpectedToken(got, expected) => {
-                format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
-            }
-            CalcError::UnableToInvert(msg) => format!("Unable to invert: {}", msg),
-            CalcError::UndefinedFn(name) => format!("Undefined function: '{}'.", name),
-            CalcError::UndefinedVar(name) => format!("Undefined variable: '{}'.", name),
-            CalcError::UnableToParseExpression => String::from("Unable to parse expression."),
-            CalcError::UnableToSolveEquation => String::from("Unable to solve equation."),
-            CalcError::UnableToOverrideConstant(name) => format!("Unable to override constant: '{}'.", name),
-            CalcError::UnrecognizedBase => String::from("Unrecognized base."),
-            CalcError::Unknown => String::from("Unknown error."),
-        }
-    }
-}
-
 /// Evaluate expressions/declarations and return the answer.
 ///
 /// `None` will be returned if the last statement is a declaration.
@@ -163,7 +94,7 @@ pub fn eval(
     context: &mut Context,
     input: &str,
     #[cfg(feature = "rug")] precision: u32,
-) -> Result<Option<CalculationResult>, CalcError> {
+) -> Result<Option<CalculationResult>, KalkError> {
     let statements = parse(context, input)?;
 
     let symbol_table = context.symbol_table.get_mut();
@@ -186,7 +117,7 @@ pub fn eval(
 /// Parse expressions/declarations and return a syntax tree.
 ///
 /// `None` will be returned if the last statement is a declaration.
-pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError> {
+pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, KalkError> {
     let mut lexer = Lexer::new(input);
     context.tokens = lexer.lex();
     context.pos = 0;
@@ -211,7 +142,7 @@ pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, CalcError>
     Ok(statements)
 }
 
-fn parse_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
+fn parse_stmt(context: &mut Context) -> Result<Stmt, KalkError> {
     if match_token(context, TokenKind::UnitKeyword) {
         parse_unit_decl_stmt(context)
     } else {
@@ -219,7 +150,7 @@ fn parse_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     }
 }
 
-fn parse_piecewise(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_piecewise(context: &mut Context) -> Result<Expr, KalkError> {
     advance(context);
     skip_newlines(context);
 
@@ -250,7 +181,7 @@ fn parse_piecewise(context: &mut Context) -> Result<Expr, CalcError> {
 
             reached_otherwise = true;
         } else {
-            return Err(CalcError::ExpectedIf);
+            return Err(KalkError::ExpectedIf);
         }
 
         if match_token(context, TokenKind::Semicolon) {
@@ -269,7 +200,7 @@ fn parse_piecewise(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(Expr::Piecewise(pieces))
 }
 
-fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
+fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, KalkError> {
     advance(context); // Unit keyword
     let identifier = advance(context).clone();
     consume(context, TokenKind::Equals)?;
@@ -283,7 +214,7 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     let base_unit = if let Some(base_unit) = &context.unit_decl_base_unit {
         base_unit.clone()
     } else {
-        return Err(CalcError::InvalidUnit);
+        return Err(KalkError::InvalidUnit);
     };
 
     // Automatically create a second unit decl with the expression inverted.
@@ -302,11 +233,11 @@ fn parse_unit_decl_stmt(context: &mut Context) -> Result<Stmt, CalcError> {
     Ok(stmt)
 }
 
-fn parse_expr(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_expr(context: &mut Context) -> Result<Expr, KalkError> {
     parse_or(context)
 }
 
-fn parse_comprehension(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_comprehension(context: &mut Context) -> Result<Expr, KalkError> {
     let left = parse_or(context)?;
 
     if match_token(context, TokenKind::Colon) {
@@ -319,7 +250,7 @@ fn parse_comprehension(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_comprehension_comma(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_comprehension_comma(context: &mut Context) -> Result<Expr, KalkError> {
     let left = parse_or(context)?;
 
     if match_token(context, TokenKind::Comma) {
@@ -332,7 +263,7 @@ fn parse_comprehension_comma(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_or(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_or(context: &mut Context) -> Result<Expr, KalkError> {
     let left = parse_and(context)?;
 
     if match_token(context, TokenKind::Or) {
@@ -345,7 +276,7 @@ fn parse_or(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_and(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_and(context: &mut Context) -> Result<Expr, KalkError> {
     let left = parse_comparison(context)?;
 
     if match_token(context, TokenKind::And) {
@@ -358,7 +289,7 @@ fn parse_and(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_comparison(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
     let mut left = parse_to(context)?;
 
     // Equality check
@@ -460,7 +391,7 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_to(context: &mut Context) -> Result<Expr, KalkError> {
     let left = parse_term(context)?;
 
     if match_token(context, TokenKind::ToKeyword) {
@@ -477,7 +408,7 @@ fn parse_to(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_term(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_term(context: &mut Context) -> Result<Expr, KalkError> {
     let mut left = parse_factor(context)?;
 
     while match_token(context, TokenKind::Plus) || match_token(context, TokenKind::Minus) {
@@ -491,7 +422,7 @@ fn parse_term(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_factor(context: &mut Context) -> Result<Expr, KalkError> {
     let mut left = parse_unit(context)?;
 
     if let Expr::Unary(TokenKind::Percent, percent_left) = left.clone() {
@@ -531,7 +462,7 @@ fn parse_factor(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_unit(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_unit(context: &mut Context) -> Result<Expr, KalkError> {
     let expr = parse_exponent(context)?;
 
     if match_token(context, TokenKind::Identifier) {
@@ -547,7 +478,7 @@ fn parse_unit(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(expr)
 }
 
-fn parse_exponent(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_exponent(context: &mut Context) -> Result<Expr, KalkError> {
     let left = parse_unary(context)?;
 
     if match_token(context, TokenKind::Power) {
@@ -559,7 +490,7 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_unary(context: &mut Context) -> Result<Expr, KalkError> {
     if match_token(context, TokenKind::Minus) {
         let op = advance(context).kind;
         let expr = Box::new(parse_unary(context)?);
@@ -574,7 +505,7 @@ fn parse_unary(context: &mut Context) -> Result<Expr, CalcError> {
     }
 }
 
-fn parse_indexer(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_indexer(context: &mut Context) -> Result<Expr, KalkError> {
     let left = parse_factorial(context)?;
 
     if match_token(context, TokenKind::OpenDoubleBracket) {
@@ -593,7 +524,7 @@ fn parse_indexer(context: &mut Context) -> Result<Expr, CalcError> {
     Ok(left)
 }
 
-fn parse_factorial(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_factorial(context: &mut Context) -> Result<Expr, KalkError> {
     let expr = parse_primary(context)?;
 
     Ok(if match_token(context, TokenKind::Exclamation) {
@@ -604,19 +535,19 @@ fn parse_factorial(context: &mut Context) -> Result<Expr, CalcError> {
     })
 }
 
-fn parse_primary(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_primary(context: &mut Context) -> Result<Expr, KalkError> {
     let expr = match peek(context).kind {
         TokenKind::OpenParenthesis | TokenKind::OpenBracket => parse_vector(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
         TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
-        _ => return Err(CalcError::UnableToParseExpression),
+        _ => return Err(KalkError::UnableToParseExpression),
     };
 
     Ok(expr)
 }
 
-fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_group_fn(context: &mut Context) -> Result<Expr, KalkError> {
     let name = match &peek(context).kind {
         TokenKind::Pipe => "abs",
         TokenKind::OpenCeil => "ceil",
@@ -634,7 +565,7 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, CalcError> {
     }
 }
 
-fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_vector(context: &mut Context) -> Result<Expr, KalkError> {
     let kind = advance(context).kind;
 
     if kind == TokenKind::OpenBracket {
@@ -660,7 +591,7 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
         {
             if let Some(columns) = column_count {
                 if columns != items_in_row {
-                    return Err(CalcError::InconsistentColumnWidths);
+                    return Err(KalkError::InconsistentColumnWidths);
                 }
             } else {
                 column_count = Some(items_in_row);
@@ -676,7 +607,7 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
     }
 
     if peek(context).kind == TokenKind::Eof {
-        return Err(CalcError::Expected(String::from(
+        return Err(KalkError::Expected(String::from(
             "Closing group symbol, eg. )",
         )));
     }
@@ -699,7 +630,7 @@ fn parse_vector(context: &mut Context) -> Result<Expr, CalcError> {
     }
 }
 
-fn parse_identifier(context: &mut Context) -> Result<Expr, CalcError> {
+fn parse_identifier(context: &mut Context) -> Result<Expr, KalkError> {
     let identifier = Identifier::from_full_name(&advance(context).value);
 
     let mut log_base = None;
@@ -775,12 +706,12 @@ fn advance(context: &mut Context) -> &Token {
     previous(context)
 }
 
-fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, CalcError> {
+fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, KalkError> {
     if match_token(context, kind) {
         return Ok(advance(context));
     }
 
-    Err(CalcError::UnexpectedToken(peek(context).kind, kind))
+    Err(KalkError::UnexpectedToken(peek(context).kind, kind))
 }
 
 fn is_at_end(context: &Context) -> bool {
@@ -793,16 +724,16 @@ fn skip_newlines(context: &mut Context) {
     }
 }
 
-fn string_to_num(value: &str) -> Result<f64, CalcError> {
+fn string_to_num(value: &str) -> Result<f64, KalkError> {
     let base = get_base(value)?;
     if let Some(result) = crate::radix::parse_float_radix(&value.replace(" ", ""), base) {
         Ok(result)
     } else {
-        Err(CalcError::InvalidNumberLiteral(value.into()))
+        Err(KalkError::InvalidNumberLiteral(value.into()))
     }
 }
 
-fn get_base(value: &str) -> Result<u8, CalcError> {
+fn get_base(value: &str) -> Result<u8, KalkError> {
     let underscore_pos = if let Some(i) = value.find('_') {
         i
     } else {
@@ -813,7 +744,7 @@ fn get_base(value: &str) -> Result<u8, CalcError> {
     if let Some(base) = crate::text_utils::parse_subscript(subscript) {
         Ok(base)
     } else {
-        Err(CalcError::UnrecognizedBase)
+        Err(KalkError::UnrecognizedBase)
     }
 }
 
@@ -825,7 +756,7 @@ mod tests {
     use crate::test_helpers::*;
     use wasm_bindgen_test::*;
 
-    fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, CalcError> {
+    fn parse_with_context(context: &mut Context, tokens: Vec<Token>) -> Result<Stmt, KalkError> {
         context.tokens = tokens;
         context.pos = 0;
 
@@ -834,7 +765,7 @@ mod tests {
         analysis::analyse_stmt(symbol_table, parsed)
     }
 
-    fn parse(tokens: Vec<Token>) -> Result<Stmt, CalcError> {
+    fn parse(tokens: Vec<Token>) -> Result<Stmt, KalkError> {
         let mut context = Context::new();
         context.tokens = tokens;
         context.pos = 0;

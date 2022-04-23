@@ -1,9 +1,9 @@
 use crate::{
     ast::{ConditionalPiece, Expr, Identifier, RangedVar, Stmt},
+    errors::KalkError,
     inverter,
     lexer::TokenKind,
-    parser::{self, CalcError},
-    prelude,
+    parser, prelude,
     symbol_table::SymbolTable,
 };
 
@@ -25,7 +25,7 @@ pub(crate) struct Context<'a> {
 pub(crate) fn analyse_stmt(
     symbol_table: &mut SymbolTable,
     statement: Stmt,
-) -> Result<Stmt, CalcError> {
+) -> Result<Stmt, KalkError> {
     let mut context = Context {
         symbol_table,
         current_function_name: None,
@@ -77,7 +77,7 @@ pub(crate) fn analyse_stmt(
     })
 }
 
-fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, CalcError> {
+fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, KalkError> {
     Ok(
         if let Expr::Binary(left, TokenKind::Equals, right) = value {
             match *left {
@@ -125,11 +125,11 @@ fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, CalcErr
                 }
                 Expr::Var(identifier) if !context.in_conditional => {
                     if inverter::contains_var(context.symbol_table, &right, &identifier.full_name) {
-                        return Err(CalcError::VariableReferencesItself);
+                        return Err(KalkError::VariableReferencesItself);
                     }
 
                     if prelude::is_constant(&identifier.full_name) {
-                        return Err(CalcError::UnableToOverrideConstant(identifier.pure_name));
+                        return Err(KalkError::UnableToOverrideConstant(identifier.pure_name));
                     }
 
                     let result =
@@ -155,7 +155,7 @@ fn build_fn_decl_from_scratch(
     identifier_expr: Expr,
     parameter_expr: Expr,
     right: Expr,
-) -> Result<Stmt, CalcError> {
+) -> Result<Stmt, KalkError> {
     Ok(match identifier_expr {
         Expr::Var(identifier) if !prelude::is_prelude_func(&identifier.full_name) => {
             // Check if all the expressions in the parameter_expr are
@@ -229,7 +229,7 @@ fn build_fn_decl_from_scratch(
     })
 }
 
-fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, CalcError> {
+fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
     Ok(match expr {
         Expr::Binary(left, op, right) => analyse_binary(context, *left, op, *right)?,
         Expr::Unary(op, value) => Expr::Unary(op, Box::new(analyse_expr(context, *value)?)),
@@ -291,7 +291,7 @@ fn analyse_binary(
     left: Expr,
     op: TokenKind,
     right: Expr,
-) -> Result<Expr, CalcError> {
+) -> Result<Expr, KalkError> {
     let previous_in_conditional = context.in_conditional;
     if op == TokenKind::And || op == TokenKind::Or {
         context.in_conditional = true;
@@ -335,7 +335,7 @@ fn analyse_binary(
             // If the inverted expression still contains the variable,
             // the equation solving failed.
             if inverter::contains_var(context.symbol_table, &inverted, var_name) {
-                return Err(CalcError::UnableToSolveEquation);
+                return Err(KalkError::UnableToSolveEquation);
             }
 
             context.symbol_table.insert(Stmt::VarDecl(
@@ -440,7 +440,7 @@ fn analyse_comparison_with_var(
     var: Expr,
     op: TokenKind,
     right: Expr,
-) -> Result<Expr, CalcError> {
+) -> Result<Expr, KalkError> {
     let right = analyse_expr(context, right)?;
 
     if context.comprehension_vars.is_none() {
@@ -503,7 +503,7 @@ fn analyse_var(
     identifier: Identifier,
     adjacent_factor: Option<Expr>,
     adjacent_exponent: Option<Expr>,
-) -> Result<Expr, CalcError> {
+) -> Result<Expr, KalkError> {
     let adjacent_factor = if let Some(adjacent_factor) = adjacent_factor {
         Some(analyse_expr(context, adjacent_factor)?)
     } else {
@@ -582,7 +582,7 @@ fn with_adjacent(
     expr: Expr,
     factor: Option<Expr>,
     exponent: Option<Expr>,
-) -> Result<Expr, CalcError> {
+) -> Result<Expr, KalkError> {
     if let Some(factor) = factor {
         Ok(Expr::Binary(
             Box::new(expr),
@@ -600,7 +600,7 @@ fn with_adjacent(
     }
 }
 
-fn build_indexed_var(context: &mut Context, identifier: Identifier) -> Result<Expr, CalcError> {
+fn build_indexed_var(context: &mut Context, identifier: Identifier) -> Result<Expr, KalkError> {
     let underscore_pos = identifier.pure_name.find('_').unwrap();
     let var_name = &identifier.pure_name[0..underscore_pos];
     let lowered = &identifier.pure_name[underscore_pos + 1..];
@@ -621,7 +621,7 @@ fn build_dx(
     context: &mut Context,
     name_without_dx: &str,
     char_after_d: char,
-) -> Result<Expr, CalcError> {
+) -> Result<Expr, KalkError> {
     if name_without_dx.is_empty() {
         Ok(Expr::Var(Identifier::from_full_name(&format!(
             "d{}",
@@ -649,7 +649,7 @@ fn build_split_up_vars(
     identifier: Identifier,
     adjacent_factor: Option<Expr>,
     adjacent_exponent: Option<Expr>,
-) -> Result<Expr, CalcError> {
+) -> Result<Expr, KalkError> {
     let mut chars: Vec<char> = identifier.pure_name.chars().collect();
     let last_char = chars.pop().unwrap_or_default();
     let identifier_without_last: String = chars.iter().collect();
@@ -737,7 +737,7 @@ fn analyse_fn(
     context: &mut Context,
     identifier: Identifier,
     arguments: Vec<Expr>,
-) -> Result<Expr, CalcError> {
+) -> Result<Expr, KalkError> {
     let is_integral = identifier.pure_name == "integrate";
     let prev_in_integral = context.in_integral;
     if is_integral {
