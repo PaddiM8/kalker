@@ -81,6 +81,10 @@ impl SymbolTable {
         }
     }
 
+    pub fn get_and_remove_fn(&mut self, identifier: &str) -> Option<Stmt> {
+        self.hashmap.remove(&format!("fn.{}", identifier))
+    }
+
     pub fn get_and_remove_var(&mut self, identifier: &str) -> Option<Stmt> {
         self.hashmap.remove(&format!("var.{}", identifier))
     }
