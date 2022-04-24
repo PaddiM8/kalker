@@ -1,6 +1,7 @@
 x = 2
 x = 3
-f(x) = 2x
-f(x) = 3x
+f(x, y, z) = x * y = z
+f(x, 2, 6)
+f(x, y, z) = 2 * x * y = z
 
-f(2) = 6 and x = 3
+f(2, 3, 12) and x = 3

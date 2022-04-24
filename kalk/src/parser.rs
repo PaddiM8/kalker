@@ -31,6 +31,7 @@ pub struct Context {
     /// whenever a unit in the expression is found. Eg. unit a = 3b, it will be set to Some("b")
     unit_decl_base_unit: Option<String>,
     other_radix: Option<u8>,
+    current_stmt_start_pos: usize,
 }
 
 #[wasm_bindgen]
@@ -46,6 +47,7 @@ impl Context {
             parsing_unit_decl: false,
             unit_decl_base_unit: None,
             other_radix: None,
+            current_stmt_start_pos: 0,
         };
 
         parse(&mut context, crate::prelude::INIT).unwrap();
@@ -127,6 +129,7 @@ pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, KalkError>
 
     let mut statements: Vec<Stmt> = Vec::new();
     while !is_at_end(context) {
+        context.current_stmt_start_pos = context.pos;
         let parsed = match parse_stmt(context) {
             Ok(stmt) => stmt,
             Err(KalkError::WasStmt(stmt)) => stmt,
@@ -294,6 +297,7 @@ fn parse_and(context: &mut Context) -> Result<Expr, KalkError> {
 }
 
 fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
+    let at_start_of_line = context.current_stmt_start_pos == context.pos;
     let mut left = parse_to(context)?;
 
     // Equality check
@@ -306,7 +310,9 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
     {
         let op = advance(context).kind;
 
-        if let Some((identifier, parameters)) = analysis::is_fn_decl(&left) {
+        if let (true, Some((identifier, parameters))) =
+            (at_start_of_line, analysis::is_fn_decl(&left))
+        {
             context.symbol_table.get_mut().set(Stmt::FnDecl(
                 identifier.clone(),
                 parameters.clone(),
@@ -595,6 +601,7 @@ fn parse_vector(context: &mut Context) -> Result<Expr, KalkError> {
 }
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, KalkError> {
+    let at_start_of_line = context.current_stmt_start_pos == context.pos;
     let identifier = Identifier::from_full_name(&advance(context).value);
 
     let mut log_base = None;
@@ -620,12 +627,43 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, KalkError> {
             .get_mut()
             .contains_fn(&identifier.pure_name)
     {
+        let identifier_pos = context.pos;
+
         // Function call
         let mut arguments = match parse_primary(context)? {
             Expr::Vector(arguments) => arguments,
             Expr::Group(argument) => vec![*argument],
             argument => vec![argument],
         };
+
+        // If it's a re-definition, revert and parse as a declaration
+        if at_start_of_line
+            && match_token(context, TokenKind::Equals)
+            && arguments.iter().all(|x| matches!(x, Expr::Var(_)))
+        {
+            for argument in &arguments {
+                let mut all_vars_exist = true;
+                if let Expr::Var(argument_identifier) = argument {
+                    if !context
+                        .symbol_table
+                        .get_mut()
+                        .contains_var(&argument_identifier.full_name)
+                    {
+                        all_vars_exist = false;
+                    }
+                }
+
+                if !all_vars_exist {
+                    context
+                        .symbol_table
+                        .get_mut()
+                        .get_and_remove_fn(&identifier.full_name);
+                    context.pos = identifier_pos;
+
+                    return Ok(Expr::Var(identifier));
+                }
+            }
+        }
 
         if let Some(log_base) = log_base {
             let log_arg = arguments.remove(0);
