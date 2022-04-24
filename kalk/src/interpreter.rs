@@ -6,7 +6,7 @@ use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
 use crate::parser::DECL_UNIT;
 use crate::symbol_table::SymbolTable;
-use crate::{as_number_or_zero, calculus};
+use crate::{as_number_or_zero, numerical};
 use crate::{float, prelude};
 
 pub struct Context<'a> {
@@ -135,6 +135,7 @@ pub(crate) fn eval_expr(
         Expr::Comprehension(left, conditions, vars) => Ok(KalkValue::Vector(eval_comprehension(
             context, left, conditions, vars,
         )?)),
+        Expr::Equation(left, right, identifier) => eval_equation(context, left, right, identifier),
     }
 }
 
@@ -355,13 +356,13 @@ pub(crate) fn eval_fn_call_expr(
         }
         "integrate" => {
             return match expressions.len() {
-                3 => calculus::integrate_with_unknown_variable(
+                3 => numerical::integrate_with_unknown_variable(
                     context,
                     &expressions[0],
                     &expressions[1],
                     &expressions[2],
                 ),
-                4 => calculus::integrate(
+                4 => numerical::integrate(
                     context,
                     &expressions[0],
                     &expressions[1],
@@ -406,7 +407,7 @@ pub(crate) fn eval_fn_call_expr(
         1 => {
             let x = eval_expr(context, &expressions[0], None)?;
             if identifier.prime_count > 0 {
-                return calculus::derive_func(context, identifier, x);
+                return numerical::derive_func(context, identifier, x);
             } else {
                 prelude::call_unary_func(
                     context,
@@ -518,7 +519,7 @@ pub(crate) fn eval_fn_call_expr(
                     )?)),
                 );
 
-                // Don't set these values just yet, since
+                // Don't set these values just yet,
                 // to avoid affecting the value of arguments
                 // during recursion.
                 new_argument_values.push((argument, var_decl));
@@ -769,6 +770,20 @@ fn eval_comprehension(
     context.symbol_table.get_and_remove_var(&var.name);
 
     Ok(values)
+}
+
+fn eval_equation(
+    context: &mut Context,
+    left: &Expr,
+    right: &Expr,
+    unknown_var: &Identifier,
+) -> Result<KalkValue, KalkError> {
+    let expr = Expr::Binary(
+        Box::new(left.clone()),
+        TokenKind::Minus,
+        Box::new(right.clone()),
+    );
+    numerical::find_root(context, &expr, &unknown_var.full_name)
 }
 
 #[cfg(test)]

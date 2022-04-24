@@ -93,6 +93,7 @@ fn invert(
         Expr::Comprehension(_, _, _) => {
             Err(KalkError::UnableToInvert(String::from("Comprehension")))
         }
+        Expr::Equation(_, _, _) => Err(KalkError::UnableToInvert(String::from("Equation"))),
     }
 }
 
@@ -400,6 +401,7 @@ pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> 
             .any(|row| row.iter().any(|x| contains_var(symbol_table, x, var_name))),
         Expr::Indexer(_, _) => false,
         Expr::Comprehension(_, _, _) => false,
+        Expr::Equation(_, _, _) => false,
     }
 }
 

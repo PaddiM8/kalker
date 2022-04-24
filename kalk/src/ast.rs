@@ -25,6 +25,7 @@ pub enum Expr {
     Matrix(Vec<Vec<Expr>>),
     Indexer(Box<Expr>, Vec<Expr>),
     Comprehension(Box<Expr>, Vec<Expr>, Vec<RangedVar>),
+    Equation(Box<Expr>, Box<Expr>, Identifier),
 }
 
 #[derive(Debug, Clone, PartialEq)]
