@@ -80,11 +80,14 @@ pub(crate) fn analyse_stmt(
 fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, KalkError> {
     Ok(
         if let Expr::Binary(left, TokenKind::Equals, right) = value {
+            if let Some((identifier, parameters)) = is_fn_decl(&*left) {
+                return build_fn_decl_from_scratch(context, identifier, parameters, *right);
+            }
+
             match *left {
-                Expr::Binary(identifier_expr, TokenKind::Star, parameter_expr) => {
-                    build_fn_decl_from_scratch(context, *identifier_expr, *parameter_expr, *right)?
-                }
-                Expr::FnCall(identifier, arguments) => {
+                Expr::FnCall(identifier, arguments)
+                    if !prelude::is_prelude_func(&identifier.full_name) =>
+                {
                     // First loop through with a reference
                     // to arguments, to be able to back-track if
                     // one of the arguments can't be made into a parameter.
@@ -138,11 +141,10 @@ fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, KalkErr
 
                     result
                 }
-                _ => Stmt::Expr(Box::new(Expr::Binary(
-                    Box::new(analyse_expr(context, *left)?),
-                    TokenKind::Equals,
-                    right,
-                ))),
+                _ => Stmt::Expr(Box::new(analyse_expr(
+                    context,
+                    Expr::Binary(left, TokenKind::Equals, right),
+                )?)),
             }
         } else {
             Stmt::Expr(Box::new(analyse_expr(context, value)?))
@@ -150,83 +152,56 @@ fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, KalkErr
     )
 }
 
+pub fn is_fn_decl(expr: &Expr) -> Option<(Identifier, Vec<String>)> {
+    if let Expr::Binary(left, TokenKind::Star, right) = &*expr {
+        let identifier = if let Expr::Var(identifier) = &**left {
+            identifier
+        } else {
+            return None;
+        };
+
+        let exprs = match &**right {
+            Expr::Vector(exprs) => exprs.iter().collect(),
+            Expr::Group(expr) => vec![&**expr],
+            _ => return None,
+        };
+
+        let mut parameters = Vec::new();
+        for expr in exprs {
+            if let Expr::Var(argument_identifier) = expr {
+                parameters.push(format!(
+                    "{}-{}",
+                    identifier.pure_name, argument_identifier.pure_name
+                ));
+            }
+        }
+
+        if !prelude::is_prelude_func(&identifier.full_name) {
+            return Some((identifier.clone(), parameters));
+        }
+    }
+
+    None
+}
+
 fn build_fn_decl_from_scratch(
     context: &mut Context,
-    identifier_expr: Expr,
-    parameter_expr: Expr,
+    identifier: Identifier,
+    parameters: Vec<String>,
     right: Expr,
 ) -> Result<Stmt, KalkError> {
-    Ok(match identifier_expr {
-        Expr::Var(identifier) if !prelude::is_prelude_func(&identifier.full_name) => {
-            // Check if all the expressions in the parameter_expr are
-            // variables. If not, it can't be turned into a function declaration.
-            let all_are_vars = match &parameter_expr {
-                Expr::Vector(exprs) => exprs.iter().any(|x| matches!(x, Expr::Var(_))),
-                Expr::Group(expr) => {
-                    matches!(&**expr, Expr::Var(_))
-                }
-                _ => false,
-            };
+    context.current_function_name = Some(identifier.pure_name.clone());
+    context.current_function_parameters = Some(parameters.clone());
+    let fn_decl = Stmt::FnDecl(
+        identifier,
+        parameters,
+        Box::new(analyse_expr(context, right)?),
+    );
+    context.symbol_table.insert(fn_decl.clone());
+    context.current_function_name = None;
+    context.current_function_parameters = None;
 
-            if !all_are_vars {
-                // Analyse it as a function call instead
-                return Ok(Stmt::Expr(Box::new(analyse_expr(
-                    context,
-                    Expr::Binary(
-                        Box::new(Expr::Binary(
-                            Box::new(Expr::Var(identifier)),
-                            TokenKind::Star,
-                            Box::new(parameter_expr),
-                        )),
-                        TokenKind::Equals,
-                        Box::new(right),
-                    ),
-                )?)));
-            }
-
-            let exprs = match parameter_expr {
-                Expr::Vector(exprs) => exprs,
-                Expr::Group(expr) => vec![*expr],
-                _ => unreachable!(),
-            };
-
-            let mut parameters = Vec::new();
-            for expr in exprs {
-                if let Expr::Var(argument_identifier) = expr {
-                    parameters.push(format!(
-                        "{}-{}",
-                        identifier.pure_name, argument_identifier.pure_name
-                    ));
-                }
-            }
-
-            context.current_function_name = Some(identifier.pure_name.clone());
-            context.current_function_parameters = Some(parameters.clone());
-            let fn_decl = Stmt::FnDecl(
-                identifier,
-                parameters,
-                Box::new(analyse_expr(context, right)?),
-            );
-            context.symbol_table.insert(fn_decl.clone());
-            context.current_function_name = None;
-            context.current_function_parameters = None;
-
-            fn_decl
-        }
-        _ => {
-            let new_binary = Expr::Binary(
-                Box::new(Expr::Binary(
-                    Box::new(identifier_expr),
-                    TokenKind::Star,
-                    Box::new(parameter_expr),
-                )),
-                TokenKind::Equals,
-                Box::new(right),
-            );
-
-            Stmt::Expr(Box::new(analyse_expr(context, new_binary)?))
-        }
-    })
+    Ok(fn_decl)
 }
 
 fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
@@ -283,6 +258,7 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
             Expr::Indexer(Box::new(analyse_expr(context, *value)?), analysed_indexes)
         }
         Expr::Comprehension(left, right, vars) => Expr::Comprehension(left, right, vars),
+        Expr::Equation(left, right, identifier) => Expr::Equation(left, right, identifier),
     })
 }
 
@@ -325,26 +301,10 @@ fn analyse_binary(
 
                 return result;
             };
-
-            let inverted = if inverter::contains_var(context.symbol_table, &left, var_name) {
-                left.invert_to_target(context.symbol_table, right, var_name)?
-            } else {
-                right.invert_to_target(context.symbol_table, left, var_name)?
-            };
-
-            // If the inverted expression still contains the variable,
-            // the equation solving failed.
-            if inverter::contains_var(context.symbol_table, &inverted, var_name) {
-                return Err(KalkError::UnableToSolveEquation);
-            }
-
-            context.symbol_table.insert(Stmt::VarDecl(
-                Identifier::from_full_name(var_name),
-                Box::new(inverted.clone()),
-            ));
+            let identifier = Identifier::from_full_name(var_name);
             context.equation_variable = None;
 
-            Ok(inverted)
+            Ok(Expr::Equation(Box::new(left), Box::new(right), identifier))
         }
         (Expr::Var(_), TokenKind::Star, _) => {
             if let Expr::Var(identifier) = left {

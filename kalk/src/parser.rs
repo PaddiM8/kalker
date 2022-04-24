@@ -303,55 +303,17 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
         let op = peek(context).kind;
         advance(context);
 
-        // If it's potentially a function declaration, run it through
-        // the analysis phase to ensure it gets added to the symbol
-        // table before parsing the right side. This is necessary for
-        // recursion to work.
-        if let (TokenKind::Equals, Expr::Binary(_, TokenKind::Star, _)) = (TokenKind::Equals, &left)
-        {
-            let analysed = analysis::analyse_stmt(
-                context.symbol_table.get_mut(),
-                Stmt::Expr(Box::new(Expr::Binary(
-                    Box::new(left),
-                    op,
-                    Box::new(Expr::Literal(0f64)),
-                ))),
-            )?;
+        let is_fn_decl = if let Some((identifier, parameters)) = analysis::is_fn_decl(&left) {
+            context.symbol_table.get_mut().set(Stmt::FnDecl(
+                identifier,
+                parameters,
+                Box::new(Expr::Literal(0f64)),
+            ));
 
-            left = match analysed {
-                // Reconstruct function declarations into what they were originally parsed as
-                Stmt::FnDecl(identifier, parameters, _) => {
-                    let mut parameter_vars: Vec<Expr> = parameters
-                        .into_iter()
-                        .map(|x| {
-                            Expr::Var(Identifier::from_full_name(
-                                // Parameters will come back as eg. f-x,
-                                // therefore the function name needs to be removed
-                                &x[identifier.full_name.len() + 1..],
-                            ))
-                        })
-                        .collect();
-
-                    Expr::Binary(
-                        Box::new(Expr::Var(identifier)),
-                        TokenKind::Star,
-                        Box::new(if parameter_vars.len() > 1 {
-                            Expr::Vector(parameter_vars)
-                        } else {
-                            Expr::Group(Box::new(parameter_vars.pop().unwrap()))
-                        }),
-                    )
-                }
-                Stmt::Expr(analysed_expr) => {
-                    if let Expr::Binary(analysed_left, TokenKind::Equals, _) = *analysed_expr {
-                        *analysed_left
-                    } else {
-                        unreachable!()
-                    }
-                }
-                _ => unreachable!(),
-            };
-        }
+            true
+        } else {
+            false
+        };
 
         let right = if op == TokenKind::Equals && match_token(context, TokenKind::OpenBrace) {
             parse_piecewise(context)?
@@ -362,16 +324,14 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
         left = match right {
             Expr::Binary(
                 inner_left,
-                inner_op
-                @
-                (TokenKind::Equals
+                inner_op @ (TokenKind::Equals
                 | TokenKind::NotEquals
                 | TokenKind::GreaterThan
                 | TokenKind::LessThan
                 | TokenKind::GreaterOrEquals
                 | TokenKind::LessOrEquals),
                 inner_right,
-            ) => Expr::Binary(
+            ) if !is_fn_decl => Expr::Binary(
                 Box::new(Expr::Binary(
                     Box::new(left),
                     op,
@@ -657,7 +617,7 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, KalkError> {
             .contains_fn(&identifier.pure_name)
     {
         // Function call
-        let mut arguments = match parse_vector(context)? {
+        let mut arguments = match parse_primary(context)? {
             Expr::Vector(arguments) => arguments,
             Expr::Group(argument) => vec![*argument],
             argument => vec![argument],

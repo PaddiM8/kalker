@@ -140,15 +140,83 @@ fn simpsons_rule(
     ))
 }
 
+pub fn find_root(
+    context: &mut interpreter::Context,
+    expr: &Expr,
+    var_name: &str,
+) -> Result<KalkValue, KalkError> {
+    const FN_NAME: &str = "tmp.";
+    let f = Stmt::FnDecl(
+        Identifier::from_full_name(FN_NAME),
+        vec![var_name.into()],
+        Box::new(expr.clone()),
+    );
+    context.symbol_table.set(f);
+    let mut approx = KalkValue::from(1f64);
+    for _ in 0..100 {
+        let (new_approx, done) = newton_method(context, approx, &Identifier::from_full_name(FN_NAME))?;
+        approx = new_approx;
+        if done {
+            break;
+        }
+    }
+
+    // Confirm that the approximation is correct
+    let (test_real, test_imaginary) = interpreter::eval_fn_call_expr(
+        context,
+        &Identifier::from_full_name(FN_NAME),
+        &[crate::ast::build_literal_ast(&approx)],
+        None,
+    )?
+    .values();
+
+    context.symbol_table.get_and_remove_var(var_name);
+
+    if test_real.is_nan() || test_real.abs() > 0.0001f64 || test_imaginary.abs() > 0.0001f64 {
+        return Err(KalkError::UnableToSolveEquation);
+    }
+
+    Ok(approx)
+}
+
+fn newton_method(
+    context: &mut interpreter::Context,
+    initial: KalkValue,
+    fn_name: &Identifier,
+) -> Result<(KalkValue, bool), KalkError> {
+    let f = interpreter::eval_fn_call_expr(
+        context,
+        fn_name,
+        &[crate::ast::build_literal_ast(&initial)],
+        None,
+    )?;
+
+    // If it ends up solving the equation early, abort
+    const PRECISION: f64 = 0.0000001f64;
+    match f {
+        KalkValue::Number(x, y, _)
+            if x < PRECISION && x > -PRECISION && y < PRECISION && y > -PRECISION =>
+        {
+            return Ok((initial, true));
+        }
+        _ => (),
+    }
+
+    let f_prime_name = Identifier::from_name_and_primes(&fn_name.pure_name, 1);
+    let f_prime = derive_func(context, &f_prime_name, initial.clone())?;
+
+    Ok((initial.sub_without_unit(&f.div_without_unit(&f_prime)?)?, false))
+}
+
 #[cfg(test)]
 mod tests {
     use crate::ast;
-    use crate::calculus::Identifier;
-    use crate::calculus::Stmt;
     use crate::float;
     use crate::interpreter;
     use crate::kalk_value::KalkValue;
     use crate::lexer::TokenKind::*;
+    use crate::numerical::Identifier;
+    use crate::numerical::Stmt;
     use crate::symbol_table::SymbolTable;
     use crate::test_helpers::*;
 
@@ -281,5 +349,16 @@ mod tests {
 
         assert!(cmp(result.to_f64(), -12f64));
         assert!(cmp(result.imaginary_to_f64(), -5.5f64));
+    }
+
+    #[test]
+    fn test_find_root() {
+        let mut symbol_table = SymbolTable::new();
+        let mut context = get_context(&mut symbol_table);
+        let ast = &*binary(binary(var("x"), Power, literal(3f64)), Plus, literal(3f64));
+        let result = super::find_root(&mut context, ast, "x").unwrap();
+
+        assert!(cmp(result.to_f64(), -1.4422495709));
+        assert!(!result.has_imaginary());
     }
 }
