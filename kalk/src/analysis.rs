@@ -280,9 +280,10 @@ fn analyse_binary(
             let left = analyse_expr(context, left)?;
             let right = analyse_expr(context, right)?;
 
-            // If it has already been set to false manually somewhere else,
+            // If it has already been set to false manually somewhere else
+            // or if there is no equation variable,
             // abort and analyse as a comparison instead.
-            if !context.in_equation {
+            if !context.in_equation || context.equation_variable.is_none() {
                 context.in_conditional = true;
                 let result = analyse_binary(context, left, op, right);
                 context.in_conditional = previous_in_conditional;
@@ -295,11 +296,7 @@ fn analyse_binary(
             let var_name = if let Some(var_name) = &context.equation_variable {
                 var_name
             } else {
-                context.in_conditional = true;
-                let result = analyse_binary(context, left, op, right);
-                context.in_conditional = previous_in_conditional;
-
-                return result;
+                unreachable!()
             };
             let identifier = Identifier::from_full_name(var_name);
             context.equation_variable = None;
@@ -513,12 +510,26 @@ fn analyse_var(
         }
 
         if context.in_equation {
-            context.equation_variable = Some(identifier.full_name.clone());
-            return with_adjacent(
-                build_var(context, &identifier.full_name),
-                adjacent_factor,
-                adjacent_exponent,
-            );
+            let is_parameter = if let (Some(fn_name), Some(parameters)) = (
+                &context.current_function_name,
+                &context.current_function_parameters,
+            ) {
+                parameters.contains(&identifier.full_name)
+                    || parameters.contains(
+                        &Identifier::parameter_from_name(&identifier.full_name, fn_name).full_name,
+                    )
+            } else {
+                false
+            };
+
+            if !is_parameter {
+                context.equation_variable = Some(identifier.full_name.clone());
+                return with_adjacent(
+                    build_var(context, &identifier.full_name),
+                    adjacent_factor,
+                    adjacent_exponent,
+                );
+            }
         }
 
         let mut identifier_without_dx: Vec<char> = identifier.full_name.chars().collect();
@@ -651,7 +662,7 @@ fn build_split_up_vars(
         left = Expr::Binary(Box::new(left), TokenKind::Star, Box::new(right))
     }
 
-    Ok(left)
+    with_adjacent(left, adjacent_factor, adjacent_exponent)
 }
 
 fn build_var(context: &mut Context, name: &str) -> Expr {

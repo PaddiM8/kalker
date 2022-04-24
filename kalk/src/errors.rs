@@ -33,6 +33,7 @@ pub enum KalkError {
     UnableToParseExpression,
     UnrecognizedBase,
     Unknown,
+    WasStmt(crate::ast::Stmt),
 }
 
 impl ToString for KalkError {
@@ -77,7 +78,7 @@ impl ToString for KalkError {
             KalkError::UnableToSolveEquation => String::from("Unable to solve equation."),
             KalkError::UnableToOverrideConstant(name) => format!("Unable to override constant: '{}'.", name),
             KalkError::UnrecognizedBase => String::from("Unrecognized base."),
-            KalkError::Unknown => String::from("Unknown error."),
+            KalkError::Unknown | KalkError::WasStmt(_) => String::from("Unknown error."),
         }
     }
 }

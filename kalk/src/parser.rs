@@ -127,7 +127,11 @@ pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, KalkError>
 
     let mut statements: Vec<Stmt> = Vec::new();
     while !is_at_end(context) {
-        let parsed = parse_stmt(context)?;
+        let parsed = match parse_stmt(context) {
+            Ok(stmt) => stmt,
+            Err(KalkError::WasStmt(stmt)) => stmt,
+            Err(err) => return Err(err),
+        };
         let symbol_table = context.symbol_table.get_mut();
         let analysed = analysis::analyse_stmt(symbol_table, parsed)?;
         statements.push(analysed);
@@ -300,26 +304,26 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
         || match_token(context, TokenKind::GreaterOrEquals)
         || match_token(context, TokenKind::LessOrEquals)
     {
-        let op = peek(context).kind;
-        advance(context);
+        let op = advance(context).kind;
 
-        let is_fn_decl = if let Some((identifier, parameters)) = analysis::is_fn_decl(&left) {
+        if let Some((identifier, parameters)) = analysis::is_fn_decl(&left) {
             context.symbol_table.get_mut().set(Stmt::FnDecl(
-                identifier,
-                parameters,
-                Box::new(Expr::Literal(0f64)),
+                identifier.clone(),
+                parameters.clone(),
+                Box::new(Expr::Literal(1f64)),
             ));
+            let right = if match_token(context, TokenKind::OpenBrace) {
+                parse_piecewise(context)?
+            } else {
+                parse_expr(context)?
+            };
+            let fn_decl = Stmt::FnDecl(identifier, parameters, Box::new(right));
 
-            true
-        } else {
-            false
+            // Hack to return a statement...
+            return Err(KalkError::WasStmt(fn_decl));
         };
 
-        let right = if op == TokenKind::Equals && match_token(context, TokenKind::OpenBrace) {
-            parse_piecewise(context)?
-        } else {
-            parse_comparison(context)?
-        };
+        let right = parse_comparison(context)?;
 
         left = match right {
             Expr::Binary(
@@ -331,7 +335,7 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
                 | TokenKind::GreaterOrEquals
                 | TokenKind::LessOrEquals),
                 inner_right,
-            ) if !is_fn_decl => Expr::Binary(
+            ) => Expr::Binary(
                 Box::new(Expr::Binary(
                     Box::new(left),
                     op,
@@ -730,7 +734,11 @@ mod tests {
         context.tokens = tokens;
         context.pos = 0;
 
-        let parsed = parse_stmt(&mut context)?;
+        let parsed = match parse_stmt(&mut context) {
+            Ok(stmt) => stmt,
+            Err(KalkError::WasStmt(stmt)) => stmt,
+            Err(err) => return Err(err),
+        };
         let symbol_table = context.symbol_table.get_mut();
         analysis::analyse_stmt(symbol_table, parsed)
     }

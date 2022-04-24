@@ -41,6 +41,7 @@ mod tests {
         }
     }
 
+    #[test_case("ambiguities/comparison_in_function")]
     #[test_case("basics")]
     #[test_case("comparisons")]
     #[test_case("comprehensions")]
