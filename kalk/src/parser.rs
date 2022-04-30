@@ -728,7 +728,7 @@ fn skip_newlines(context: &mut Context) {
 
 fn string_to_num(value: &str) -> Result<f64, KalkError> {
     let base = get_base(value)?;
-    if let Some(result) = crate::radix::parse_float_radix(&value.replace(" ", ""), base) {
+    if let Some(result) = crate::radix::parse_float_radix(&value.replace(' ', ""), base) {
         Ok(result)
     } else {
         Err(KalkError::InvalidNumberLiteral(value.into()))
