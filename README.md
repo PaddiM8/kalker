@@ -4,7 +4,7 @@ Kalker (or "kalk") is a calculator program/website that supports user-defined va
 
 [![Crates.io](https://img.shields.io/crates/v/kalker)](https://crates.io/crates/kalker) ![npm](https://img.shields.io/npm/v/@paddim8/kalk) [![GitHub](https://img.shields.io/github/license/PaddiM8/kalk)](https://github.com/PaddiM8/kalker/blob/master/LICENSE) [![Docs.rs](https://docs.rs/kalk/badge.svg)](https://docs.rs/kalk/latest/kalk/) ![Build status](https://img.shields.io/github/workflow/status/PaddiM8/kalker/Rust?event=push&label=build%20%26%20test)
 
-[Kanban](https://kolan.strct.net/Board/4RAdMjLDz) | [Website - Try it out here!](https://kalker.xyz) | [Donate](#donation)
+[Kanban](https://kolan.strct.net/Board/4RAdMjLDz) | [Website - Try it out here!](https://kalker.xyz)
 
 <img src="preview.png" width="750">
 
@@ -59,7 +59,7 @@ Run `cargo install kalker`
 
 # Donation
 
-Kalker is completely free and open source. If you wish to support further development of Kalker, you can do so here: [PayPal](https://paypal.me/oliverwaldemar)
+Kalker is completely free and open source. If you wish to support further development of Kalker and contribute towards it one day getting published on the Google Play Store, you can do so here: [PayPal](https://paypal.me/oliverwaldemar)
 
 # Libraries
 
@@ -76,18 +76,18 @@ A more complete reference can be found on [the website](https://kalker.xyz)
 ## Functions
 
 **Defining:** name(parameter1, parameter2, ...) = expression\
-**Example:** `f(x) = 2x+3`
+**Example:** $ f(x) = 2x+3 $
 
 **Using:** name(argument1, argument2)\
-**Example:** `f(2)`
+**Example:** $ f(2) $
 
 ## Variables
 
 **Defining:** name = expression\
-**Example:** `x = 3`
+**Example:** $ x = 3 $
 
 **Using:** name\
-**Example:** `x`
+**Example:** $ x $
 
 # Contributing
 
