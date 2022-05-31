@@ -19,6 +19,7 @@ pub struct Context<'a> {
     timeout: Option<u128>,
     #[cfg(not(target_arch = "wasm32"))]
     start_time: std::time::SystemTime,
+    is_approximation: bool,
 }
 
 impl<'a> Context<'a> {
@@ -38,6 +39,7 @@ impl<'a> Context<'a> {
             timeout,
             #[cfg(not(target_arch = "wasm32"))]
             start_time: std::time::SystemTime::now(),
+            is_approximation: false,
         }
     }
 
@@ -66,7 +68,7 @@ impl<'a> Context<'a> {
 
             if i == statements.len() - 1 {
                 if let Stmt::Expr(_) = stmt {
-                    return Ok(Some(CalculationResult::new(num, 10)));
+                    return Ok(Some(CalculationResult::new(num, 10, self.is_approximation)));
                 }
             }
         }
@@ -326,6 +328,10 @@ pub(crate) fn eval_fn_call_expr(
     expressions: &[Expr],
     unit: Option<&String>,
 ) -> Result<KalkValue, KalkError> {
+    if identifier.prime_count > 0 {
+        context.is_approximation = true;
+    }
+
     // Special functions
     match identifier.full_name.as_ref() {
         "sum" | "prod" => {
@@ -355,6 +361,8 @@ pub(crate) fn eval_fn_call_expr(
             }
         }
         "integrate" => {
+            context.is_approximation = true;
+
             return match expressions.len() {
                 3 => numerical::integrate_with_unknown_variable(
                     context,
@@ -778,6 +786,8 @@ fn eval_equation(
     right: &Expr,
     unknown_var: &Identifier,
 ) -> Result<KalkValue, KalkError> {
+    context.is_approximation = true;
+
     let expr = Expr::Binary(
         Box::new(left.clone()),
         TokenKind::Minus,

@@ -353,7 +353,7 @@ fn invert_fn_call(
     let mut parameters_iter = parameters.iter();
     for argument in arguments {
         symbol_table.insert(Stmt::VarDecl(
-            Identifier::from_full_name(&parameters_iter.next().unwrap().to_string()),
+            Identifier::from_full_name(parameters_iter.next().unwrap()),
             Box::new(argument.clone()),
         ));
     }
