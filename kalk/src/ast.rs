@@ -20,6 +20,7 @@ pub enum Expr {
     Group(Box<Expr>),
     FnCall(Identifier, Vec<Expr>),
     Literal(f64),
+    Boolean(bool),
     Piecewise(Vec<ConditionalPiece>),
     Vector(Vec<Expr>),
     Matrix(Vec<Vec<Expr>>),

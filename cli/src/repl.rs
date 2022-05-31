@@ -105,7 +105,7 @@ impl Highlighter for LineHighlighter {
 
         let reg = Regex::new(
             r"(?x)
-            (?P<op>([+\-/*%^!×÷⋅∧∨ᵀ]|if|otherwise|\sand|\sor|\smod|load|exit|clear|help)) |
+            (?P<op>([+\-/*%^!×÷⋅∧∨¬ᵀ]|if|otherwise|\b(and|or|mod|true|false|not)\b|load|exit|clear|help)) |
             (?P<radix>0[box][a-zA-Z0-9]+) |
             (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ᵀ]+(_\d+)?)",
         )
@@ -159,6 +159,7 @@ lazy_static! {
         m.insert("<=", "≤");
         m.insert(" and", " ∧");
         m.insert(" or", " ∨");
+        m.insert(" not", " ¬");
         m.insert("*", "×");
         m.insert("/", "÷");
         m.insert("^T", "ᵀ");
@@ -192,6 +193,14 @@ impl Completer for RLHelper {
             if slice.ends_with(key) {
                 let value = *COMPLETION_FUNCS.get(key).unwrap();
                 return Ok((pos - key.len(), vec![value.to_string()]));
+            }
+
+            // If the key starts with a space, it should also be expanded
+            // if it is at the start of the line. To do this, the strings
+            // are compared with the space removed in these situations.
+            if key.starts_with(' ') && slice.len() == key.len() - 1 && slice == &key[1..] {
+                let value = &(*COMPLETION_FUNCS.get(key).unwrap())[1..];
+                return Ok((pos - (key.len() - 1), vec![value.to_string()]));
             }
 
             let mut subscript_digits = String::new();

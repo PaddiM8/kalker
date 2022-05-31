@@ -212,7 +212,7 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
         Expr::Var(identifier) => analyse_var(context, identifier, None, None)?,
         Expr::Group(value) => Expr::Group(Box::new(analyse_expr(context, *value)?)),
         Expr::FnCall(identifier, arguments) => analyse_fn(context, identifier, arguments)?,
-        Expr::Literal(_) => expr,
+        Expr::Literal(_) | Expr::Boolean(_) => expr,
         Expr::Piecewise(pieces) => {
             let mut analysed_pieces = Vec::new();
             for piece in pieces {
