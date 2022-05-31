@@ -295,12 +295,15 @@ impl KalkValue {
         let sci_notation_real = self.to_scientific_notation(ComplexNumberType::Real);
         let mut new_real = real.clone();
         let mut new_imaginary = imaginary.clone();
+        let mut has_scientific_notation = false;
         let result_str = if (-6..8).contains(&sci_notation_real.exponent) || real == &0f64 {
             self.to_string_real(radix)
         } else if sci_notation_real.exponent <= -14 {
             new_real = float!(0);
             String::from("0")
         } else if radix == 10 {
+            has_scientific_notation = true;
+
             sci_notation_real.to_string().trim().to_string()
         } else {
             return String::new();
@@ -316,6 +319,8 @@ impl KalkValue {
             new_imaginary = float!(0);
             String::from("0")
         } else if radix == 10 {
+            has_scientific_notation = true;
+
             sci_notation_imaginary.to_string().trim().to_string()
         } else {
             return String::new();
@@ -351,6 +356,8 @@ impl KalkValue {
             if estimate != output && radix == 10 {
                 output.push_str(&format!(" ≈ {}", estimate));
             }
+        } else if has_scientific_notation {
+            output.insert_str(0, &format!("{} ≈ ", self));
         }
 
         output
