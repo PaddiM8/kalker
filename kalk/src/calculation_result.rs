@@ -6,14 +6,19 @@ use crate::kalk_value::{ComplexNumberType, KalkValue, ScientificNotation};
 pub struct CalculationResult {
     value: KalkValue,
     radix: u8,
+    is_approximation: bool,
 }
 
 // Wraps around KalkValue since enums don't work
 // with the javascript bindings.
 #[wasm_bindgen]
 impl CalculationResult {
-    pub(crate) fn new(value: KalkValue, radix: u8) -> Self {
-        CalculationResult { value, radix }
+    pub(crate) fn new(value: KalkValue, radix: u8, is_approximation: bool) -> Self {
+        CalculationResult {
+            value,
+            radix,
+            is_approximation,
+        }
     }
 
     #[allow(dead_code)]
@@ -33,7 +38,7 @@ impl CalculationResult {
 
     #[wasm_bindgen(js_name = toPrettyString)]
     pub fn to_string_pretty(&self) -> String {
-        if self.radix == 10 {
+        let value = if self.radix == 10 {
             self.value.to_string_pretty_radix(10)
         } else {
             format!(
@@ -41,6 +46,12 @@ impl CalculationResult {
                 self.value.to_string_pretty_radix(10),
                 self.value.to_string_pretty_radix(self.radix),
             )
+        };
+
+        if self.is_approximation {
+            format!("≈ {}", value)
+        } else {
+            value
         }
     }
 
