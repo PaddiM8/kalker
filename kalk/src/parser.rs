@@ -454,6 +454,7 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, KalkError> {
     if match_token(context, TokenKind::Power) {
         let op = advance(context).kind;
         let right = Box::new(parse_exponent(context)?);
+
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
 
@@ -461,9 +462,10 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, KalkError> {
 }
 
 fn parse_unary(context: &mut Context) -> Result<Expr, KalkError> {
-    if match_token(context, TokenKind::Minus) {
+    if match_token(context, TokenKind::Minus) || match_token(context, TokenKind::Not) {
         let op = advance(context).kind;
         let expr = Box::new(parse_unary(context)?);
+
         return Ok(Expr::Unary(op, expr));
     }
 
@@ -511,7 +513,15 @@ fn parse_primary(context: &mut Context) -> Result<Expr, KalkError> {
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
         TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
-        _ => return Err(KalkError::UnableToParseExpression),
+        TokenKind::True => {
+            advance(context);
+            Expr::Boolean(true)
+        }
+        TokenKind::False => {
+            advance(context);
+            Expr::Boolean(false)
+        }
+        _ => return Err(KalkError::UnexpectedToken(peek(context).kind, None)),
     };
 
     Ok(expr)
@@ -713,7 +723,7 @@ fn consume(context: &mut Context, kind: TokenKind) -> Result<&Token, KalkError> 
         return Ok(advance(context));
     }
 
-    Err(KalkError::UnexpectedToken(peek(context).kind, kind))
+    Err(KalkError::UnexpectedToken(peek(context).kind, Some(kind)))
 }
 
 fn is_at_end(context: &Context) -> bool {
@@ -728,7 +738,7 @@ fn skip_newlines(context: &mut Context) {
 
 fn string_to_num(value: &str) -> Result<f64, KalkError> {
     let base = get_base(value)?;
-    if let Some(result) = crate::radix::parse_float_radix(&value.replace(" ", ""), base) {
+    if let Some(result) = crate::radix::parse_float_radix(&value.replace(' ', ""), base) {
         Ok(result)
     } else {
         Err(KalkError::InvalidNumberLiteral(value.into()))

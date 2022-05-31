@@ -126,6 +126,7 @@ pub(crate) fn eval_expr(
         Expr::Unit(identifier, expr) => eval_unit_expr(context, identifier, expr),
         Expr::Var(identifier) => eval_var_expr(context, identifier, unit),
         Expr::Literal(value) => eval_literal_expr(context, *value, unit),
+        Expr::Boolean(value) => Ok(KalkValue::Boolean(*value)),
         Expr::Group(expr) => eval_group_expr(context, expr, unit),
         Expr::FnCall(identifier, expressions) => {
             eval_fn_call_expr(context, identifier, expressions, unit)
@@ -209,6 +210,10 @@ fn eval_unary_expr(
 
     match op {
         TokenKind::Minus => num.mul(context, KalkValue::from(-1f64)),
+        TokenKind::Not => match num {
+            KalkValue::Boolean(boolean) => Ok(KalkValue::Boolean(!boolean)),
+            _ => Err(KalkError::InvalidOperator),
+        },
         TokenKind::Percent => num.mul(context, KalkValue::from(0.01f64)),
         TokenKind::Exclamation => prelude::special_funcs::factorial(num),
         _ => Err(KalkError::InvalidOperator),

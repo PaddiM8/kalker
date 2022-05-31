@@ -23,7 +23,7 @@ pub enum KalkError {
     VariableReferencesItself,
     PiecewiseConditionsAreFalse,
     EvaluationError(String),
-    UnexpectedToken(TokenKind, TokenKind),
+    UnexpectedToken(TokenKind, Option<TokenKind>),
     UnexpectedType(String, Vec<String>),
     UndefinedFn(String),
     UndefinedVar(String),
@@ -66,7 +66,11 @@ impl ToString for KalkError {
             KalkError::PiecewiseConditionsAreFalse => String::from("All the conditions in the piecewise are false."),
             KalkError::EvaluationError(msg) => format!("Evaluation error: {}", msg),
             KalkError::UnexpectedToken(got, expected) => {
-                format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
+                if let Some(expected) = expected {
+                    format!("Unexpected token: '{:?}', expected '{:?}'.", got, expected)
+                } else {
+                    format!("Unexpected token: '{:?}'.", got)
+                }
             }
             KalkError::UnexpectedType(got, expected) => {
                 format!("Unexpected type. Got {:?} but expected: {:?}.", got, expected.join(", "))

@@ -85,7 +85,7 @@ fn invert(
             arguments,
             unknown_var,
         ),
-        Expr::Literal(_) => Ok((target_expr, expr.clone())),
+        Expr::Literal(_) | Expr::Boolean(_) => Ok((target_expr, expr.clone())),
         Expr::Piecewise(_) => Err(KalkError::UnableToInvert(String::from("Piecewise"))),
         Expr::Vector(_) => Err(KalkError::UnableToInvert(String::from("Vector"))),
         Expr::Matrix(_) => Err(KalkError::UnableToInvert(String::from("Matrix"))),
@@ -391,7 +391,7 @@ pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> 
 
             false
         }
-        Expr::Literal(_) => false,
+        Expr::Literal(_) | Expr::Boolean(_) => false,
         Expr::Piecewise(_) => true, // Let it try to invert this. It will just display the error message.
         Expr::Vector(items) => items
             .iter()

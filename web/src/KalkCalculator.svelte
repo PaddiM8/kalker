@@ -310,7 +310,7 @@
         let result = input;
         let offset = 0;
         result = result.replace(
-            /(?<power>\^[0-9T])|(?<brackets>\[\[)|(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷⋅∧∨ᵀ]|if|otherwise|and|or|mod)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎×÷⋅∧∨ᵀ]+(_\d+)?)\(?)/g,
+            /(?<power>\^[0-9T])|(?<brackets>\[\[)|(?<radix>0[box][a-zA-Z0-9]+)|(?<comparison>(!=|[<>]=?))|(?<html>[<>&]|(\n\s*\}?|\s+))|(?<op>([+\-/*%^!≈×÷⋅∧∨¬ᵀ]|if|otherwise|and|or|mod|true|false|not)|(?<identifier>[^!-@\s_|^⌊⌋⌈⌉≈\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎×÷⋅∧∨ᵀ]+(_\d+)?)\(?)/g,
             (
                 substring,
                 power,
@@ -395,6 +395,7 @@
                     if (substring == "/") substring = "÷";
                     if (substring == "and") substring = "∧";
                     if (substring == "or") substring = "∨";
+                    if (substring == "not") substring = "¬";
                 }
 
                 if (identifier) {
