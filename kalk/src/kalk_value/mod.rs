@@ -247,20 +247,27 @@ impl KalkValue {
     }
 
     pub fn to_string_big(&self) -> String {
+        fn trim_num(num_str: String) -> String {
+            num_str
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string()
+        }
+
         if let KalkValue::Number(real, imaginary, _) = self {
             if !self.has_imaginary() {
-                return real.to_string();
+                return trim_num(real.to_string());
             }
 
             let sign = if imaginary < &0f64 { "-" } else { "+" };
             format!(
                 "{} {} {}i",
-                spaced(&real.to_string()),
+                spaced(&trim_num(real.to_string())),
                 sign,
-                spaced(&imaginary.to_string())
+                spaced(&trim_num(imaginary.to_string()))
             )
         } else {
-            self.to_string()
+            trim_num(self.to_string())
         }
     }
 
