@@ -253,7 +253,12 @@ impl KalkValue {
             }
 
             let sign = if imaginary < &0f64 { "-" } else { "+" };
-            format!("{} {} {}", real, sign, imaginary)
+            format!(
+                "{} {} {}i",
+                spaced(&real.to_string()),
+                sign,
+                spaced(&imaginary.to_string())
+            )
         } else {
             self.to_string()
         }
@@ -1099,14 +1104,16 @@ impl KalkValue {
 
 pub fn format_number(input: f64) -> String {
     let rounded = format!("{:.1$}", input, 10);
-    if rounded.contains('.') {
+    let result = if rounded.contains('.') {
         rounded
             .trim_end_matches('0')
             .trim_end_matches('.')
             .to_string()
     } else {
         rounded
-    }
+    };
+
+    spaced(&result)
 }
 
 fn calculate_vector(
@@ -1222,6 +1229,50 @@ fn calculate_matrix(
     }
 }
 
+fn spaced(number_str: &str) -> String {
+    let dot_pos = number_str.find('.');
+    let integer_boundary = if let Some(dot_pos) = dot_pos {
+        dot_pos
+    } else {
+        number_str.len()
+    };
+
+    if integer_boundary < 5 {
+        return number_str.into();
+    }
+
+    let bytes = number_str.as_bytes();
+    let mut at_decimals = dot_pos.is_some();
+    let mut i = number_str.len() - 1;
+    let mut c = 0;
+    let mut new_str = String::new();
+    while i > 0 {
+        if bytes[i] as char == '.' {
+            new_str.push('.');
+            at_decimals = false;
+            i -= 1;
+            c = 0;
+            continue;
+        }
+
+        if !at_decimals && c == 3 {
+            new_str.push(' ');
+            c = 0;
+        }
+
+        new_str.push(bytes[i] as char);
+        c += 1;
+        i -= 1;
+    }
+
+    if c == 3 {
+        new_str.push(' ');
+    }
+    new_str.push(bytes[0] as char);
+
+    new_str.chars().rev().collect::<String>()
+}
+
 fn calculate_unit(
     context: &mut crate::interpreter::Context,
     left: &KalkValue,
@@ -1319,8 +1370,28 @@ impl From<i32> for KalkValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::kalk_value::KalkValue;
+    use crate::kalk_value::{spaced, KalkValue};
     use crate::test_helpers::cmp;
+
+    #[test]
+    fn test_spaced() {
+        assert_eq!(spaced("1"), String::from("1"));
+        assert_eq!(spaced("10"), String::from("10"));
+        assert_eq!(spaced("100"), String::from("100"));
+        assert_eq!(spaced("1000"), String::from("1000"));
+        assert_eq!(spaced("10000"), String::from("10 000"));
+        assert_eq!(spaced("100000"), String::from("100 000"));
+        assert_eq!(spaced("1000000"), String::from("1 000 000"));
+        assert_eq!(spaced("10000000"), String::from("10 000 000"));
+        assert_eq!(spaced("1.12345"), String::from("1.12345"));
+        assert_eq!(spaced("10.12345"), String::from("10.12345"));
+        assert_eq!(spaced("100.12345"), String::from("100.12345"));
+        assert_eq!(spaced("1000.12345"), String::from("1000.12345"));
+        assert_eq!(spaced("10000.12345"), String::from("10 000.12345"));
+        assert_eq!(spaced("100000.12345"), String::from("100 000.12345"));
+        assert_eq!(spaced("1000000.12345"), String::from("1 000 000.12345"));
+        assert_eq!(spaced("10000000.12345"), String::from("10 000 000.12345"));
+    }
 
     #[test]
     fn test_add_complex() {
