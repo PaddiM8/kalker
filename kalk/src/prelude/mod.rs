@@ -109,6 +109,7 @@ lazy_static! {
         let mut m = HashMap::new();
         m.insert("average", VectorFuncInfo(average, Other));
         m.insert("diag", VectorFuncInfo(diag, Other));
+        m.insert("matrix", VectorFuncInfo(matrix, Other));
         m.insert("max", VectorFuncInfo(max, Other));
         m.insert("min", VectorFuncInfo(min, Other));
         m.insert("perms", VectorFuncInfo(perms, Other));
@@ -758,6 +759,28 @@ pub mod funcs {
             KalkValue::Matrix(rows) => KalkValue::from(rows.len() as f64),
             _ => KalkValue::from(0f64),
         })
+    }
+
+    pub fn matrix(x: KalkValue) -> Result<KalkValue, KalkError> {
+        let rows = as_vector_or_return!(x);
+        let column_width =
+            if let KalkValue::Vector(first_vec) = rows.first().unwrap_or(&KalkValue::nan()) {
+                first_vec.len()
+            } else {
+                0
+            };
+
+        let mut columns = Vec::new();
+        for value in rows {
+            let column = as_vector_or_return!(value);
+            if column.len() != column_width {
+                return Err(KalkError::InconsistentColumnWidths);
+            }
+
+            columns.push(column);
+        }
+
+        Ok(KalkValue::Matrix(columns))
     }
 
     pub fn max(x: KalkValue) -> Result<KalkValue, KalkError> {
