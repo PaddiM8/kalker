@@ -325,7 +325,14 @@ fn analyse_binary(
         (_, TokenKind::Colon, _) => {
             context.in_comprehension = true;
             context.in_conditional = true;
-            context.comprehension_vars = Some(Vec::new());
+
+            let comprehension_vars_index =
+                if let Some(existing_comprehension_vars) = &context.comprehension_vars {
+                    existing_comprehension_vars.len()
+                } else {
+                    context.comprehension_vars = Some(Vec::new());
+                    0
+                };
 
             let mut conditions = vec![right];
             let mut has_comma = false;
@@ -346,14 +353,11 @@ fn analyse_binary(
             context.in_comprehension = false;
             context.in_conditional = false;
             let left = analyse_expr(context, left)?;
+            let mut all_vars = context.comprehension_vars.take().unwrap();
+            let vars = all_vars.drain(comprehension_vars_index..).collect();
+            context.comprehension_vars = Some(all_vars);
 
-            let result = Expr::Comprehension(
-                Box::new(left),
-                conditions,
-                context.comprehension_vars.take().unwrap(),
-            );
-
-            Ok(result)
+            Ok(Expr::Comprehension(Box::new(left), conditions, vars))
         }
         (
             Expr::Var(_),
