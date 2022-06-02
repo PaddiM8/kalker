@@ -11,9 +11,12 @@ Kalker (or "kalk") is a calculator program/website that supports user-defined va
 # Features
 
 * Operators: `+`, `-`, `*`, `/`, `!`
-* Groups: `()`, `⌈ceil⌉`, `⌊floor⌋`, `[iverson]`
-* [Pre-defined functions and constants](https://github.com/PaddiM8/kalker/blob/master/kalk/src/prelude/mod.rs)
+* Groups: `()`, `[]`, `⌈ceil⌉`, `⌊floor⌋`
+* [Vectors](https://kalker.xyz/#vectors): (x, y, z, ...)
+* [Matrices](https://kalker.xyz/#matrices): [x, y, z; a, b, c; ...]
+* [Pre-defined functions and constants](https://kalker.xyz/#functions)
 * User-defined functions and variables. `f(x, y) = xy`, `x = 5`
+* Root finding using Newton's method (eg. x^2 = 64). Note: estimation and limited to one root
 * Derivative of functions (derivatives of noisy functions or of higher order can be a bit inaccurate). `f'(2)`, `sin'(-pi)`
 * Integration. `∫(0, pi, sin(x) dx)` or `∫(0, π, sin(x) dx)`, maybe sometimes be slightly off
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
@@ -71,7 +74,7 @@ There are currently three different libraries related to kalker.
 
 # Syntax
 
-A more complete reference can be found on [the website](https://kalker.xyz)
+A more complete reference can be found on [the website](https://kalker.xyz).
 
 ## Functions
 
