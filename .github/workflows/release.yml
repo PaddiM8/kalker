@@ -143,7 +143,7 @@ jobs:
           args: install wixtoolset -y
       - shell: msys2 {0}
         run: |
-          [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix
+          [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix --version 0.3.1
           cd cli
           cargo wix --no-build --nocapture --package kalker
           mv target/wix/*.msi target/wix/kalker-windows.msi
