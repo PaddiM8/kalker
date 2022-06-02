@@ -1,26 +1,61 @@
 Overview of features
     Operators: +, -, *, /, !, %
     Groups: (), ⌈⌉, ⌊⌋, []
+    Vectors: (x, y, z, ...)
+    Matrices: [x, y, z; a, b, c; ...]
     Pre-defined functions and constants
     User-defined functions and variables
     Understands fairly ambiguous syntax. Eg. 2sinx + 2xy
+    Complex numbers
+
+    Piecewise functions: f(x) = { f(x + 1) if x <= 1; x otherwise },
+    pressing enter before typing the final "}" will make a new line without
+    submitting. Semicolons are only needed when writing everything on the
+    same line.
+
+    Different number bases: Either with a format like 0b1101, 0o5.3, 0xff
+    or a format like 1101_2. The latter does not support letters, as they
+    would be interpreted as variables 
+
+    Root finding using Newton's method (eg. x^2 = 64). Note: estimation and
+    limited to one root
+
+    Derivation (prime notation) and integration (eg. integral(a, b, x dx)
+    The value of an integral is estimated using Simpson's 3/8 rule,
+    while derivatives are estimated using the symmetric difference
+    quotinent (and derivatives of higher order can be a bit inaccurate as of now)
+
     Syntax highlighting
     Completion for special symbols on tab
     Sum/prod functions
+
+    Load files that can contain predefined variable and function declarations.
+    (you can also have automatically loaded files)
 
 Operators
     +, -, *, /
     ! Factorial, eg. 5! gives 120
     % Percent, eg. 5% gives 0.05, 10 + 50% gives 15
     % Modulus (remainder), eg. 23 % 3 gives 2
+    and, or, not
 
 Completion for special symbols
     You can type special symbols (such as √) by typing the normal function or constant name and pressing tab.
 
+    * becomes ×
+    / becomes ÷
+    and becomes ∧
+    or becomes ¬
+    not becomes ∨
+    [[ becomes ⟦⟧
+    _123 becomes ₁₂₃
+    asin, acos, etc. become sin⁻¹(), cos⁻¹(), etc
     sqrt becomes √
     deg becomes °
     pi becomes π
     sum becomes Σ()
+    prod becomes ∏()
+    integrate becomes ∫()
     tau becomes τ
     phi becomes ϕ
     floor becomes ⌊⌋
@@ -39,17 +74,24 @@ They are used like this: name(arg1, arg2, etc.)
 Example: f(3) + 3A(2, 3) 
 
 Predefined functions
-    sin, cos, tan, cot, csc, sec
-    sinh, cosh, tanh, coth, csch, sech
-    asin, acos, atan, acot, acsc, asec
-    asinh, acosh, atanh, acoth, acsch, asech
+    sin, cos, tan, cot, cosec, sec
+    sinh, cosh, tanh, coth, cosech, sech
+    asin, acos, atan, acot, acosec, asec
+    ashin, acosh, atanh, acoth, acosech, asech
     abs, ceil or ⌈⌉, floor or ⌊⌋, frac, round, trunc
-    sqrt or √, cbrt, exp, log, ln
+    sqrt or √, cbrt, exp, log, ln, arg, Re, Im
     gamma or Γ
-    asinh, acosh, atanh, acoth, acsch, asech
-    min, max, hyp
-    log Eg. log(1000, 10) is the same as log10(1000)
-    root Eg. root(16, 3) is the same as 3√16
+    asinh, acosh, atanh, acoth, acosech, asech
+    bitcmp, bitand, bitor, bitxor, bitshift
+    comb or nCr, perm or nPr
+    gcd, lcm
+    min, max, hypot
+    log - eg. log(1000, 10) is the same as log10(1000)
+    root - eg. root(16, 3) is the same as 3√16
+    average, perms, sort
+    transpose
+    matrix - takes a vector of vectors and returns a matrix
+    integrate - eg. integrate(0, pi, sin(x) dx)
     sum Eg. sum(n=1, 4, 2n), example below
 
 Sum function
@@ -73,3 +115,50 @@ Constants
     e = 2.71828182
     tau or τ = 6.2831853
     phi or ϕ = 1.61803398
+
+Vectors
+    A vector in kalker is an immutable list of values, defined with the syntax (x, y, z)
+    which may contain an arbitrary amount of items. Generally, when an operation is
+    performed on a vector, it is done on each individual item. This means that (2, 4, 8) / 2
+    gives the result (1, 2, 4). An exception to this is multiplication with two vectors,
+    for which the result is the dot product of the vectors. When a vector is given to a
+    regular function, the function is applied to all of the items in the vector.
+    
+    Indexing
+        A specific item can be retrieved from a vector using an indexer, with the
+        syntax vector[[index]]. Indexes start at 1.
+    
+    Vector comprehensions (experimental)
+        Vectors can be created dynamically using vector comprehension notation, which is
+        similar to set-builder notation. The following example creates a vector containing
+        the square of every number between one and nine except five: [n^2 : 0 < n < 10 and n != 5].
+        A comprehension consists of two parts. The first part defines what should be done to each
+        number, while the second part defines the numbers which should be handled in the first
+        part. At the moment, it is mandatory to begin the second part with a range of the
+        format a < n < b where n defines the variable which should be used in the comprehension.
+        Several of these variables can be created by separating the conditions by a comma,
+        for example [ab : 0 < a < 5, 0 < b < 5].
+
+Matrices
+    A matrix is an immutable two-dimensional list of values, defined with the syntax [x, y, z; a, b, c]
+    where semicolons are used to separate rows and commas are used to separate items. It is also
+    possible to press the enter key to create a new row, instead of writing a semicolon. Pressing
+    enter will not submit if there is no closing square bracket. Operations on matrices work the
+    same way as with vectors, except that two matrices multiplied result in matrix multiplication.
+    It is also possible to obtain the tranpose of a matrix with the syntax A^T, where A is a matrix
+    and T is a literal T.
+    
+    Indexing
+        A specific item can be retrieved from a matrix using an indexer, with the
+        syntax matrix[[rowIndex, columnIndex]]. Indexes start at 1.
+
+Files
+    Kalker looks for kalker files in the system config directory.
+
+    Linux: ~/.config/kalker/
+    macOS: ~/Library/Application Support/kalker/ or ~/Library/Preferences/kalker
+    Windows: %appdata%/kalker/
+
+    If a file with the name default.kalker is found, it will be loaded automatically every time
+    kalker starts. Any other files in this directory with the .kalker extension can be loaded
+    at any time by doing load filename in kalker. Note that the extension should not be included here. 
