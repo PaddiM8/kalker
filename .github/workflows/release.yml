@@ -119,6 +119,7 @@ jobs:
             C:\Users\runneradmin\.cargo\registry\index
             C:\Users\runneradmin\.cargo\registry\cache
             C:\Users\runneradmin\.cargo\registry\cache
+            {FOLDERID_LocalAppData}\gmp-mpfr-sys
             D:\a\kalker\kalker\target
             C:\msys64\home\paddi\kalker\target
       - uses: msys2/setup-msys2@v2
@@ -144,7 +145,7 @@ jobs:
         run: |
           [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix
           cd cli
-          cargo wix --no-build --nocapture
+          cargo wix --no-build --nocapture --package kalker
           mv target/wix/*.msi target/wix/kalker-windows.msi
       - uses: actions/upload-artifact@v2
         with:
