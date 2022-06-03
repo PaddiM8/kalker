@@ -145,7 +145,7 @@ jobs:
         run: |
           [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix --version 0.3.1
           cd cli
-          cargo wix --no-build --nocapture --package kalker
+          cargo wix --no-build --nocapture
           mv target/wix/*.msi target/wix/kalker-windows.msi
       - uses: actions/upload-artifact@v2
         with:
