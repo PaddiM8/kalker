@@ -43,7 +43,7 @@ Kalker is available through [`nixpkgs`](https://search.nixos.org/packages?channe
 The most up to date version is also available as a [`flake`](https://search.nixos.org/flakes?channel=unstable&show=kalker&from=0&size=50&sort=relevance&type=packages&query=kalker).
 
 ### NetBSD
-Kalker is available from the [`official repositories`](https://pkgsrc.se/math/kalker).
+Kalker is available from the [`official repositories`](https://pkgsrc.se/math/kalker),
 `pkgin install kalker`
 
 ## Binaries
