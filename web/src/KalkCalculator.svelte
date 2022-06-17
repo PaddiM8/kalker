@@ -635,7 +635,6 @@
                     on:keydown={(event) => handleKeyDown(event, kalk)}
                     on:keyup={handleKeyUp}
                     on:input={handleInput}
-                    role="textbox"
                 />
             </div>
         {:catch error}

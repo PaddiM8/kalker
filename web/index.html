@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<title>Svelte app</title>
+
+	<link rel="icon" type="image/png" href="/favicon.png">
+	<script type="module" defer src="/src/main.ts"></script>
+
+</head>
+
+<body>
+	<section id="wrapper">
+		<div class="calculator">
+			<kalk-calculator hinttext="test" autofocus="true" buttonpanel="true" numberrow="true">
+				<console-line>kalk</console-line>
+				<console-line>
+					<span class="hint">Type 'help' for instructions.</span>
+				</console-line>
+			</kalk-calculator>
+		</div>
+	</section>
+</body>
+
+</html>

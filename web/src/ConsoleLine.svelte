@@ -1,6 +1,12 @@
+<svelte:options tag="console-line" />
+
 <script lang="ts">
     export let byuser = false;
 </script>
+
+<p class:result={!byuser}>
+    <slot />
+</p>
 
 <style lang="scss">
     p {
@@ -13,8 +19,3 @@
         margin-bottom: 10px;
     }
 </style>
-
-<svelte:options tag="console-line" />
-<p class:result={!byuser}>
-    <slot />
-</p>
