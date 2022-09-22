@@ -187,6 +187,10 @@ impl<'a> Lexer<'a> {
                 self.advance();
                 return build(TokenKind::Power, "", span);
             }
+            (TokenKind::Star, Some('⋅')) => {
+                self.advance();
+                return build(TokenKind::Power, "", span);
+            }
             (TokenKind::OpenBracket, Some('[')) => {
                 self.advance();
                 return build(TokenKind::OpenDoubleBracket, "", span);
