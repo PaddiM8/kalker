@@ -15,7 +15,7 @@ Overview of features
 
     Different number bases: Either with a format like 0b1101, 0o5.3, 0xff
     or a format like 1101_2. The latter does not support letters, as they
-    would be interpreted as variables 
+    would be interpreted as variables
 
     Root finding using Newton's method (eg. x^2 = 64). Note: estimation and
     limited to one root
@@ -23,7 +23,7 @@ Overview of features
     Derivation (prime notation) and integration (eg. integral(a, b, x dx)
     The value of an integral is estimated using Simpson's 3/8 rule,
     while derivatives are estimated using the symmetric difference
-    quotinent (and derivatives of higher order can be a bit inaccurate as of now)
+    quotient (and derivatives of higher order can be a bit inaccurate as of now)
 
     Syntax highlighting
     Completion for special symbols on tab
@@ -67,11 +67,14 @@ Variables
 Variables are defined with the following syntax: name = value
 Example: x = 3/4
 
+Predefined variables
+    ans - receives the value computed of the most recent expression
+
 Functions
 Functions are defined with the following syntax: name(param1, param2, etc.) = value
 Examples: f(x) = 2x+3; A(x, y) = (xy)/2
 They are used like this: name(arg1, arg2, etc.)
-Example: f(3) + 3A(2, 3) 
+Example: f(3) + 3A(2, 3)
 
 Predefined functions
     sin, cos, tan, cot, cosec, sec
@@ -123,11 +126,11 @@ Vectors
     gives the result (1, 2, 4). An exception to this is multiplication with two vectors,
     for which the result is the dot product of the vectors. When a vector is given to a
     regular function, the function is applied to all of the items in the vector.
-    
+
     Indexing
         A specific item can be retrieved from a vector using an indexer, with the
         syntax vector[[index]]. Indexes start at 1.
-    
+
     Vector comprehensions (experimental)
         Vectors can be created dynamically using vector comprehension notation, which is
         similar to set-builder notation. The following example creates a vector containing
@@ -145,9 +148,9 @@ Matrices
     possible to press the enter key to create a new row, instead of writing a semicolon. Pressing
     enter will not submit if there is no closing square bracket. Operations on matrices work the
     same way as with vectors, except that two matrices multiplied result in matrix multiplication.
-    It is also possible to obtain the tranpose of a matrix with the syntax A^T, where A is a matrix
+    It is also possible to obtain the transpose of a matrix with the syntax A^T, where A is a matrix
     and T is a literal T.
-    
+
     Indexing
         A specific item can be retrieved from a matrix using an indexer, with the
         syntax matrix[[rowIndex, columnIndex]]. Indexes start at 1.
@@ -161,4 +164,4 @@ Files
 
     If a file with the name default.kalker is found, it will be loaded automatically every time
     kalker starts. Any other files in this directory with the .kalker extension can be loaded
-    at any time by doing load filename in kalker. Note that the extension should not be included here. 
+    at any time by doing load filename in kalker. Note that the extension should not be included here.
