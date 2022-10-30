@@ -53,7 +53,7 @@
         History,
     }
 
-    function setText(text: string, isFinalBeforeSubmit = false) {
+    function setText(text: string, isFinalBeforeSubmit = false, isComposing = false) {
         const [highlighted, offset] = highlight(
             text,
             isFinalBeforeSubmit
@@ -62,7 +62,9 @@
         );
         const prevCursorPos = inputElement.selectionStart;
         setHtml(highlighted);
-        setCaret(prevCursorPos + offset);
+        if(!isComposing){
+            setCaret(prevCursorPos + offset);
+        }
     }
 
     function setHtml(html: string) {
@@ -226,7 +228,7 @@
 
         const event = e as InputEvent;
         const target = event.target as HTMLInputElement;
-        setText(target.value == "\n" ? "" : target.value);
+        setText(target.value == "\n" ? "" : target.value, undefined, event.isComposing);
 
         if (event.data == "(") {
             insertText(")");
