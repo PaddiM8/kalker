@@ -9,11 +9,11 @@ license = "MIT"
 name = "kalker"
 readme = "../README.md"
 repository = "https://github.com/PaddiM8/kalker"
-version = "2.0.0"
+version = "2.0.1"
 
 [dependencies]
 ansi_term = "0.12.1"
-kalk = { path = "../kalk", version = "^3.0.0" }
+kalk = { path = "../kalk", version = "^3.0.1" }
 lazy_static = "1.4.0"
 regex = "1"
 rustyline = "7.1.0"

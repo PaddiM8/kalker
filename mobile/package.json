@@ -1,6 +1,6 @@
 {
   "name": "kalk_mobile",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "kalk mobile",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -16,7 +16,7 @@
     "@capacitor/android": "^2.4.5",
     "@capacitor/cli": "^2.4.5",
     "@capacitor/core": "^2.4.5",
-    "@paddim8/kalk-component": "^2.0.0"
+    "@paddim8/kalk-component": "^2.0.1"
   },
   "devDependencies": {
     "@capacitor-community/electron": "^1.3.2",
