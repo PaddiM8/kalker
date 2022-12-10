@@ -4,7 +4,12 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f715975d-940d-4ed4-9dbe-0bcb3d72e51d" name="Default Changelist" comment="" />
+    <list default="true" id="f715975d-940d-4ed4-9dbe-0bcb3d72e51d" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/android/app/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/android/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/android/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/android/variables.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/android/variables.gradle" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -22,6 +27,8 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="RunOnceActivity.cidr.known.project.marker" value="true" />
+    <property name="cidr.known.project.marker" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/android" />
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
@@ -37,15 +44,5 @@
       <updated>1614028812239</updated>
     </task>
     <servers />
-  </component>
-  <component name="WindowStateProjectService">
-    <state x="738" y="345" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1622829848954">
-      <screen x="0" y="0" width="2560" height="1440" />
-    </state>
-    <state x="738" y="345" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.2560.1440/2560.0.1920.1080@0.0.2560.1440" timestamp="1622829848954" />
-    <state x="1063" y="445" width="424" height="476" key="FileChooserDialogImpl" timestamp="1622829905435">
-      <screen x="0" y="0" width="2560" height="1440" />
-    </state>
-    <state x="1063" y="445" width="424" height="476" key="FileChooserDialogImpl/0.0.2560.1440/2560.0.1920.1080@0.0.2560.1440" timestamp="1622829905435" />
   </component>
 </project>

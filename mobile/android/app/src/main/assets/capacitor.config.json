@@ -9,5 +9,8 @@
     "SplashScreen": {
       "launchShowDuration": 0
     }
-  }
+  },
+  "includePlugins": [
+      "SplashScreen"
+  ]
 }
