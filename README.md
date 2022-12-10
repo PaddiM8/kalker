@@ -114,5 +114,6 @@ Run:
 
 Run:  
 1. `npm install`
-2. `npx cap sync`
-3. Build the project using Android Studio, or Gradle directly.
+2. `npm run build`
+3. `npx cap sync`
+4. Build the project using Android Studio, or Gradle directly.
