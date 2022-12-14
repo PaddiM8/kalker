@@ -937,8 +937,11 @@ pub mod funcs {
             x.clone().div_without_unit(&abs(x)?)
         } else {
             let (real, _, unit) = as_number_or_return!(x);
-
-            Ok(KalkValue::Number(real.signum(), float!(0), unit))
+            if real == 0f64 {
+                Ok(KalkValue::Number(float!(0), float!(0), unit))
+            } else {
+                Ok(KalkValue::Number(real.signum(), float!(0), unit))
+            }
         }
     }
 
