@@ -27,7 +27,7 @@ assert_eq!(result.to_f64(), 15f64);
 ```
 
 ### Using f64 instead of rug::Float
-The cargo feature `rug` enables rug, and is used by default. If you disalbe this, kalk will use `f64` instead, making it more portable.
+The cargo feature `rug` enables rug, and is used by default. If you disable this, kalk will use `f64` instead, making it more portable.
 
 ### Compiling
 Make sure you have `diffutils` `gcc` `make` and `m4` installed.
