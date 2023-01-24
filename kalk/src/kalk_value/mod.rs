@@ -288,7 +288,7 @@ impl KalkValue {
         }
     }
 
-    pub(crate) fn to_string_pretty_radix(&self, radix: u8) -> String {
+    pub fn to_string_pretty_radix(&self, radix: u8) -> String {
         let (real, imaginary, unit) = match self {
             KalkValue::Number(real, imaginary, unit) => (real, imaginary, unit),
             _ => return self.to_string(),

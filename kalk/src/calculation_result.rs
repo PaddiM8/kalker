@@ -65,7 +65,8 @@ impl CalculationResult {
         self.value.imaginary_to_f64()
     }
 
-    pub(crate) fn set_radix(&mut self, radix: u8) {
+    #[wasm_bindgen(js_name = setRadix)]
+    pub fn set_radix(&mut self, radix: u8) {
         self.radix = radix;
     }
 

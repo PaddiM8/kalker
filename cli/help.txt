@@ -15,10 +15,12 @@ Overview of features
 
     Different number bases: Either with a format like 0b1101, 0o5.3, 0xff
     or a format like 1101_2. The latter does not support letters, as they
-    would be interpreted as variables
+    would be interpreted as variables. The "base" command can be used to
+    tell the REPL to also show output in another number base. For example,
+    "base 16" would make it show results in hexadecimal as well as decimal.
 
     Root finding using Newton's method (eg. x^2 = 64). Note: estimation and
-    limited to one root
+    limited to one root.
 
     Derivation (prime notation) and integration (eg. integral(a, b, x dx)
     The value of an integral is estimated using Simpson's 3/8 rule,

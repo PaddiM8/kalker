@@ -68,7 +68,12 @@ fn default_action(context: &Context) {
         repl::start(&mut parser_context, precision);
     } else {
         // Direct output
-        output::eval(&mut parser_context, &context.args.join(" "), precision);
+        output::eval(
+            &mut parser_context,
+            &context.args.join(" "),
+            precision,
+            10u8,
+        );
     }
 }
 

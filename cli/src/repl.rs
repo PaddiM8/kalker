@@ -20,6 +20,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::process;
 
+struct Context {
+    base: u8,
+}
+
 pub fn start(parser: &mut parser::Context, precision: u32) {
     let mut editor = Editor::<RLHelper>::new();
     editor.set_helper(Some(RLHelper {
@@ -50,6 +54,7 @@ pub fn start(parser: &mut parser::Context, precision: u32) {
         );
     }
 
+    let mut repl = Context { base: 10u8 };
     loop {
         let prompt = if cfg!(windows) {
             String::from(">> ")
@@ -61,7 +66,7 @@ pub fn start(parser: &mut parser::Context, precision: u32) {
         match readline {
             Ok(input) => {
                 editor.add_history_entry(input.as_str());
-                eval_repl(parser, &input, precision);
+                eval_repl(&mut repl, parser, &input, precision);
             }
             Err(ReadlineError::Interrupted) => break,
             _ => break,
@@ -73,14 +78,27 @@ pub fn start(parser: &mut parser::Context, precision: u32) {
     }
 }
 
-fn eval_repl(parser: &mut parser::Context, input: &str, precision: u32) {
+fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str, precision: u32) {
     if let Some(file_name) = input.strip_prefix("load ") {
         if let Some(file_path) = crate::get_input_file_by_name(file_name) {
             crate::load_input_file(&file_path, precision, parser);
         } else {
-            println!("Unable to find '{}'", file_name);
+            eprintln!("Unable to find '{}'", file_name);
         }
+
         return;
+    }
+
+    if let Some(base_str) = input.strip_prefix("base ") {
+        if !base_str.is_empty() && base_str.chars().next().unwrap().is_ascii_digit() {
+            if let Ok(base) = base_str.parse::<u8>() {
+                repl.base = base;
+            } else {
+                eprintln!("Invalid number base");
+            }
+
+            return;
+        }
     }
 
     match input {
@@ -88,7 +106,7 @@ fn eval_repl(parser: &mut parser::Context, input: &str, precision: u32) {
         "clear" => print!("\x1B[2J"),
         "exit" => process::exit(0),
         "help" => print_cli_help(),
-        _ => output::eval(parser, input, precision),
+        _ => output::eval(parser, input, precision, repl.base),
     }
 }
 
