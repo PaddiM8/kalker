@@ -53,7 +53,11 @@
         History,
     }
 
-    function setText(text: string, isFinalBeforeSubmit = false, isComposing = false) {
+    function setText(
+        text: string,
+        isFinalBeforeSubmit = false,
+        isComposing = false
+    ) {
         const [highlighted, offset] = highlight(
             text,
             isFinalBeforeSubmit
@@ -62,7 +66,7 @@
         );
         const prevCursorPos = inputElement.selectionStart;
         setHtml(highlighted);
-        if(!isComposing){
+        if (!isComposing) {
             setCaret(prevCursorPos + offset);
         }
     }
@@ -228,26 +232,15 @@
 
         const event = e as InputEvent;
         const target = event.target as HTMLInputElement;
-        setText(target.value == "\n" ? "" : target.value, undefined, event.isComposing);
+        setText(
+            target.value == "\n" ? "" : target.value,
+            undefined,
+            event.isComposing
+        );
 
         if (event.data == "(") {
             insertText(")");
             offsetCaret(-1);
-        }
-    }
-
-    function handleTouchLine(event: Event) {
-        if (!inputElement.value) {
-            const target = event.currentTarget as HTMLElement;
-            setHtml(target.innerHTML);
-
-            // Sighs... What else?
-            let i = 0;
-            setInterval(() => {
-                if (i == 40) return;
-                inputElement.focus({ preventScroll: true });
-                i++;
-            }, 1);
         }
     }
 
@@ -606,7 +599,7 @@
                 {#if line[1]}
                     <span style="color: {promptcolor}">&gt;&gt;</span>
                 {/if}
-                <span class="value" on:touchstart={handleTouchLine}>
+                <span class="value">
                     {@html line[0]}
                 </span>
             </console-line>
