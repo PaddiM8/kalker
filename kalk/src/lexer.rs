@@ -3,7 +3,7 @@ use std::iter::Peekable;
 use std::str;
 use std::str::Chars;
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub enum TokenKind {
     Unknown,
     Literal,
@@ -55,7 +55,7 @@ pub enum TokenKind {
     Eof,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     pub value: String,
@@ -122,7 +122,7 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        if c.is_digit(10) {
+        if c.is_ascii_digit() {
             return self.next_number_literal();
         }
 
@@ -404,7 +404,7 @@ fn is_valid_identifier(c: Option<&char>) -> bool {
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
             | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '∧' | '∨' | '¬' | ':' | 'ᵀ'
             | '\n' => false,
-            _ => !c.is_digit(10) || is_superscript(c) || is_subscript(c),
+            _ => !c.is_ascii_digit() || is_superscript(c) || is_subscript(c),
         }
     } else {
         false

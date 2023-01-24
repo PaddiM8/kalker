@@ -42,7 +42,7 @@ pub struct RangedVar {
     pub min: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identifier {
     pub full_name: String,
     pub pure_name: String,

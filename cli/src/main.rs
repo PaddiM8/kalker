@@ -92,7 +92,7 @@ pub(crate) fn get_input_file_by_name(name: &str) -> Option<String> {
 
 pub fn load_input_file(file_name: &str, precision: u32, parser_context: &mut parser::Context) {
     let mut file_content = String::new();
-    File::open(&file_name)
+    File::open(file_name)
         .expect("Couldn't find file.")
         .read_to_string(&mut file_content)
         .expect("Failed to read input file.");

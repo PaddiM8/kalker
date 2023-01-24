@@ -96,7 +96,7 @@ macro_rules! as_vector_or_return {
 #[macro_export]
 macro_rules! as_number_or_zero {
     ($x:expr) => {{
-        use crate::float;
+        use $crate::float;
         if let KalkValue::Number(real, imaginary, unit) = $x {
             (real, imaginary, unit)
         } else {
@@ -115,7 +115,7 @@ pub struct ScientificNotation {
 }
 
 #[wasm_bindgen]
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum ComplexNumberType {
     Real,
     Imaginary,

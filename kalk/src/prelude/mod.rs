@@ -295,7 +295,7 @@ pub mod funcs {
 
     pub fn acos(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
-        if x.has_imaginary() || real > 1f64 || real < -1f64 {
+        if x.has_imaginary() || !(-1f64..=1f64).contains(&real) {
             // -i * ln(i * sqrt(1 - z²) + z)
             let root =
                 sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)?)?)?;
@@ -418,7 +418,7 @@ pub mod funcs {
 
     pub fn asin(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, _, unit) = as_number_or_return!(x.clone());
-        if x.has_imaginary() || real > 1f64 || real < -1f64 {
+        if x.has_imaginary() || !(-1f64..=1f64).contains(&real) {
             // i * ln(sqrt(1 - z²) - iz)
             let root =
                 sqrt(KalkValue::from(1f64).sub_without_unit(&x.clone().mul_without_unit(&x)?)?)?;
@@ -692,11 +692,7 @@ pub mod funcs {
     pub fn iverson(x: KalkValue) -> Result<KalkValue, KalkError> {
         Ok(KalkValue::from(
             if let KalkValue::Boolean(boolean_value) = x {
-                if boolean_value {
-                    1
-                } else {
-                    0
-                }
+                i32::from(boolean_value)
             } else {
                 1
             },
@@ -850,7 +846,7 @@ pub mod funcs {
                     real
                 } else {
                     return Err(KalkError::UnexpectedType(
-                        (&prev_values[i - 1]).get_type_name(),
+                        prev_values[i - 1].get_type_name(),
                         vec![String::from("number")],
                     ));
                 };

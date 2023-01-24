@@ -357,7 +357,7 @@ pub(crate) fn eval_fn_call_expr(
                         context,
                         identifier,
                         &var_identifier.pure_name,
-                        &**right,
+                        right,
                         &expressions[1],
                         &expressions[2],
                         unit.cloned(),

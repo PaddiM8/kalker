@@ -154,7 +154,8 @@ pub fn find_root(
     context.symbol_table.set(f);
     let mut approx = KalkValue::from(1f64);
     for _ in 0..100 {
-        let (new_approx, done) = newton_method(context, approx, &Identifier::from_full_name(FN_NAME))?;
+        let (new_approx, done) =
+            newton_method(context, approx, &Identifier::from_full_name(FN_NAME))?;
         approx = new_approx;
         if done {
             break;
@@ -205,7 +206,10 @@ fn newton_method(
     let f_prime_name = Identifier::from_name_and_primes(&fn_name.pure_name, 1);
     let f_prime = derive_func(context, &f_prime_name, initial.clone())?;
 
-    Ok((initial.sub_without_unit(&f.div_without_unit(&f_prime)?)?, false))
+    Ok((
+        initial.sub_without_unit(&f.div_without_unit(&f_prime)?)?,
+        false,
+    ))
 }
 
 #[cfg(test)]
@@ -309,9 +313,9 @@ mod tests {
         let mut context = get_context(&mut symbol_table);
         let result = super::integrate_with_unknown_variable(
             &mut context,
-            &*literal(2f64),
-            &*literal(4f64),
-            &*binary(var("x"), Star, var("dx")),
+            &literal(2f64),
+            &literal(4f64),
+            &binary(var("x"), Star, var("dx")),
         )
         .unwrap();
 
@@ -322,14 +326,8 @@ mod tests {
     fn test_integrate() {
         let mut symbol_table = SymbolTable::new();
         let mut context = get_context(&mut symbol_table);
-        let result = super::integrate(
-            &mut context,
-            &*literal(2f64),
-            &*literal(4f64),
-            &*var("x"),
-            "x",
-        )
-        .unwrap();
+        let result =
+            super::integrate(&mut context, &literal(2f64), &literal(4f64), &var("x"), "x").unwrap();
 
         assert!(cmp(result.to_f64(), 6f64));
     }
@@ -340,9 +338,9 @@ mod tests {
         let mut context = get_context(&mut symbol_table);
         let result = super::integrate(
             &mut context,
-            &*literal(2f64),
+            &literal(2f64),
             &ast::build_literal_ast(&KalkValue::Number(float!(3f64), float!(4f64), None)),
-            &*binary(var("x"), Star, var("i")),
+            &binary(var("x"), Star, var("i")),
             "x",
         )
         .unwrap();

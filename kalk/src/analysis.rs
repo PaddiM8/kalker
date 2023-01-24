@@ -80,7 +80,7 @@ pub(crate) fn analyse_stmt(
 fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, KalkError> {
     Ok(
         if let Expr::Binary(left, TokenKind::Equals, right) = value {
-            if let Some((identifier, parameters)) = is_fn_decl(&*left) {
+            if let Some((identifier, parameters)) = is_fn_decl(&left) {
                 return build_fn_decl_from_scratch(context, identifier, parameters, *right);
             }
 
@@ -153,7 +153,7 @@ fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, KalkErr
 }
 
 pub fn is_fn_decl(expr: &Expr) -> Option<(Identifier, Vec<String>)> {
-    if let Expr::Binary(left, TokenKind::Star, right) = &*expr {
+    if let Expr::Binary(left, TokenKind::Star, right) = expr {
         let identifier = if let Expr::Var(identifier) = &**left {
             identifier
         } else {
@@ -579,12 +579,12 @@ fn build_indexed_var(context: &mut Context, identifier: Identifier) -> Result<Ex
     let underscore_pos = identifier.pure_name.find('_').unwrap();
     let var_name = &identifier.pure_name[0..underscore_pos];
     let lowered = &identifier.pure_name[underscore_pos + 1..];
-    let lowered_expr = if !lowered.is_empty() && lowered.chars().next().unwrap_or('\0').is_digit(10)
-    {
-        Expr::Literal(lowered.parse::<f64>().unwrap_or(f64::NAN))
-    } else {
-        build_var(context, lowered)
-    };
+    let lowered_expr =
+        if !lowered.is_empty() && lowered.chars().next().unwrap_or('\0').is_ascii_digit() {
+            Expr::Literal(lowered.parse::<f64>().unwrap_or(f64::NAN))
+        } else {
+            build_var(context, lowered)
+        };
 
     Ok(Expr::Indexer(
         Box::new(build_var(context, var_name)),

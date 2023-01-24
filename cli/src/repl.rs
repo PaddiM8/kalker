@@ -223,7 +223,7 @@ impl Completer for RLHelper {
 
             let mut subscript_digits = String::new();
             for c in slice.chars().rev() {
-                if c.is_digit(10) {
+                if c.is_ascii_digit() {
                     subscript_digits.insert(0, c);
                 } else {
                     break;
