@@ -46,6 +46,7 @@
     let inputElement: HTMLTextAreaElement;
     let highlightedTextElement: HTMLElement;
     let ignoreNextInput = false;
+    let currentBase = 10;
 
     enum HighlightType {
         Output,
@@ -100,6 +101,7 @@
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
             const result = kalkContext.evaluate(input.replaceAll(/\s+/g, " "));
+            result?.setRadix(currentBase);
 
             return [result?.toPrettyString(), true];
         } catch (err) {
@@ -153,12 +155,14 @@
                 output = `<a style="color: ${linkcolor}"
                              href="https://kalker.xyz/#usage"
                              target="blank">Link to usage guide</a>`;
+            } else if (/base\s\d\d?/.test(input.trim())) {
+                currentBase = +input.trim().slice(5);
             } else if (input.trim() == "clear") {
                 outputLines = [];
                 setText("");
                 return;
             } else {
-                const [result, success] = calculate(kalk, input);
+                let [result, success] = calculate(kalk, input);
 
                 output = success
                     ? highlight(result, HighlightType.Output)[0]
