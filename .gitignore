@@ -1,6 +1,5 @@
 target
 */target
-Cargo.lock
 kalk/Cargo.lock
 cli/Cargo.lock
 cli/test
