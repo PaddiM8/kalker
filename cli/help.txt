@@ -47,8 +47,8 @@ Completion for special symbols
     * becomes ×
     / becomes ÷
     and becomes ∧
-    or becomes ¬
-    not becomes ∨
+    not becomes ¬
+    or becomes ∨
     [[ becomes ⟦⟧
     _123 becomes ₁₂₃
     asin, acos, etc. become sin⁻¹(), cos⁻¹(), etc
