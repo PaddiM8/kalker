@@ -9,6 +9,8 @@ use crate::symbol_table::SymbolTable;
 use crate::{as_number_or_zero, numerical};
 use crate::{float, prelude};
 
+const DEFAULT_MAX_RECURSION_DEPTH: u32 = 128;
+
 pub struct Context<'a> {
     pub symbol_table: &'a mut SymbolTable,
     angle_unit: String,
@@ -20,6 +22,8 @@ pub struct Context<'a> {
     #[cfg(not(target_arch = "wasm32"))]
     start_time: std::time::SystemTime,
     is_approximation: bool,
+    recursion_depth: u32,
+    max_recursion_depth: u32,
 }
 
 impl<'a> Context<'a> {
@@ -40,6 +44,8 @@ impl<'a> Context<'a> {
             #[cfg(not(target_arch = "wasm32"))]
             start_time: std::time::SystemTime::now(),
             is_approximation: false,
+            recursion_depth: 0,
+            max_recursion_depth: DEFAULT_MAX_RECURSION_DEPTH,
         }
     }
 
@@ -129,7 +135,10 @@ pub(crate) fn eval_expr(
         Expr::Boolean(value) => Ok(KalkValue::Boolean(*value)),
         Expr::Group(expr) => eval_group_expr(context, expr, unit),
         Expr::FnCall(identifier, expressions) => {
-            eval_fn_call_expr(context, identifier, expressions, unit)
+            context.recursion_depth += 1;
+            let res = eval_fn_call_expr(context, identifier, expressions, unit);
+            context.recursion_depth -= 1;
+            res
         }
         Expr::Piecewise(pieces) => eval_piecewise(context, pieces, unit),
         Expr::Vector(values) => eval_vector(context, values),
@@ -333,6 +342,10 @@ pub(crate) fn eval_fn_call_expr(
     expressions: &[Expr],
     unit: Option<&String>,
 ) -> Result<KalkValue, KalkError> {
+    if context.recursion_depth > context.max_recursion_depth {
+        return Err(KalkError::StackOverflow);
+    }
+
     if identifier.prime_count > 0 {
         context.is_approximation = true;
     }
