@@ -315,7 +315,10 @@ fn analyse_binary(
                 Identifier::from_full_name("transpose"),
                 vec![analyse_expr(context, left)?],
             )),
-            (Expr::Var(identifier), right) => analyse_var(context, identifier, None, Some(right)),
+            (Expr::Var(identifier), right) => {
+                let right = analyse_expr(context, right)?;
+                analyse_var(context, identifier, None, Some(right))
+            },
             (left, right) => Ok(Expr::Binary(
                 Box::new(analyse_expr(context, left)?),
                 TokenKind::Power,
