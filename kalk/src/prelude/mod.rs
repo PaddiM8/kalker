@@ -514,22 +514,22 @@ pub mod funcs {
     }
 
     pub fn cos(x: KalkValue) -> Result<KalkValue, KalkError> {
-        let (real, imaginary, unit) = as_number_or_return!(x);
+        let (real, imaginary, _) = as_number_or_return!(x);
 
         Ok(KalkValue::Number(
             real.clone().cos() * imaginary.clone().cosh(),
             -real.sin() * imaginary.sinh(),
-            unit,
+            None,
         ))
     }
 
     pub fn cosh(x: KalkValue) -> Result<KalkValue, KalkError> {
-        let (real, imaginary, unit) = as_number_or_return!(x);
+        let (real, imaginary, _) = as_number_or_return!(x);
 
         Ok(KalkValue::Number(
             real.clone().cosh() * imaginary.clone().cos(),
             real.sinh() * imaginary.sin(),
-            unit,
+            None,
         ))
     }
 
@@ -542,25 +542,25 @@ pub mod funcs {
     }
 
     pub fn cot(x: KalkValue) -> Result<KalkValue, KalkError> {
-        let (real, imaginary, unit) = as_number_or_return!(x);
+        let (real, imaginary, _) = as_number_or_return!(x);
 
         let a = real * 2f64;
         let b = imaginary * 2f64;
         Ok(KalkValue::Number(
             -a.clone().sin() / (a.clone().cos() - b.clone().cosh()),
             b.clone().sinh() / (a.cos() - b.cosh()),
-            unit,
+            None,
         ))
     }
 
     pub fn coth(x: KalkValue) -> Result<KalkValue, KalkError> {
-        let (real, imaginary, unit) = as_number_or_return!(x);
+        let (real, imaginary, _) = as_number_or_return!(x);
         let a = real * 2f64;
         let b = imaginary * 2f64;
         Ok(KalkValue::Number(
             -a.clone().sinh() / (b.clone().cos() - a.clone().cosh()),
             b.clone().sin() / (b.cos() - a.cosh()),
-            unit,
+            None,
         ))
     }
 
@@ -911,20 +911,20 @@ pub mod funcs {
     }
 
     pub fn sin(x: KalkValue) -> Result<KalkValue, KalkError> {
-        let (real, imaginary, unit) = as_number_or_return!(x);
+        let (real, imaginary, _) = as_number_or_return!(x);
         Ok(KalkValue::Number(
             real.clone().sin() * imaginary.clone().cosh(),
             real.cos() * imaginary.sinh(),
-            unit,
+            None,
         ))
     }
 
     pub fn sinh(x: KalkValue) -> Result<KalkValue, KalkError> {
-        let (real, imaginary, unit) = as_number_or_return!(x);
+        let (real, imaginary, _) = as_number_or_return!(x);
         Ok(KalkValue::Number(
             real.clone().sinh() * imaginary.clone().cos(),
             real.cosh() * imaginary.sin(),
-            unit,
+            None,
         ))
     }
 
@@ -1001,33 +1001,33 @@ pub mod funcs {
 
     pub fn tan(x: KalkValue) -> Result<KalkValue, KalkError> {
         let has_imaginary = x.has_imaginary();
-        let (real, imaginary, unit) = as_number_or_return!(x);
+        let (real, imaginary, _) = as_number_or_return!(x);
         if has_imaginary {
             let a = real * 2f64;
             let b = imaginary * 2f64;
             Ok(KalkValue::Number(
                 a.clone().sin() / (a.clone().cos() + b.clone().cosh()),
                 b.clone().sinh() / (a.cos() + b.cosh()),
-                unit,
+                None,
             ))
         } else {
-            Ok(KalkValue::Number(real.tan(), float!(0), unit))
+            Ok(KalkValue::Number(real.tan(), float!(0), None))
         }
     }
 
     pub fn tanh(x: KalkValue) -> Result<KalkValue, KalkError> {
         let has_imaginary = x.has_imaginary();
-        let (real, imaginary, unit) = as_number_or_return!(x);
+        let (real, imaginary, _) = as_number_or_return!(x);
         if has_imaginary {
             let a = real * 2f64;
             let b = imaginary * 2f64;
             Ok(KalkValue::Number(
                 a.clone().sinh() / (a.clone().cosh() + b.clone().cos()),
                 b.clone().sin() / (a.cosh() + b.cos()),
-                unit,
+                None,
             ))
         } else {
-            Ok(KalkValue::Number(real.tanh(), float!(0), unit))
+            Ok(KalkValue::Number(real.tanh(), float!(0), None))
         }
     }
 
