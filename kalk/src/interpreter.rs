@@ -342,6 +342,10 @@ pub(crate) fn eval_fn_call_expr(
     expressions: &[Expr],
     unit: Option<&String>,
 ) -> Result<KalkValue, KalkError> {
+    if context.recursion_depth > context.max_recursion_depth {
+        return Err(KalkError::StackOverflow);
+    }
+
     if identifier.prime_count > 0 {
         context.is_approximation = true;
     }
@@ -515,11 +519,6 @@ pub(crate) fn eval_fn_call_expr(
 
     match stmt_definition {
         Some(Stmt::FnDecl(_, arguments, fn_body)) => {
-            if context.recursion_depth > context.max_recursion_depth {
-                return Err(KalkError::StackOverflow);
-            }
-
-
             if arguments.len() != expressions.len() {
                 return Err(KalkError::IncorrectAmountOfArguments(
                     arguments.len(),
