@@ -122,7 +122,7 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        if c.is_ascii_digit() {
+        if c.is_ascii_digit() || c == '.' {
             return self.next_number_literal();
         }
 
