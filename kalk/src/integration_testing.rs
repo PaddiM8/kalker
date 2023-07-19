@@ -42,6 +42,7 @@ mod tests {
     }
 
     #[test_case("ambiguities/comparison_in_function")]
+    #[test_case("ambiguities/fn_call_no_parenthesis")]
     #[test_case("basics")]
     #[test_case("comparisons")]
     #[test_case("comprehensions")]

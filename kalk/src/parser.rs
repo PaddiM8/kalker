@@ -640,10 +640,18 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, KalkError> {
         let identifier_pos = context.pos;
 
         // Function call
-        let mut arguments = match parse_primary(context)? {
-            Expr::Vector(arguments) => arguments,
-            Expr::Group(argument) => vec![*argument],
-            argument => vec![argument],
+        // If there is a parenthesis/brace, parse that as a
+        // vector/group, otherwise it's an expression like sqrt4,
+        // which should be parsed as a factor, to allow eg. sqrt2x.
+        let mut arguments = if match_token(context, TokenKind::OpenBrace)
+            || match_token(context, TokenKind::OpenParenthesis) {
+            match parse_primary(context)? {
+                Expr::Vector(arguments) => arguments,
+                Expr::Group(argument) => vec![*argument],
+                argument => vec![argument],
+            }
+        } else {
+            vec![parse_factor(context)?]
         };
 
         // If it's a re-definition, revert and parse as a declaration
