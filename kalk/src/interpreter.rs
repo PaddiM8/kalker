@@ -89,7 +89,6 @@ struct SumVar {
 }
 
 fn eval_stmt(context: &mut Context, stmt: &Stmt) -> Result<KalkValue, KalkError> {
-    context.recursion_depth += 1;
     match stmt {
         Stmt::VarDecl(_, _) => eval_var_decl_stmt(context, stmt),
         Stmt::FnDecl(_, _, _) => eval_fn_decl_stmt(),
@@ -136,7 +135,10 @@ pub(crate) fn eval_expr(
         Expr::Boolean(value) => Ok(KalkValue::Boolean(*value)),
         Expr::Group(expr) => eval_group_expr(context, expr, unit),
         Expr::FnCall(identifier, expressions) => {
-            eval_fn_call_expr(context, identifier, expressions, unit)
+            context.recursion_depth += 1;
+            let res = eval_fn_call_expr(context, identifier, expressions, unit);
+            context.recursion_depth -= 1;
+            res
         }
         Expr::Piecewise(pieces) => eval_piecewise(context, pieces, unit),
         Expr::Vector(values) => eval_vector(context, values),
@@ -516,6 +518,7 @@ pub(crate) fn eval_fn_call_expr(
             if context.recursion_depth > context.max_recursion_depth {
                 return Err(KalkError::StackOverflow);
             }
+
 
             if arguments.len() != expressions.len() {
                 return Err(KalkError::IncorrectAmountOfArguments(
