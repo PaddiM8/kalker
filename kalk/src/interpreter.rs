@@ -779,23 +779,40 @@ fn eval_comprehension(
         ));
 
         if conditions.len() > 1 {
-            let x = eval_comprehension(context, left, &conditions[1..], &vars[1..])?;
-            for value in x {
-                values.push(value);
+            let x = eval_comprehension(context, left, &conditions[1..], &vars[1..]);
+            if let Err(err) = x {
+                context.symbol_table.get_and_remove_var(&var.name);
+                return Err(err);
+            }
+
+            for value in x.unwrap() {
+                values.push(Ok(value));
             }
         }
 
-        let condition = eval_expr(context, condition, None)?;
-        if let KalkValue::Boolean(boolean) = condition {
-            if boolean && vars.len() == 1 {
-                values.push(eval_expr(context, left, None)?);
-            }
+        let condition = eval_expr(context, condition, None);
+        match  condition {
+            Ok(KalkValue::Boolean(boolean)) => {
+                if boolean && vars.len() == 1 {
+                    values.push(eval_expr(context, left, None));
+                }
+            },
+            Err(err) => values.push(Err(err)),
+            _ => (),
         }
     }
 
     context.symbol_table.get_and_remove_var(&var.name);
 
-    Ok(values)
+    let mut unwrapped_values = Vec::new();
+    for value in values {
+        match value {
+            Ok(unwrapped_value) => unwrapped_values.push(unwrapped_value),
+            Err(err) => return Err(err),
+        }
+    }
+
+    Ok(unwrapped_values)
 }
 
 fn eval_equation(
