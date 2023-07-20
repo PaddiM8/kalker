@@ -9,7 +9,7 @@ use crate::symbol_table::SymbolTable;
 use crate::{as_number_or_zero, numerical};
 use crate::{float, prelude};
 
-const DEFAULT_MAX_RECURSION_DEPTH: u32 = 128;
+pub const DEFAULT_MAX_RECURSION_DEPTH: u32 = 256;
 
 pub struct Context<'a> {
     pub symbol_table: &'a mut SymbolTable,
@@ -47,6 +47,12 @@ impl<'a> Context<'a> {
             recursion_depth: 0,
             max_recursion_depth: DEFAULT_MAX_RECURSION_DEPTH,
         }
+    }
+
+    pub fn set_max_recursion_depth(mut self, depth: u32) -> Self {
+        self.max_recursion_depth = depth;
+
+        self
     }
 
     pub fn interpret(
@@ -791,12 +797,12 @@ fn eval_comprehension(
         }
 
         let condition = eval_expr(context, condition, None);
-        match  condition {
+        match condition {
             Ok(KalkValue::Boolean(boolean)) => {
                 if boolean && vars.len() == 1 {
                     values.push(eval_expr(context, left, None));
                 }
-            },
+            }
             Err(err) => values.push(Err(err)),
             _ => (),
         }

@@ -28,6 +28,10 @@ fn main() {
             Flag::new("angle-unit", FlagType::String)
                 .description("Unit used for angles, either rad or deg. This can also be specified using an environment variable with the name 'ANGLE_UNIT'.")
                 .alias("a"),
+        )
+        .flag(
+            Flag::new("max-recursion-depth", FlagType::Int)
+                .description("The maximum allowed recursion depth. This is used to avoid crashes."),
         );
 
     app.run(args);
@@ -54,6 +58,9 @@ fn default_action(context: &Context) {
     let precision = context
         .int_flag("precision")
         .unwrap_or(output::DEFAULT_PRECISION as isize) as u32;
+    if let Ok(max_recursion_depth) = context.int_flag("max-recursion-depth") {
+        parser_context = parser_context.set_max_recursion_depth(max_recursion_depth as u32);
+    }
 
     if let Some(input_file_path) = get_input_file_by_name("default") {
         load_input_file(&input_file_path, precision, &mut parser_context);

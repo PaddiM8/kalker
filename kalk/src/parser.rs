@@ -32,6 +32,7 @@ pub struct Context {
     unit_decl_base_unit: Option<String>,
     other_radix: Option<u8>,
     current_stmt_start_pos: usize,
+    max_recursion_depth: Option<u32>,
 }
 
 #[wasm_bindgen]
@@ -48,6 +49,7 @@ impl Context {
             unit_decl_base_unit: None,
             other_radix: None,
             current_stmt_start_pos: 0,
+            max_recursion_depth: None,
         };
 
         parse(&mut context, crate::prelude::INIT).unwrap();
@@ -66,6 +68,12 @@ impl Context {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_timeout(mut self, timeout: Option<u32>) -> Self {
         self.timeout = timeout;
+
+        self
+    }
+
+    pub fn set_max_recursion_depth(mut self, depth: u32) -> Self {
+        self.max_recursion_depth = Some(depth);
 
         self
     }
@@ -107,6 +115,11 @@ pub fn eval(
         precision,
         context.timeout.map(|timeout| timeout as u128),
     );
+
+    if let Some(max_recursion_depth) = context.max_recursion_depth {
+        interpreter = interpreter.set_max_recursion_depth(max_recursion_depth);
+    }
+
     let result = interpreter.interpret(statements);
     if let Ok(Some(mut num)) = result {
         num.set_radix(context.other_radix.unwrap_or(10));
@@ -644,7 +657,8 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, KalkError> {
         // vector/group, otherwise it's an expression like sqrt4,
         // which should be parsed as a factor, to allow eg. sqrt2x.
         let mut arguments = if match_token(context, TokenKind::OpenBrace)
-            || match_token(context, TokenKind::OpenParenthesis) {
+            || match_token(context, TokenKind::OpenParenthesis)
+        {
             match parse_primary(context)? {
                 Expr::Vector(arguments) => arguments,
                 Expr::Group(argument) => vec![*argument],
