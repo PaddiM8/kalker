@@ -34,7 +34,7 @@ jobs:
           node-version: 14
           registry-url: https://registry.npmjs.org/
       - name: Install wasm-pack
-        run: cargo install --git https://github.com/rustwasm/wasm-pack.git --rev d46d1c69b788956160deed5e4e603f4f2780ffcf
+        run: cargo install wasm-pack
       - name: Build
         run: |
           yarn install
