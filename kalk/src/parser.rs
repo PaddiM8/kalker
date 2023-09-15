@@ -122,8 +122,11 @@ pub fn eval(
 
     let result = interpreter.interpret(statements);
     if let Ok(Some(mut num)) = result {
-        num.set_radix(context.other_radix.unwrap_or(10));
-        Ok(Some(num))
+        if !num.set_radix(context.other_radix.unwrap_or(10)) {
+            Err(KalkError::InvalidBase)
+        } else {
+            Ok(Some(num))
+        }
     } else {
         result
     }

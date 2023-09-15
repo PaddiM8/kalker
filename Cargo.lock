@@ -163,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "kalk"
-version = "3.0.3"
+version = "3.0.4"
 dependencies = [
  "gmp-mpfr-sys",
  "lazy_static",
@@ -176,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "kalker"
-version = "2.0.3"
+version = "2.0.4"
 dependencies = [
  "ansi_term",
  "atty",

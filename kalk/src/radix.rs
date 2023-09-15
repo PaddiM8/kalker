@@ -20,7 +20,7 @@ pub fn parse_float_radix(value: &str, radix: u8) -> Option<f64> {
         }
 
         let digit = c.to_digit(radix as u32)? as f64;
-        sum += digit * (radix as f64).powi(i as i32);
+        sum += digit * (radix as f64).powi(i);
         i -= 1;
     }
 

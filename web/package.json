@@ -17,7 +17,7 @@
 	],
 	"scripts": {
 		"build": "cross-env NODE_ENV=production webpack",
-		"dev": "webpack-dev-server --content-base public --hot",
+		"dev": "NODE_OPTIONS=--openssl-legacy-provider webpack-dev-server --content-base public --hot",
 		"validate": "svelte-check",
 		"prepublishOnly": "cross-env NODE_ENV=production webpack"
 	},

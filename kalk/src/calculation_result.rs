@@ -66,8 +66,14 @@ impl CalculationResult {
     }
 
     #[wasm_bindgen(js_name = setRadix)]
-    pub fn set_radix(&mut self, radix: u8) {
+    pub fn set_radix(&mut self, radix: u8) -> bool {
+        if radix <= 1 || radix >= 50 {
+            return false;
+        }
+
         self.radix = radix;
+
+        true
     }
 
     #[wasm_bindgen(js_name = toScientificNotation)]

@@ -92,10 +92,13 @@ fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str
     if let Some(base_str) = input.strip_prefix("base ") {
         if !base_str.is_empty() && base_str.chars().next().unwrap().is_ascii_digit() {
             if let Ok(base) = base_str.parse::<u8>() {
-                repl.base = base;
-            } else {
-                eprintln!("Invalid number base");
+                if base > 1 && base < 50 {
+                    repl.base = base;
+                    return;
+                }
             }
+
+            eprintln!("Invalid number base");
 
             return;
         }

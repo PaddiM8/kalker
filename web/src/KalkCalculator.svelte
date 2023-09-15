@@ -101,7 +101,10 @@
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
             const result = kalkContext.evaluate(input.replaceAll(/\s+/g, " "));
-            result?.setRadix(currentBase);
+            console.log(result.setRadix(currentBase))
+            if (result && !result.setRadix(currentBase)) {
+                return ["Invalid base", false];
+            }
 
             return [result?.toPrettyString(), true];
         } catch (err) {
@@ -156,7 +159,12 @@
                              href="https://kalker.xyz/#usage"
                              target="blank">Link to usage guide</a>`;
             } else if (/base\s\d\d?/.test(input.trim())) {
-                currentBase = +input.trim().slice(5);
+                const baseInput = Number(input.trim().slice(5));
+                if (baseInput <= 1 || baseInput >= 50) {
+                    output = `<span style="color: ${errorcolor}">Invalid base.</span>`;
+                } else {
+                    currentBase = baseInput;
+                }
             } else if (input.trim() == "clear") {
                 outputLines = [];
                 setText("");
