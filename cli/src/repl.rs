@@ -34,12 +34,12 @@ pub fn start(parser: &mut parser::Context, precision: u32) {
 
     // Load history
     let mut history_path = None;
-    if let Some(config_path) = dirs::config_dir() {
-        let mut config_path = config_path;
-        config_path.push("kalker");
-        if fs::create_dir_all(config_path.as_path()).is_ok() {
-            config_path.push("history.txt");
-            let history = config_path.into_os_string().into_string().unwrap();
+    if let Some(cache_path) = dirs::cache_dir() {
+        let mut cache_path = cache_path;
+        cache_path.push("kalker");
+        if fs::create_dir_all(cache_path.as_path()).is_ok() {
+            cache_path.push("history.txt");
+            let history = cache_path.into_os_string().into_string().unwrap();
             editor.load_history(&history).ok();
             history_path = Some(history)
         }
