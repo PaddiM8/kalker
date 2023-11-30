@@ -19,6 +19,9 @@ pub enum Expr {
     Var(Identifier),
     Group(Box<Expr>),
     FnCall(Identifier, Vec<Expr>),
+    #[cfg(feature="rug")]
+    Literal(rug::Float),
+    #[cfg(not(feature="rug"))]
     Literal(f64),
     Boolean(bool),
     Piecewise(Vec<ConditionalPiece>),
@@ -100,16 +103,16 @@ impl Identifier {
 pub fn build_literal_ast(kalk_value: &crate::kalk_value::KalkValue) -> Expr {
     if kalk_value.has_imaginary() {
         Expr::Binary(
-            Box::new(Expr::Literal(kalk_value.to_f64())),
+            Box::new(Expr::Literal(kalk_value.to_float())),
             TokenKind::Plus,
             Box::new(Expr::Binary(
-                Box::new(Expr::Literal(kalk_value.imaginary_to_f64())),
+                Box::new(Expr::Literal(kalk_value.imaginary_to_float())),
                 TokenKind::Star,
                 Box::new(Expr::Var(Identifier::from_full_name("i"))),
             )),
         )
     } else {
-        Expr::Literal(kalk_value.to_f64())
+        Expr::Literal(kalk_value.to_float())
     }
 }
 

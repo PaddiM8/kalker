@@ -1,7 +1,7 @@
 use crate::{
     ast::{ConditionalPiece, Expr, Identifier, RangedVar, Stmt},
     errors::KalkError,
-    inverter,
+    float, inverter,
     lexer::TokenKind,
     parser, prelude,
     symbol_table::SymbolTable,
@@ -102,7 +102,7 @@ fn analyse_stmt_expr(context: &mut Context, value: Expr) -> Result<Stmt, KalkErr
                             context,
                             Expr::Binary(
                                 Box::new(Expr::Binary(
-                                    Box::new(Expr::Literal(0f64)),
+                                    Box::new(Expr::Literal(float!(0f64))),
                                     TokenKind::Plus,
                                     Box::new(Expr::FnCall(identifier, arguments)),
                                 )),
@@ -432,7 +432,7 @@ fn analyse_comparison_with_var(
                     ranged_var.min = Expr::Binary(
                         Box::new(right),
                         TokenKind::Plus,
-                        Box::new(Expr::Literal(1f64)),
+                        Box::new(Expr::Literal(float!(1f64))),
                     );
                 }
                 TokenKind::LessThan => {
@@ -445,7 +445,7 @@ fn analyse_comparison_with_var(
                     ranged_var.max = Expr::Binary(
                         Box::new(right),
                         TokenKind::Plus,
-                        Box::new(Expr::Literal(1f64)),
+                        Box::new(Expr::Literal(float!(1f64))),
                     );
                 }
                 _ => unreachable!(),
@@ -456,9 +456,9 @@ fn analyse_comparison_with_var(
     }
 
     Ok(Expr::Binary(
-        Box::new(Expr::Literal(0f64)),
+        Box::new(Expr::Literal(float!(0f64))),
         TokenKind::Equals,
-        Box::new(Expr::Literal(0f64)),
+        Box::new(Expr::Literal(float!(0f64))),
     ))
 }
 
@@ -578,13 +578,23 @@ fn with_adjacent(
     }
 }
 
+#[cfg(feature = "rug")]
+fn parse_float_from_str(s: &str) -> rug::Float {
+    rug::Float::parse(s).map_or(float!(f64::NAN), |valid| float!(valid))
+}
+
+#[cfg(not(feature = "rug"))]
+fn parse_float_from_str(s: &str) -> f64 {
+    s.parse::<f64>().unwrap_or(f64::NAN)
+}
+
 fn build_indexed_var(context: &mut Context, identifier: Identifier) -> Result<Expr, KalkError> {
     let underscore_pos = identifier.pure_name.find('_').unwrap();
     let var_name = &identifier.pure_name[0..underscore_pos];
     let lowered = &identifier.pure_name[underscore_pos + 1..];
     let lowered_expr =
         if !lowered.is_empty() && lowered.chars().next().unwrap_or('\0').is_ascii_digit() {
-            Expr::Literal(lowered.parse::<f64>().unwrap_or(f64::NAN))
+            Expr::Literal(parse_float_from_str(lowered))
         } else {
             build_var(context, lowered)
         };
@@ -702,8 +712,8 @@ fn build_var(context: &mut Context, name: &str) -> Expr {
         if let Some(vars) = context.comprehension_vars.as_mut() {
             vars.push(RangedVar {
                 name: name.to_string(),
-                max: Expr::Literal(0f64),
-                min: Expr::Literal(0f64),
+                max: Expr::Literal(float!(0f64)),
+                min: Expr::Literal(float!(0f64)),
             });
         }
     }
@@ -766,3 +776,15 @@ fn analyse_fn(
 
     Ok(Expr::FnCall(identifier, analysed_arguments))
 }
+
+// #[cfg(test)]
+// mod test {
+//     use test_case::test_case;
+//     #[test_case("1")]
+//     #[test_case("500000000000000002")]
+//     #[test_case("-5000000000000000002")]
+//     fn test_float_from_str(s: &str) {
+//         // failing assertion to test this
+//         assert_eq!(crate::analysis::parse_float_from_str(s), crate::float!(1f64));
+//     }
+// }

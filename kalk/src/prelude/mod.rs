@@ -242,7 +242,7 @@ fn to_angle_unit(context: &mut interpreter::Context, x: KalkValue, angle_unit: &
         "rad" => x,
         _ => interpreter::convert_unit(
             context,
-            &Expr::Literal(x.to_f64()),
+            &Expr::Literal(x.to_float()),
             Some(&String::from("rad")),
             Some(&angle_unit.to_string()),
         )
@@ -259,7 +259,7 @@ fn from_angle_unit(
         "rad" => x,
         _ => interpreter::convert_unit(
             context,
-            &Expr::Literal(x.to_f64()),
+            &Expr::Literal(x.to_float()),
             Some(&angle_unit.to_string()),
             Some(&String::from("rad")),
         )

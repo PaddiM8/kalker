@@ -193,9 +193,9 @@ fn parse_piecewise(context: &mut Context) -> Result<Expr, KalkError> {
             advance(context);
             // Yeah, a bit hacky, but there's no `true` keyword...
             let true_expr = Expr::Binary(
-                Box::new(Expr::Literal(1f64)),
+                Box::new(Expr::Literal(crate::float!(1f64))),
                 TokenKind::Equals,
-                Box::new(Expr::Literal(1f64)),
+                Box::new(Expr::Literal(crate::float!(1f64))),
             );
             pieces.push(crate::ast::ConditionalPiece {
                 expr: left_expr,
@@ -332,7 +332,7 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
             context.symbol_table.get_mut().set(Stmt::FnDecl(
                 identifier.clone(),
                 parameters.clone(),
-                Box::new(Expr::Literal(1f64)),
+                Box::new(Expr::Literal(crate::float!(1f64))),
             ));
             let right = if match_token(context, TokenKind::OpenBrace) {
                 parse_piecewise(context)?
@@ -528,7 +528,7 @@ fn parse_primary(context: &mut Context) -> Result<Expr, KalkError> {
         TokenKind::OpenParenthesis | TokenKind::OpenBracket => parse_vector(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
-        TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
+        TokenKind::Literal => Expr::Literal(crate::float!(string_to_num(&advance(context).value)?)),
         TokenKind::True => {
             advance(context);
             Expr::Boolean(true)
@@ -633,7 +633,16 @@ fn parse_identifier(context: &mut Context) -> Result<Expr, KalkError> {
     let mut log_base = None;
     if identifier.full_name.starts_with("log") {
         if let Some(lowered) = identifier.get_lowered_part() {
-            if let Ok(lowered_float) = lowered.parse::<f64>() {
+            #[cfg(feature = "rug")]
+            fn parse_float_from_str(s: &str) -> Option<rug::Float> {
+                rug::Float::parse(s).map(|valid| crate::float!(valid)).ok()
+            }
+
+            #[cfg(not(feature = "rug"))]
+            fn parse_float_from_str(s: &str) -> Option<f64> {
+                s.parse::<f64>().ok()
+            }
+            if let Some(lowered_float) = parse_float_from_str(lowered) {
                 log_base = Some(Expr::Literal(lowered_float));
             }
         }
@@ -831,11 +840,11 @@ mod tests {
         let mut context = Context::new();
         context.symbol_table.get_mut().insert(Stmt::VarDecl(
             Identifier::from_full_name("x"),
-            literal(1f64),
+            f64_to_float_literal(1f64),
         ));
         context.symbol_table.get_mut().insert(Stmt::VarDecl(
             Identifier::from_full_name("y"),
-            literal(2f64),
+            f64_to_float_literal(2f64),
         ));
 
         // xy²
@@ -851,7 +860,7 @@ mod tests {
             Stmt::Expr(binary(
                 var("x"),
                 Star,
-                binary(var("y"), Power, literal(2f64))
+                binary(var("y"), Power, f64_to_float_literal(2f64))
             ))
         );
     }
@@ -878,15 +887,19 @@ mod tests {
         assert_eq!(
             parse(tokens).unwrap(),
             Stmt::Expr(binary(
-                literal(1f64),
+                f64_to_float_literal(1f64),
                 Plus,
                 binary(
-                    literal(2f64),
+                    f64_to_float_literal(2f64),
                     Star,
                     group(binary(
-                        literal(3f64),
+                        f64_to_float_literal(3f64),
                         Minus,
-                        binary(literal(4f64), Slash, literal(5f64))
+                        binary(
+                            f64_to_float_literal(4f64),
+                            Slash,
+                            f64_to_float_literal(5f64)
+                        )
                     ))
                 )
             ))
@@ -913,16 +926,20 @@ mod tests {
             parse(tokens).unwrap(),
             Stmt::Expr(binary(
                 binary(
-                    literal(1f64),
+                    f64_to_float_literal(1f64),
                     Star,
                     binary(
-                        literal(2f64),
+                        f64_to_float_literal(2f64),
                         Power,
-                        binary(literal(3f64), Power, literal(4f64)),
+                        binary(
+                            f64_to_float_literal(3f64),
+                            Power,
+                            f64_to_float_literal(4f64)
+                        ),
                     ),
                 ),
                 Plus,
-                literal(5f64)
+                f64_to_float_literal(5f64)
             )),
         );
     }
@@ -939,7 +956,11 @@ mod tests {
 
         assert_eq!(
             parse(tokens).unwrap(),
-            Stmt::Expr(binary(literal(10f64), Power, unary(Minus, literal(1f64)))),
+            Stmt::Expr(binary(
+                f64_to_float_literal(10f64),
+                Power,
+                unary(Minus, f64_to_float_literal(1f64))
+            )),
         );
     }
 
@@ -959,9 +980,13 @@ mod tests {
         assert_eq!(
             parse(tokens).unwrap(),
             Stmt::Expr(binary(
-                binary(literal(1f64), Percent, literal(1f64)),
+                binary(
+                    f64_to_float_literal(1f64),
+                    Percent,
+                    f64_to_float_literal(1f64)
+                ),
                 Plus,
-                unary(Percent, literal(5f64))
+                unary(Percent, f64_to_float_literal(5f64))
             ))
         );
     }
@@ -979,7 +1004,7 @@ mod tests {
 
         assert_eq!(
             parse_with_context(&mut context, tokens).unwrap(),
-            Stmt::Expr(unit("a", literal(1f64)))
+            Stmt::Expr(unit("a", f64_to_float_literal(1f64)))
         );
     }
 
@@ -999,7 +1024,7 @@ mod tests {
             parse(tokens).unwrap(),
             Stmt::VarDecl(
                 Identifier::from_full_name("x"),
-                binary(literal(1f64), Plus, literal(2f64))
+                binary(f64_to_float_literal(1f64), Plus, f64_to_float_literal(2f64))
             )
         );
     }
@@ -1024,7 +1049,7 @@ mod tests {
             Stmt::FnDecl(
                 Identifier::from_full_name("f"),
                 vec![String::from("f-x")],
-                binary(literal(1f64), Plus, param_var("f", "x"))
+                binary(f64_to_float_literal(1f64), Plus, param_var("f", "x"))
             )
         );
     }
@@ -1050,7 +1075,7 @@ mod tests {
         context.symbol_table.get_mut().set(Stmt::FnDecl(
             Identifier::from_full_name("f"),
             vec![String::from("x")],
-            literal(1f64),
+            f64_to_float_literal(1f64),
         ));
 
         assert_eq!(
@@ -1058,10 +1083,14 @@ mod tests {
             Stmt::Expr(binary(
                 Box::new(Expr::FnCall(
                     Identifier::from_full_name("f"),
-                    vec![*binary(literal(1f64), Plus, literal(2f64))]
+                    vec![*binary(
+                        f64_to_float_literal(1f64),
+                        Plus,
+                        f64_to_float_literal(2f64)
+                    )]
                 )),
                 Plus,
-                literal(3f64)
+                f64_to_float_literal(3f64)
             ))
         );
     }

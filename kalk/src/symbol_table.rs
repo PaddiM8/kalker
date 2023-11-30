@@ -19,7 +19,7 @@ impl SymbolTable {
             Identifier::from_full_name("i"),
             Box::new(Expr::FnCall(
                 Identifier::from_full_name("sqrt"),
-                vec![Expr::Literal(-1f64)],
+                vec![Expr::Literal(crate::float!(-1f64))],
             )),
         ));
 
