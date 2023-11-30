@@ -17,6 +17,15 @@ pub fn cmp(x: f64, y: f64) -> bool {
     (x - y).abs() < 0.0001
 }
 
+pub fn f64_to_float_literal(x: f64) -> Box<Expr> {
+    literal(crate::float!(x))
+}
+
+#[cfg(feature = "rug")]
+pub fn literal(value: rug::Float) -> Box<Expr> {
+    Box::new(Expr::Literal(value))
+}
+#[cfg(not(feature = "rug"))]
 pub fn literal(value: f64) -> Box<Expr> {
     Box::new(Expr::Literal(value))
 }

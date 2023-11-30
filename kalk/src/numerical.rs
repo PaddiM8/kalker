@@ -8,6 +8,7 @@ use crate::float;
 use crate::interpreter;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
+use crate::test_helpers::f64_to_float_literal;
 
 pub fn derive_func(
     context: &mut interpreter::Context,
@@ -65,7 +66,7 @@ pub fn integrate_with_unknown_variable(
     // "dx" is still in the expression. Set dx = 1, so that it doesn't affect the expression value.
     context.symbol_table.set(Stmt::VarDecl(
         Identifier::from_full_name(&format!("d{}", integration_variable.unwrap())),
-        Box::new(Expr::Literal(1f64)),
+        f64_to_float_literal(1f64),
     ));
 
     Ok(integrate(context, a, b, expr, integration_variable.unwrap())?.round_if_needed())
@@ -242,13 +243,13 @@ mod tests {
             Identifier::from_full_name("f"),
             vec![String::from("x")],
             binary(
-                literal(2.5f64),
+                f64_to_float_literal(2.5f64),
                 Star,
-                binary(var("x"), Power, literal(3f64)),
+                binary(var("x"), Power, f64_to_float_literal(3f64)),
             ),
         ));
 
-        let call = Stmt::Expr(fn_call("f'", vec![*literal(12.3456f64)]));
+        let call = Stmt::Expr(fn_call("f'", vec![*f64_to_float_literal(12.3456f64)]));
         assert!(cmp(
             context.interpret(vec![call]).unwrap().unwrap().to_f64(),
             1143.10379f64
@@ -264,12 +265,16 @@ mod tests {
             vec![String::from("x")],
             binary(
                 binary(
-                    literal(1.5f64),
+                    f64_to_float_literal(1.5f64),
                     Star,
-                    binary(var("x"), Power, literal(2f64)),
+                    binary(var("x"), Power, f64_to_float_literal(2f64)),
                 ),
                 Plus,
-                binary(binary(var("x"), Power, literal(2f64)), Star, var("i")),
+                binary(
+                    binary(var("x"), Power, f64_to_float_literal(2f64)),
+                    Star,
+                    var("i"),
+                ),
             ),
         ));
 
@@ -287,12 +292,12 @@ mod tests {
             Identifier::from_full_name("f"),
             vec![String::from("x")],
             binary(
-                binary(literal(3f64), Star, var("x")),
+                binary(f64_to_float_literal(3f64), Star, var("x")),
                 Plus,
                 binary(
-                    literal(0.5f64),
+                    f64_to_float_literal(0.5f64),
                     Star,
-                    binary(var("x"), Power, literal(3f64)),
+                    binary(var("x"), Power, f64_to_float_literal(3f64)),
                 ),
             ),
         ));
@@ -313,8 +318,8 @@ mod tests {
         let mut context = get_context(&mut symbol_table);
         let result = super::integrate_with_unknown_variable(
             &mut context,
-            &literal(2f64),
-            &literal(4f64),
+            &f64_to_float_literal(2f64),
+            &f64_to_float_literal(4f64),
             &binary(var("x"), Star, var("dx")),
         )
         .unwrap();
@@ -326,8 +331,14 @@ mod tests {
     fn test_integrate() {
         let mut symbol_table = SymbolTable::new();
         let mut context = get_context(&mut symbol_table);
-        let result =
-            super::integrate(&mut context, &literal(2f64), &literal(4f64), &var("x"), "x").unwrap();
+        let result = super::integrate(
+            &mut context,
+            &f64_to_float_literal(2f64),
+            &f64_to_float_literal(4f64),
+            &var("x"),
+            "x",
+        )
+        .unwrap();
 
         assert!(cmp(result.to_f64(), 6f64));
     }
@@ -338,7 +349,7 @@ mod tests {
         let mut context = get_context(&mut symbol_table);
         let result = super::integrate(
             &mut context,
-            &literal(2f64),
+            &f64_to_float_literal(2f64),
             &ast::build_literal_ast(&KalkValue::Number(float!(3f64), float!(4f64), None)),
             &binary(var("x"), Star, var("i")),
             "x",
@@ -353,7 +364,11 @@ mod tests {
     fn test_find_root() {
         let mut symbol_table = SymbolTable::new();
         let mut context = get_context(&mut symbol_table);
-        let ast = &*binary(binary(var("x"), Power, literal(3f64)), Plus, literal(3f64));
+        let ast = &*binary(
+            binary(var("x"), Power, f64_to_float_literal(3f64)),
+            Plus,
+            f64_to_float_literal(3f64),
+        );
         let result = super::find_root(&mut context, ast, "x").unwrap();
 
         assert!(cmp(result.to_f64(), -1.4422495709));

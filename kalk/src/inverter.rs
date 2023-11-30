@@ -116,7 +116,7 @@ fn invert_binary(
                     symbol_table,
                     left,
                     &TokenKind::Plus,
-                    &multiply_into(&Expr::Literal(-1f64), inside_group)?,
+                    &multiply_into(&Expr::Literal(crate::float!(-1f64)), inside_group)?,
                     unknown_var,
                 );
             }
@@ -303,7 +303,7 @@ fn invert_fn_call(
                                 Expr::Binary(
                                     Box::new(target_expr),
                                     TokenKind::Power,
-                                    Box::new(Expr::Literal(2f64)),
+                                    Box::new(Expr::Literal(crate::float!(2f64))),
                                 ),
                                 symbol_table,
                                 &arguments[0],
@@ -456,49 +456,49 @@ mod tests {
     #[test]
     #[wasm_bindgen_test]
     fn test_binary() {
-        let ladd = binary(decl_unit(), Plus, literal(1f64));
-        let lsub = binary(decl_unit(), Minus, literal(1f64));
-        let lmul = binary(decl_unit(), Star, literal(1f64));
-        let ldiv = binary(decl_unit(), Slash, literal(1f64));
+        let ladd = binary(decl_unit(), Plus, f64_to_float_literal(1f64));
+        let lsub = binary(decl_unit(), Minus, f64_to_float_literal(1f64));
+        let lmul = binary(decl_unit(), Star, f64_to_float_literal(1f64));
+        let ldiv = binary(decl_unit(), Slash, f64_to_float_literal(1f64));
 
-        let radd = binary(literal(1f64), Plus, decl_unit());
-        let rsub = binary(literal(1f64), Minus, decl_unit());
-        let rmul = binary(literal(1f64), Star, decl_unit());
-        let rdiv = binary(literal(1f64), Slash, decl_unit());
+        let radd = binary(f64_to_float_literal(1f64), Plus, decl_unit());
+        let rsub = binary(f64_to_float_literal(1f64), Minus, decl_unit());
+        let rmul = binary(f64_to_float_literal(1f64), Star, decl_unit());
+        let rdiv = binary(f64_to_float_literal(1f64), Slash, decl_unit());
 
         let mut symbol_table = SymbolTable::new();
         assert_eq!(
             ladd.invert(&mut symbol_table, DECL_UNIT).unwrap(),
-            *binary(decl_unit(), Minus, literal(1f64))
+            *binary(decl_unit(), Minus, f64_to_float_literal(1f64))
         );
         assert_eq!(
             lsub.invert(&mut symbol_table, DECL_UNIT).unwrap(),
-            *binary(decl_unit(), Plus, literal(1f64))
+            *binary(decl_unit(), Plus, f64_to_float_literal(1f64))
         );
         assert_eq!(
             lmul.invert(&mut symbol_table, DECL_UNIT).unwrap(),
-            *binary(decl_unit(), Slash, literal(1f64))
+            *binary(decl_unit(), Slash, f64_to_float_literal(1f64))
         );
         assert_eq!(
             ldiv.invert(&mut symbol_table, DECL_UNIT).unwrap(),
-            *binary(decl_unit(), Star, literal(1f64))
+            *binary(decl_unit(), Star, f64_to_float_literal(1f64))
         );
 
         assert_eq!(
             radd.invert(&mut symbol_table, DECL_UNIT).unwrap(),
-            *binary(decl_unit(), Minus, literal(1f64))
+            *binary(decl_unit(), Minus, f64_to_float_literal(1f64))
         );
         assert_eq!(
             rsub.invert(&mut symbol_table, DECL_UNIT).unwrap(),
-            *unary(Minus, binary(decl_unit(), Plus, literal(1f64)))
+            *unary(Minus, binary(decl_unit(), Plus, f64_to_float_literal(1f64)))
         );
         assert_eq!(
             rmul.invert(&mut symbol_table, DECL_UNIT).unwrap(),
-            *binary(decl_unit(), Slash, literal(1f64))
+            *binary(decl_unit(), Slash, f64_to_float_literal(1f64))
         );
         assert_eq!(
             rdiv.invert(&mut symbol_table, DECL_UNIT).unwrap(),
-            *binary(decl_unit(), Star, literal(1f64))
+            *binary(decl_unit(), Star, f64_to_float_literal(1f64))
         );
     }
 
@@ -514,14 +514,14 @@ mod tests {
     #[test]
     #[wasm_bindgen_test]
     fn test_fn_call() {
-        let call_with_literal = binary(fn_call("f", vec![*literal(2f64)]), Plus, decl_unit());
+        let call_with_literal = binary(fn_call("f", vec![*f64_to_float_literal(2f64)]), Plus, decl_unit());
         let call_with_decl_unit = fn_call("f", vec![*decl_unit()]);
         let call_with_decl_unit_and_literal =
-            fn_call("f", vec![*binary(decl_unit(), Plus, literal(2f64))]);
+            fn_call("f", vec![*binary(decl_unit(), Plus, f64_to_float_literal(2f64))]);
         let decl = fn_decl(
             "f",
             vec![String::from("x")],
-            binary(var("x"), Plus, literal(1f64)),
+            binary(var("x"), Plus, f64_to_float_literal(1f64)),
         );
 
         let mut symbol_table = SymbolTable::new();
@@ -530,22 +530,22 @@ mod tests {
             call_with_literal
                 .invert(&mut symbol_table, DECL_UNIT)
                 .unwrap(),
-            *binary(decl_unit(), Minus, fn_call("f", vec![*literal(2f64)])),
+            *binary(decl_unit(), Minus, fn_call("f", vec![*f64_to_float_literal(2f64)])),
         );
         assert_eq!(
             call_with_decl_unit
                 .invert(&mut symbol_table, DECL_UNIT)
                 .unwrap(),
-            *binary(decl_unit(), Minus, literal(1f64))
+            *binary(decl_unit(), Minus, f64_to_float_literal(1f64))
         );
         assert_eq!(
             call_with_decl_unit_and_literal
                 .invert(&mut symbol_table, DECL_UNIT)
                 .unwrap(),
             *binary(
-                binary(decl_unit(), Minus, literal(1f64)),
+                binary(decl_unit(), Minus, f64_to_float_literal(1f64)),
                 Minus,
-                literal(2f64)
+                f64_to_float_literal(2f64)
             )
         );
     }
@@ -554,34 +554,34 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_group() {
         let group_x = binary(
-            group(binary(decl_unit(), Plus, literal(3f64))),
+            group(binary(decl_unit(), Plus, f64_to_float_literal(3f64))),
             Star,
-            literal(2f64),
+            f64_to_float_literal(2f64),
         );
         let group_unary_minus = binary(
-            literal(2f64),
+            f64_to_float_literal(2f64),
             Minus,
-            group(binary(decl_unit(), Plus, literal(3f64))),
+            group(binary(decl_unit(), Plus, f64_to_float_literal(3f64))),
         );
         let x_group_add = binary(
-            literal(2f64),
+            f64_to_float_literal(2f64),
             Star,
-            group(binary(decl_unit(), Plus, literal(3f64))),
+            group(binary(decl_unit(), Plus, f64_to_float_literal(3f64))),
         );
         let x_group_sub = binary(
-            literal(2f64),
+            f64_to_float_literal(2f64),
             Star,
-            group(binary(decl_unit(), Minus, literal(3f64))),
+            group(binary(decl_unit(), Minus, f64_to_float_literal(3f64))),
         );
         let x_group_mul = binary(
-            literal(2f64),
+            f64_to_float_literal(2f64),
             Star,
-            group(binary(decl_unit(), Star, literal(3f64))),
+            group(binary(decl_unit(), Star, f64_to_float_literal(3f64))),
         );
         let x_group_div = binary(
-            literal(2f64),
+            f64_to_float_literal(2f64),
             Star,
-            group(binary(decl_unit(), Slash, literal(3f64))),
+            group(binary(decl_unit(), Slash, f64_to_float_literal(3f64))),
         );
 
         let mut symbol_table = SymbolTable::new();
@@ -591,10 +591,10 @@ mod tests {
                 binary(
                     decl_unit(),
                     Minus,
-                    binary(literal(2f64), Star, literal(3f64))
+                    binary(f64_to_float_literal(2f64), Star, f64_to_float_literal(3f64))
                 ),
                 Slash,
-                literal(2f64)
+                f64_to_float_literal(2f64)
             )
         );
         assert_eq!(
@@ -603,12 +603,12 @@ mod tests {
                 .unwrap(),
             *binary(
                 binary(
-                    binary(decl_unit(), Minus, literal(2f64)),
+                    binary(decl_unit(), Minus, f64_to_float_literal(2f64)),
                     Minus,
-                    binary(literal(-1f64), Star, literal(3f64))
+                    binary(f64_to_float_literal(-1f64), Star, f64_to_float_literal(3f64))
                 ),
                 Slash,
-                literal(-1f64)
+                f64_to_float_literal(-1f64)
             )
         );
         assert_eq!(
@@ -617,10 +617,10 @@ mod tests {
                 binary(
                     decl_unit(),
                     Minus,
-                    binary(literal(2f64), Star, literal(3f64))
+                    binary(f64_to_float_literal(2f64), Star, f64_to_float_literal(3f64))
                 ),
                 Slash,
-                literal(2f64)
+                f64_to_float_literal(2f64)
             )
         );
         assert_eq!(
@@ -629,26 +629,26 @@ mod tests {
                 binary(
                     decl_unit(),
                     Plus,
-                    binary(literal(2f64), Star, literal(3f64))
+                    binary(f64_to_float_literal(2f64), Star, f64_to_float_literal(3f64))
                 ),
                 Slash,
-                literal(2f64)
+                f64_to_float_literal(2f64)
             )
         );
         assert_eq!(
             x_group_mul.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(
-                binary(decl_unit(), Slash, literal(3f64)),
+                binary(decl_unit(), Slash, f64_to_float_literal(3f64)),
                 Slash,
-                literal(2f64)
+                f64_to_float_literal(2f64)
             )
         );
         assert_eq!(
             x_group_div.invert(&mut symbol_table, DECL_UNIT).unwrap(),
             *binary(
-                binary(decl_unit(), Star, literal(3f64)),
+                binary(decl_unit(), Star, f64_to_float_literal(3f64)),
                 Slash,
-                literal(2f64)
+                f64_to_float_literal(2f64)
             )
         );
     }
