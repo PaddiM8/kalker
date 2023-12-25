@@ -4,7 +4,7 @@
 mod analysis;
 pub mod ast;
 pub mod calculation_result;
-mod errors;
+pub mod errors;
 mod integration_testing;
 mod interpreter;
 mod inverter;
