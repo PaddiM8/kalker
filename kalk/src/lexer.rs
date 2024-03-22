@@ -66,6 +66,8 @@ pub struct Lexer<'a> {
     chars: Peekable<Chars<'a>>,
     index: usize,
     other_radix: Option<u8>,
+    buffer: Option<char>,
+    has_backtracked: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -74,6 +76,8 @@ impl<'a> Lexer<'a> {
             chars: source.chars().peekable(),
             index: 0,
             other_radix: None,
+            buffer: None,
+            has_backtracked: false,
         }
     }
 
@@ -105,7 +109,7 @@ impl<'a> Lexer<'a> {
     fn next(&mut self) -> Token {
         let eof = build(TokenKind::Eof, "", (self.index, self.index));
         let mut c = if let Some(c) = self.peek() {
-            *c
+            c
         } else {
             return eof;
         };
@@ -116,7 +120,7 @@ impl<'a> Lexer<'a> {
             }
 
             c = if let Some(c) = self.peek() {
-                *c
+                c
             } else {
                 return eof;
             }
@@ -126,7 +130,7 @@ impl<'a> Lexer<'a> {
             return self.next_number_literal();
         }
 
-        if is_valid_identifier(Some(&c)) {
+        if is_valid_identifier(Some(c)) {
             return self.next_identifier();
         }
 
@@ -221,10 +225,12 @@ impl<'a> Lexer<'a> {
         let mut start = self.index;
         let mut end = start;
         let mut value = String::new();
-        let mut leading_zero = self.peek().unwrap_or(&'\0') == &'0';
+        let mut leading_zero = self.peek().unwrap_or('\0') == '0';
         let mut base = 10u8;
+        let mut is_e_notation = false;
 
         while let Some(c) = self.peek() {
+            let c = c.clone();
             // If at the second character and
             // the first character is a zero,
             // allow a letter
@@ -247,22 +253,46 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            if !c.is_digit(base as u32) && *c != '.' && *c != '_' && !c.is_whitespace()
-                || *c == '\n'
-                || *c == '\r'
+            if is_e_notation && c == 'E' {
+                break;
+            }
+
+            if end != start && c == 'E' {
+                is_e_notation = true;
+                end += 1;
+                value.push(c);
+                self.advance();
+
+                if let Some('-') = self.peek() {
+                    end += 1;
+                    value.push('-');
+                    self.advance();
+                } else if !self.peek().unwrap_or('\0').is_ascii_digit() {
+                    end -= 1;
+                    value.pop();
+                    self.backtrack();
+                    break;
+                }
+
+                continue;
+            }
+
+            if !c.is_digit(base as u32) && c != '.' && c != '_' && !c.is_whitespace()
+                || c == '\n'
+                || c == '\r'
             {
                 break;
             }
 
             end += 1;
-            value.push(*c);
+            value.push(c);
             self.advance();
         }
 
         // Subscript unicode symbols after the literal, eg. 11₂
         let mut base_str = String::new();
-        while crate::text_utils::is_subscript(self.peek().unwrap_or(&'\0')) {
-            base_str.push(*self.peek().unwrap());
+        while crate::text_utils::is_subscript(&self.peek().unwrap_or('\0')) {
+            base_str.push(self.peek().unwrap());
             self.advance();
         }
 
@@ -295,7 +325,7 @@ impl<'a> Lexer<'a> {
         let mut subscript = String::new();
 
         while is_valid_identifier(self.peek()) {
-            let c = *self.peek().unwrap();
+            let c = self.peek().unwrap();
 
             // If the current character is an underscore, allow a number next.
             // This is to allow the notation like the following: x_1
@@ -379,13 +409,29 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn peek(&mut self) -> Option<&char> {
-        self.chars.peek()
+    fn peek(&mut self) -> Option<char> {
+        if self.has_backtracked {
+            self.buffer
+        } else {
+            self.chars.peek().copied()
+        }
     }
 
     fn advance(&mut self) -> Option<char> {
         self.index += 1;
+        if self.has_backtracked {
+            self.has_backtracked = false;
+
+            return self.buffer;
+        }
+
+        self.buffer = self.peek();
         self.chars.next()
+    }
+
+    fn backtrack(&mut self) {
+        self.has_backtracked = true;
+        self.index -= 1;
     }
 }
 
@@ -397,14 +443,14 @@ fn build(kind: TokenKind, value: &str, span: (usize, usize)) -> Token {
     }
 }
 
-fn is_valid_identifier(c: Option<&char>) -> bool {
+fn is_valid_identifier(c: Option<char>) -> bool {
     if let Some(c) = c {
         match c {
             '+' | '-' | '/' | '*' | '%' | '^' | '!' | '(' | ')' | '=' | '.' | ',' | ';' | '|'
             | '⌊' | '⌋' | '⌈' | '⌉' | '[' | ']' | '{' | '}' | 'π' | '√' | 'τ' | 'ϕ' | 'Γ' | '<'
             | '>' | '≠' | '≥' | '≤' | '×' | '÷' | '⋅' | '⟦' | '⟧' | '∧' | '∨' | '¬' | ':' | 'ᵀ'
             | '\n' => false,
-            _ => !c.is_ascii_digit() || is_superscript(c) || is_subscript(c),
+            _ => !c.is_ascii_digit() || is_superscript(&c) || is_subscript(&c),
         }
     } else {
         false

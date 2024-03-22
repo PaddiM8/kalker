@@ -528,7 +528,7 @@ fn parse_primary(context: &mut Context) -> Result<Expr, KalkError> {
         TokenKind::OpenParenthesis | TokenKind::OpenBracket => parse_vector(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
-        TokenKind::Literal => Expr::Literal(crate::float!(string_to_num(&advance(context).value)?)),
+        TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
         TokenKind::True => {
             advance(context);
             Expr::Boolean(true)
@@ -770,10 +770,39 @@ fn skip_newlines(context: &mut Context) {
     }
 }
 
-fn string_to_num(value: &str) -> Result<f64, KalkError> {
+#[cfg(feature = "rug")]
+fn string_to_num(value: &str) -> Result<rug::Float, KalkError> {
+    use rug::ops::Pow;
+
+    if value.contains('E') {
+        let parts = value.split('E').collect::<Vec<_>>();
+        let left = crate::float!(string_to_num(parts[0])?);
+        let right = crate::float!(string_to_num(parts[1])?);
+
+        return Ok(left * 10.pow(right));
+    }
+
     let base = get_base(value)?;
     if let Some(result) = crate::radix::parse_float_radix(&value.replace(' ', ""), base) {
-        Ok(result)
+        Ok(crate::float!(result))
+    } else {
+        Err(KalkError::InvalidNumberLiteral(value.into()))
+    }
+}
+
+#[cfg(not(feature = "rug"))]
+fn string_to_num(value: &str) -> Result<f64, KalkError> {
+    if value.contains('E') {
+        let parts = value.split('E').collect::<Vec<_>>();
+        let left = crate::float!(string_to_num(parts[0])?);
+        let right = crate::float!(string_to_num(parts[1])?);
+
+        return Ok(left * 10_f64.powf(right));
+    }
+
+    let base = get_base(value)?;
+    if let Some(result) = crate::radix::parse_float_radix(&value.replace(' ', ""), base) {
+        Ok(crate::float!(result))
     } else {
         Err(KalkError::InvalidNumberLiteral(value.into()))
     }
