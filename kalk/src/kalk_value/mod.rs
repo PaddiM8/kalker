@@ -33,7 +33,7 @@ macro_rules! float {
 macro_rules! float {
     ($x:expr) => {{
         use rug::Float;
-        Float::with_val(63, $x)
+        Float::with_val(1024, $x)
     }};
 }
 
@@ -187,10 +187,10 @@ impl std::fmt::Display for KalkValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             KalkValue::Number(real, imaginary, _) => {
-                let as_str = format_number(primitive!(real));
+                let as_str = format_number_big(real);
 
                 if self.has_imaginary() {
-                    let imaginary_as_str = format_number(primitive!(imaginary).abs());
+                    let imaginary_as_str = format_number_big(&imaginary.clone().abs());
                     let sign = if imaginary < &0f64 { "-" } else { "+" };
 
                     if &as_str == "0" {
@@ -1153,6 +1153,33 @@ pub fn format_number(input: f64) -> String {
     };
 
     spaced(&result)
+}
+
+#[cfg(feature = "rug")]
+pub fn format_number_big(input: &Float) -> String {
+    let input_str = input.to_string();
+    let mut result = if input_str.contains('.') {
+        input_str
+            .trim_end_matches('0')
+            .trim_end_matches('.')
+            .to_string()
+    } else {
+        input_str
+    };
+
+    if let Some(dot_index) = result.find('.') {
+        let decimal_count = result.len() - dot_index;
+        if decimal_count > 10 {
+            result = result[..(result.len() - decimal_count + 10)].to_string();
+        }
+    }
+
+    spaced(&result)
+}
+
+#[cfg(not(feature = "rug"))]
+pub fn format_number_big(input: &f64) -> String {
+    format_number(*input)
 }
 
 fn calculate_vector(
