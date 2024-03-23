@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::kalk_value::{ComplexNumberType, KalkValue, ScientificNotation};
+use crate::kalk_value::{ComplexNumberType, KalkValue, ScientificNotation, ScientificNotationFormat};
 
 #[wasm_bindgen]
 pub struct CalculationResult {
@@ -36,15 +36,15 @@ impl CalculationResult {
         self.value.to_string_big()
     }
 
-    #[wasm_bindgen(js_name = toPrettyString)]
-    pub fn to_string_pretty(&self) -> String {
+    #[wasm_bindgen(js_name = toPrettyStringWithFormat)]
+    pub fn to_string_pretty_format(&self, format: ScientificNotationFormat) -> String {
         let value = if self.radix == 10 {
-            self.value.to_string_pretty_radix(10)
+            self.value.to_string_pretty_radix(10, format)
         } else {
             format!(
                 "{}\n{}",
-                self.value.to_string_pretty_radix(10),
-                self.value.to_string_pretty_radix(self.radix),
+                self.value.to_string_pretty_radix(10, format),
+                self.value.to_string_pretty_radix(self.radix, format),
             )
         };
 
@@ -53,6 +53,11 @@ impl CalculationResult {
         } else {
             value
         }
+    }
+
+    #[wasm_bindgen(js_name = toPrettyString)]
+    pub fn to_string_pretty(&self) -> String {
+        self.to_string_pretty_format(ScientificNotationFormat::Normal)
     }
 
     #[wasm_bindgen(js_name = getValue)]

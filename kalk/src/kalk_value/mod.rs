@@ -2,7 +2,7 @@
 pub mod with_rug;
 
 #[cfg(feature = "rug")]
-use rug::Float;
+use rug::{Float, ops::Pow};
 #[cfg(feature = "rug")]
 pub use with_rug::*;
 
@@ -108,7 +108,6 @@ macro_rules! as_number_or_zero {
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct ScientificNotation {
-    pub negative: bool,
     pub value: f64,
     pub exponent: i32,
     pub imaginary: bool,
@@ -122,16 +121,41 @@ pub enum ComplexNumberType {
 }
 
 #[wasm_bindgen]
+#[derive(Clone, Copy)]
+pub enum ScientificNotationFormat {
+    Normal,
+    Engineering,
+}
+
+#[wasm_bindgen]
 impl ScientificNotation {
     #[wasm_bindgen(js_name = toString)]
     pub fn to_js_string(&self) -> String {
         self.to_string()
     }
+
+    pub fn to_string_format(&self, format: ScientificNotationFormat) -> String {
+        match format {
+            ScientificNotationFormat::Normal => self.to_string(),
+            ScientificNotationFormat::Engineering => self.to_string_eng(),
+        }
+    }
+
+    fn to_string_eng(&self) -> String {
+        let exponent = self.exponent - 1;
+        let modulo = exponent % 3;
+        let value = self.value * 10_f64.powi(modulo);
+
+        ScientificNotation {
+            value,
+            exponent: exponent - modulo + 1,
+            imaginary: self.imaginary,
+        }.to_string()
+    }
 }
 
 impl std::fmt::Display for ScientificNotation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let sign = if self.negative { "-" } else { "" };
         let digits_and_mul = if self.value == 1f64 {
             String::new()
         } else {
@@ -140,11 +164,10 @@ impl std::fmt::Display for ScientificNotation {
 
         write!(
             f,
-            "{}{}10^{} {}",
-            sign,
+            "{}10^{}{}",
             digits_and_mul,
             self.exponent - 1,
-            if self.imaginary { "i" } else { "" }
+            if self.imaginary { " i" } else { "" }
         )
     }
 }
@@ -288,7 +311,7 @@ impl KalkValue {
         }
     }
 
-    pub fn to_string_pretty_radix(&self, radix: u8) -> String {
+    pub fn to_string_pretty_radix(&self, radix: u8, format: ScientificNotationFormat) -> String {
         let (real, imaginary, unit) = match self {
             KalkValue::Number(real, imaginary, unit) => (real, imaginary, unit),
             _ => return self.to_string(),
@@ -308,21 +331,31 @@ impl KalkValue {
         let mut new_real = real.clone();
         let mut new_imaginary = imaginary.clone();
         let mut has_scientific_notation = false;
-        let result_str = if (-6..8).contains(&sci_notation_real.exponent) || real == &0f64 {
+        let is_engineering_mode = matches!(format, ScientificNotationFormat::Engineering);
+        let result_str = if is_engineering_mode {
+            has_scientific_notation = true;
+
+            sci_notation_real.to_string_format(ScientificNotationFormat::Engineering)
+        } else if (-6..8).contains(&sci_notation_real.exponent) || real == &0f64 {
             self.to_string_real(radix)
         } else if sci_notation_real.exponent <= -14 {
             new_real = float!(0);
+
             String::from("0")
         } else if radix == 10 {
             has_scientific_notation = true;
 
-            sci_notation_real.to_string().trim().to_string()
+            sci_notation_real.to_string_format(format)
         } else {
             return String::new();
         };
 
         let sci_notation_imaginary = self.to_scientific_notation(ComplexNumberType::Imaginary);
-        let result_str_imaginary = if (-6..8).contains(&sci_notation_imaginary.exponent)
+        let result_str_imaginary = if is_engineering_mode {
+            has_scientific_notation = true;
+
+            sci_notation_imaginary.to_string_format(ScientificNotationFormat::Engineering)
+        } else if (-6..8).contains(&sci_notation_imaginary.exponent)
             || imaginary == &0f64
             || imaginary == &1f64
         {
@@ -333,7 +366,7 @@ impl KalkValue {
         } else if radix == 10 {
             has_scientific_notation = true;
 
-            sci_notation_imaginary.to_string().trim().to_string()
+            sci_notation_imaginary.to_string_format(format)
         } else {
             return String::new();
         };
@@ -368,15 +401,15 @@ impl KalkValue {
             if estimate != output && radix == 10 {
                 output.push_str(&format!(" ≈ {}", estimate));
             }
-        } else if has_scientific_notation {
+        } else if has_scientific_notation && !is_engineering_mode {
             output.insert_str(0, &format!("{} ≈ ", self));
         }
 
         output
     }
 
-    pub fn to_string_pretty(&self) -> String {
-        self.to_string_pretty_radix(10)
+    pub fn to_string_pretty(&self, format: ScientificNotationFormat) -> String {
+        self.to_string_pretty_radix(10, format)
     }
 
     pub fn to_string_with_unit(&self) -> String {
@@ -516,7 +549,6 @@ impl KalkValue {
         let exponent = value.abs().log10().floor() as i32 + 1;
 
         ScientificNotation {
-            negative: value < 0f64,
             value: value / (10f64.powf(exponent as f64 - 1f64) as f64),
             // I... am not sure what else to do...
             exponent,
@@ -1309,7 +1341,6 @@ fn pow(x: f64, y: f64) -> f64 {
 
 #[cfg(feature = "rug")]
 fn pow(x: Float, y: Float) -> Float {
-    use rug::ops::Pow;
     x.pow(y)
 }
 
@@ -1377,8 +1408,10 @@ impl From<i32> for KalkValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::kalk_value::{spaced, KalkValue};
+    use crate::kalk_value::{spaced, KalkValue, ScientificNotationFormat};
     use crate::test_helpers::cmp;
+
+    use super::ScientificNotation;
 
     #[test]
     fn test_spaced() {
@@ -1543,8 +1576,30 @@ mod tests {
             (float!(3.00000000004), float!(0.0), "3"),
         ];
         for (real, imaginary, output) in in_out {
-            let result = KalkValue::Number(real, imaginary, None).to_string_pretty();
+            let result = KalkValue::Number(real, imaginary, None).to_string_pretty(ScientificNotationFormat::Normal);
             assert_eq!(output, result);
+        }
+    }
+
+    #[test]
+    fn test_eng_mode() {
+        let in_out = vec![
+            (1.23, 0, "1.23×10^0"),
+            (1.23, 1, "12.3×10^0"),
+            (1.23, 2, "123×10^0"),
+            (1.23, 3, "1.23×10^3"),
+            (1.23, 4, "12.3×10^3"),
+            (1.23, 5, "123×10^3"),
+            (1.23, 6, "1.23×10^6"),
+        ];
+        for (value, exponent, output) in in_out {
+            let sci = ScientificNotation {
+                value,
+                exponent: exponent + 1,
+                imaginary: false,
+            };
+
+            assert_eq!(sci.to_string_format(ScientificNotationFormat::Engineering), output);
         }
     }
 }

@@ -1,9 +1,9 @@
 use ansi_term::Colour::Red;
-use kalk::parser;
+use kalk::{kalk_value::ScientificNotationFormat, parser};
 
 pub(crate) const DEFAULT_PRECISION: u32 = 63;
 
-pub fn eval(parser: &mut parser::Context, input: &str, precision: u32, base: u8) {
+pub fn eval(parser: &mut parser::Context, input: &str, precision: u32, base: u8, format: ScientificNotationFormat) {
     match parser::eval(parser, input, precision) {
         Ok(Some(mut result)) => {
             if !result.set_radix(base) {
@@ -13,7 +13,7 @@ pub fn eval(parser: &mut parser::Context, input: &str, precision: u32, base: u8)
             }
 
             if precision == DEFAULT_PRECISION {
-                println!("{}", result.to_string_pretty());
+                println!("{}", result.to_string_pretty_format(format));
 
                 return;
             }

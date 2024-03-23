@@ -1,5 +1,6 @@
 use crate::output;
 use ansi_term::Colour::{self, Cyan};
+use kalk::kalk_value::ScientificNotationFormat;
 use kalk::parser;
 use lazy_static::lazy_static;
 use regex::Captures;
@@ -24,7 +25,7 @@ struct Context {
     base: u8,
 }
 
-pub fn start(parser: &mut parser::Context, precision: u32) {
+pub fn start(parser: &mut parser::Context, precision: u32, format: ScientificNotationFormat) {
     let mut editor = Editor::<RLHelper>::new();
     editor.set_helper(Some(RLHelper {
         highlighter: LineHighlighter {},
@@ -66,7 +67,7 @@ pub fn start(parser: &mut parser::Context, precision: u32) {
         match readline {
             Ok(input) => {
                 editor.add_history_entry(input.as_str());
-                eval_repl(&mut repl, parser, &input, precision);
+                eval_repl(&mut repl, parser, &input, precision, format);
             }
             Err(ReadlineError::Interrupted) => break,
             _ => break,
@@ -78,7 +79,7 @@ pub fn start(parser: &mut parser::Context, precision: u32) {
     }
 }
 
-fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str, precision: u32) {
+fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str, precision: u32, format: ScientificNotationFormat) {
     if let Some(file_name) = input.strip_prefix("load ") {
         if let Some(file_path) = crate::get_input_file_by_name(file_name) {
             crate::load_input_file(&file_path, precision, parser);
@@ -109,7 +110,7 @@ fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str
         "clear" => print!("\x1B[2J"),
         "exit" => process::exit(0),
         "help" => print_cli_help(),
-        _ => output::eval(parser, input, precision, repl.base),
+        _ => output::eval(parser, input, precision, repl.base, format),
     }
 }
 

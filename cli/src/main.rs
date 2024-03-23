@@ -1,6 +1,7 @@
 mod output;
 mod repl;
 
+use kalk::kalk_value::ScientificNotationFormat;
 use kalk::parser;
 use seahorse::{App, Context, Flag, FlagType};
 use std::env;
@@ -23,6 +24,10 @@ fn main() {
             Flag::new("precision", FlagType::Int)
                 .description("Specify number precision")
                 .alias("p"),
+        )
+        .flag(
+            Flag::new("eng", FlagType::Bool)
+                .description("Engineering mode")
         )
         .flag(
             Flag::new("angle-unit", FlagType::String)
@@ -58,6 +63,12 @@ fn default_action(context: &Context) {
     let precision = context
         .int_flag("precision")
         .unwrap_or(output::DEFAULT_PRECISION as isize) as u32;
+    let format = if context.bool_flag("eng") {
+        ScientificNotationFormat::Engineering
+    } else {
+        ScientificNotationFormat::Normal
+    };
+
     if let Ok(max_recursion_depth) = context.int_flag("max-recursion-depth") {
         parser_context = parser_context.set_max_recursion_depth(max_recursion_depth as u32);
     }
@@ -72,7 +83,7 @@ fn default_action(context: &Context) {
 
     if context.args.is_empty() {
         // REPL
-        repl::start(&mut parser_context, precision);
+        repl::start(&mut parser_context, precision, format);
     } else {
         // Direct output
         output::eval(
@@ -80,6 +91,7 @@ fn default_action(context: &Context) {
             &context.args.join(" "),
             precision,
             10u8,
+            format,
         );
     }
 }
