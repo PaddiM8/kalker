@@ -180,6 +180,12 @@ jobs:
           cd android
           version=$(cat ../../web/package.json | grep version | head -1  | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
           APP_VERSION_NAME=$version ./gradlew assembleRelease
+      - name: Setup build tool version variable
+        shell: bash
+        run: |
+          BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | tail -n 1)
+          echo "BUILD_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
+          echo Last build tool version is: $BUILD_TOOL_VERSION
       - uses: r0adkll/sign-android-release@v1
         name: sign apk
         with:
@@ -188,6 +194,8 @@ jobs:
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
       - run: mv $(ls -Art android/app/build/outputs/apk/release/*.apk | tail -n 1) ../kalker-android.apk
       - uses: actions/upload-artifact@v2
         with:
