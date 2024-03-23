@@ -1,10 +1,10 @@
 ![](logo.png)
 
-Kalker (or "kalk") is a calculator program/website that supports user-defined variables, functions, differentiation, and integration. It runs on Windows, macOS, Linux, Android, and in web browsers (with WebAssembly).
+Kalker is a calculator program/website that supports user-defined variables, functions, differentiation, and integration. It runs on Windows, macOS, Linux, Android, and in web browsers (with WebAssembly).
 
 [![Crates.io](https://img.shields.io/crates/v/kalker)](https://crates.io/crates/kalker) ![npm](https://img.shields.io/npm/v/@paddim8/kalk) [![GitHub](https://img.shields.io/github/license/PaddiM8/kalk)](https://github.com/PaddiM8/kalker/blob/master/LICENSE) [![Docs.rs](https://docs.rs/kalk/badge.svg)](https://docs.rs/kalk/latest/kalk/) ![Build status](https://img.shields.io/github/actions/workflow/status/PaddiM8/kalker/build.yml?branch=master&label=build%20%26%20test)
 
-[Kanban](https://kolan.strct.net/Board/4RAdMjLDz) | [Website - Try it out here!](https://kalker.xyz)
+[Website - Try it out here!](https://kalker.xyz)
 
 <img src="preview.png" width="750">
 
@@ -39,12 +39,11 @@ Kalker (or "kalk") is a calculator program/website that supports user-defined va
 `kalker` in the AUR, eg. `yay -S kalker`
 
 ### Nix/NixOS
-Kalker is available through [`nixpkgs`](https://search.nixos.org/packages?channel=unstable&show=kalker&from=0&size=50&sort=relevance&type=packages&query=kalker).
+`kalker` in the [`nixpkgs`](https://search.nixos.org/packages?channel=unstable&show=kalker&from=0&size=50&sort=relevance&type=packages&query=kalker) repository.
 The most up to date version is also available as a [`flake`](https://search.nixos.org/flakes?channel=unstable&show=kalker&from=0&size=50&sort=relevance&type=packages&query=kalker).
 
 ### NetBSD
-Kalker is available from the [`official repositories`](https://pkgsrc.se/math/kalker),
-`pkgin install kalker`
+`pkgin install kalker` (from the [`official repositories`](https://pkgsrc.se/math/kalker))
 
 ## Binaries
 
@@ -64,10 +63,6 @@ Run `cargo install kalker`
 2. Run `cargo build --release`
 3. Grab the binary from `targets/release`
 
-# Donation
-
-Kalker is completely free and open source. If you wish to support further development of Kalker and contribute towards it one day getting published on the Google Play Store, you can do so here: [PayPal](https://paypal.me/oliverwaldemar)
-
 # Libraries
 
 There are currently three different libraries related to kalker.
@@ -78,23 +73,7 @@ There are currently three different libraries related to kalker.
 
 # Syntax
 
-A more complete reference can be found on [the website](https://kalker.xyz).
-
-## Functions
-
-**Defining:** name(parameter1, parameter2, ...) = expression\
-**Example:** $ f(x) = 2x+3 $
-
-**Using:** name(argument1, argument2)\
-**Example:** $ f(2) $
-
-## Variables
-
-**Defining:** name = expression\
-**Example:** $ x = 3 $
-
-**Using:** name\
-**Example:** $ x $
+A complete reference can be found on [the website](https://kalker.xyz).
 
 # Contributing
 
