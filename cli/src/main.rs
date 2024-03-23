@@ -27,7 +27,7 @@ fn main() {
         )
         .flag(
             Flag::new("eng", FlagType::Bool)
-                .description("Engineering mode")
+                .description("Engineering mode. Modes can also be switched between by typing `mode [normal|eng]`.")
         )
         .flag(
             Flag::new("angle-unit", FlagType::String)

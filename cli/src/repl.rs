@@ -1,4 +1,5 @@
 use crate::output;
+use crate::output::print_err;
 use ansi_term::Colour::{self, Cyan};
 use kalk::kalk_value::ScientificNotationFormat;
 use kalk::parser;
@@ -23,6 +24,7 @@ use std::process;
 
 struct Context {
     base: u8,
+    mode: ScientificNotationFormat,
 }
 
 pub fn start(parser: &mut parser::Context, precision: u32, format: ScientificNotationFormat) {
@@ -55,7 +57,11 @@ pub fn start(parser: &mut parser::Context, precision: u32, format: ScientificNot
         );
     }
 
-    let mut repl = Context { base: 10u8 };
+    let mut repl = Context {
+        base: 10u8,
+        mode: format,
+    };
+
     loop {
         let prompt = if cfg!(windows) {
             String::from(">> ")
@@ -67,7 +73,7 @@ pub fn start(parser: &mut parser::Context, precision: u32, format: ScientificNot
         match readline {
             Ok(input) => {
                 editor.add_history_entry(input.as_str());
-                eval_repl(&mut repl, parser, &input, precision, format);
+                eval_repl(&mut repl, parser, &input, precision);
             }
             Err(ReadlineError::Interrupted) => break,
             _ => break,
@@ -79,7 +85,7 @@ pub fn start(parser: &mut parser::Context, precision: u32, format: ScientificNot
     }
 }
 
-fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str, precision: u32, format: ScientificNotationFormat) {
+fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str, precision: u32) {
     if let Some(file_name) = input.strip_prefix("load ") {
         if let Some(file_path) = crate::get_input_file_by_name(file_name) {
             crate::load_input_file(&file_path, precision, parser);
@@ -105,12 +111,29 @@ fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str
         }
     }
 
+    if input.starts_with("mode") {
+        let mut parts = input.split(' ');
+        let mode = match parts.nth(1) {
+            Some("normal") => ScientificNotationFormat::Normal,
+            Some("eng") => ScientificNotationFormat::Engineering,
+            _ => {
+                print_err("Invalid mode name. Available modes: normal, eng");
+
+                return;
+            },
+        };
+
+        repl.mode = mode;
+
+        return;
+    }
+
     match input {
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
         "exit" => process::exit(0),
         "help" => print_cli_help(),
-        _ => output::eval(parser, input, precision, repl.base, format),
+        _ => output::eval(parser, input, precision, repl.base, repl.mode),
     }
 }
 
