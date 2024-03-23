@@ -1,5 +1,5 @@
 x = 3
 f(x) = 2*x
-g(x, y) = 2*x*y
+g(x, long_name) = 2*x*long_name
 
 f(x) = 6 and fx = 6 and x = 3 and g(x, x + 1) = 24 and sqrt4 = 2

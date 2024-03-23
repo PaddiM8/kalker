@@ -484,6 +484,13 @@ fn analyse_var(
         with_adjacent(Expr::Var(identifier), adjacent_factor, adjacent_exponent)
     } else if context.symbol_table.contains_var(&identifier.pure_name)
         || (identifier.pure_name.len() == 1 && !context.in_equation)
+        || context.current_function_parameters.is_some()
+            && context
+                .current_function_parameters
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|param| param[2..] == identifier.pure_name)
     {
         with_adjacent(
             build_var(context, &identifier.full_name),
