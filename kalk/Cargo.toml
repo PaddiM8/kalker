@@ -14,10 +14,9 @@ categories = ["mathematics", "parser-implementations"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-rug = { version = "1.17.0", features = ["float"], optional = true }
+rug = { version = "1.24.0", features = ["float"], optional = true }
 lazy_static = "1.4.0"
 wasm-bindgen = "0.2.69"
-gmp-mpfr-sys = { version = "1.4.9", optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.19"
@@ -25,7 +24,7 @@ test-case = "1.0.0"
 regex = "1"
 
 [features]
-default = ["rug", "gmp-mpfr-sys"]
+default = ["rug"]
 
 # Breaks when optimizing for some reason.
 [package.metadata.wasm-pack.profile.release]
