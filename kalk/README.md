@@ -9,13 +9,20 @@ f(a, 2)
 `>> 1.1899401098014355`
 
 ## Features
-* Operators: +, -, \*, /, !
-* Groups: (), ⌈⌉, ⌊⌋, []
-* [Pre-defined functions and constants](https://github.com/PaddiM8/kalk/blob/master/kalk/src/prelude.rs)
+* Operators: `+`, `-`, `*`, `/`, `!`
+* Groups: `()`, `[]`, `⌈ceil⌉`, `⌊floor⌋`
+* [Vectors](https://kalker.xyz/#vectors): (x, y, z, ...)
+* [Matrices](https://kalker.xyz/#matrices): [x, y, z; a, b, c; ...]
+* [Pre-defined functions and constants](https://kalker.xyz/#functions)
 * User-defined functions and variables. `f(x, y) = xy`, `x = 5`
+* Root finding using Newton's method (eg. x^2 = 64). Note: estimation and limited to one root
+* Derivative of functions (derivatives of noisy functions or of higher order can be a bit inaccurate). `f'(2)`, `sin'(-pi)`
+* Integration. `∫(0, pi, sin(x) dx)` or `∫(0, π, sin(x) dx)`, maybe sometimes be slightly off
 * Understands fairly ambiguous syntax. Eg. `2sin50 + 2xy`
-* Syntax highlighting
-* Special-symbol completion on tab. Eg. write `sqrt` and press tab. It will be turned into `√`.
+* Sum function: `sum(start, to, expression)` Eg. `sum(1, 3, 2n+1)` is the same as `2*1+1 + 2*2+1 + 2*3+1` = `15`
+* Piecewise functions: `f(x) = { f(x + 1) if x <= 1; x otherwise }`, pressing enter before typing the final `}` will make a new line without submitting
+* Different number bases: Either with a format like `0b1101`, `0o5.3`, `0xff` or a format like `1101_2`. The latter does not support letters, as they would be interpreted as variables
+* Misc: separate expressions by a semicolon to write them on the same line, use the `ans` variable to get the value of the previously calculated expression
 
 ## Rust Usage
 ```rust
