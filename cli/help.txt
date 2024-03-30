@@ -82,7 +82,7 @@ Predefined functions
     sin, cos, tan, cot, cosec, sec
     sinh, cosh, tanh, coth, cosech, sech
     asin, acos, atan, acot, acosec, asec
-    ashin, acosh, atanh, acoth, acosech, asech
+    asinh, acosh, atanh, acoth, acosech, asech
     abs, ceil or ⌈⌉, floor or ⌊⌋, frac, round, trunc
     sqrt or √, cbrt, exp, log, ln, arg, Re, Im
     gamma or Γ
