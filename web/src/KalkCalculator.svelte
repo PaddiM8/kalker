@@ -101,7 +101,6 @@
         try {
             if (!kalkContext) kalkContext = new kalk.Context();
             const result = kalkContext.evaluate(input.replaceAll(/\s+/g, " "));
-            console.log(result.setRadix(currentBase))
             if (result && !result.setRadix(currentBase)) {
                 return ["Invalid base", false];
             }
