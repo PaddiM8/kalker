@@ -3,8 +3,6 @@ pub mod with_rug;
 
 #[cfg(feature = "rug")]
 use rug::{Float, ops::Pow};
-#[cfg(feature = "rug")]
-pub use with_rug::*;
 
 #[cfg(not(feature = "rug"))]
 pub mod regular;
@@ -347,7 +345,7 @@ impl KalkValue {
 
             sci_notation_real.to_string_format(format)
         } else {
-            return String::new();
+            self.to_string_real(radix)
         };
 
         let sci_notation_imaginary = self.to_scientific_notation(ComplexNumberType::Imaginary);
@@ -368,7 +366,7 @@ impl KalkValue {
 
             sci_notation_imaginary.to_string_format(format)
         } else {
-            return String::new();
+            self.to_string_real(radix)
         };
 
         let mut output = result_str;
