@@ -48,10 +48,18 @@ impl CalculationResult {
             )
         };
 
-        if self.is_approximation {
+        let decimal_count = if let Some(dot_index) = value.chars().position(|c| c == '.') {
+            let end_index = value.chars().position(|c| c == ' ').unwrap_or(value.len()) - 1;
+
+            if end_index > dot_index { end_index - dot_index } else { 0 }
+        } else {
+            0
+        };
+
+        if self.is_approximation || decimal_count == 10 {
             format!("≈ {}", value)
         } else {
-            value
+            format!("= {}", value)
         }
     }
 
@@ -91,7 +99,7 @@ impl CalculationResult {
 
     #[wasm_bindgen(js_name = estimate)]
     pub fn estimate_js(&self) -> Option<String> {
-        self.value.estimate()
+        self.value.estimate().map(|x| x.value)
     }
 }
 

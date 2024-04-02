@@ -42,10 +42,16 @@ lazy_static! {
     };
 }
 
+#[derive(Debug)]
+pub struct EstimationResult {
+    pub value: String,
+    pub is_exact: bool,
+}
+
 pub(super) fn estimate(
     input: &KalkValue,
     complex_number_type: ComplexNumberType,
-) -> Option<String> {
+) -> Option<EstimationResult> {
     let (real, imaginary, _) = if let KalkValue::Number(real, imaginary, unit) = input {
         (real, imaginary, unit)
     } else {
@@ -74,7 +80,10 @@ pub(super) fn estimate(
 
     // Match with common numbers, eg. π, 2π/3, √2
     if let Some(equivalent_constant) = equivalent_constant(value) {
-        return Some(equivalent_constant);
+        return Some(EstimationResult {
+            value: equivalent_constant,
+            is_exact: false,
+        });
     }
 
     // If the value squared (and rounded) is an integer,
@@ -82,7 +91,10 @@ pub(super) fn estimate(
     // then it can be expressed as sqrt(x²).
     // Ignore it if the square root of the result is an integer.
     if let Some(equivalent_root) = equivalent_root(value) {
-        return Some(equivalent_root);
+        return Some(EstimationResult {
+            value: equivalent_root,
+            is_exact: false,
+        });
     }
 
     // If nothing above was relevant, simply round it off a bit, eg. from 0.99999 to 1
@@ -91,14 +103,19 @@ pub(super) fn estimate(
         ComplexNumberType::Imaginary => round(input, complex_number_type)?.values().1,
     };
     let rounded_str = rounded.to_string();
-    Some(trim_zeroes(if rounded_str == "-0" {
+    let result = trim_zeroes(if rounded_str == "-0" {
         "0"
     } else {
         &rounded_str
-    }))
+    });
+
+    Some(EstimationResult {
+        value: result,
+        is_exact: false,
+    })
 }
 
-fn equivalent_fraction(value: f64) -> Option<String> {
+fn equivalent_fraction(value: f64) -> Option<EstimationResult> {
     fn gcd(mut a: i64, mut b: i64) -> i64 {
         while a != 0 {
             let old_a = a;
@@ -137,7 +154,7 @@ fn equivalent_fraction(value: f64) -> Option<String> {
         let factor = 10i64.pow(non_repeating_dec_count as u32) as f64;
         let nines = (10i64.pow(repeatend_str.len() as u32) - 1) as f64;
 
-        let a_numer = a as f64 * factor * nines;
+        let a_numer = a * factor * nines;
         let b_numer = b as f64;
         let ab_denom = nines * factor;
         let integer_part_as_numer = non_repeating.trunc() * ab_denom;
@@ -168,16 +185,28 @@ fn equivalent_fraction(value: f64) -> Option<String> {
         } else {
             "-"
         };
-
-        Some(format!(
+        let calculated_value =
+            original_sign * integer_part + original_sign * (numer.abs() / denom.abs());
+        let result_str = format!(
             "{} {} {}/{}",
-            integer_part * original_sign,
+            original_sign * integer_part,
             sign,
             numer.abs(),
             denom.abs()
-        ))
+        );
+
+        Some(EstimationResult {
+            value: result_str,
+            is_exact: value == calculated_value,
+        })
     } else {
-        Some(format!("{}/{}", numer * original_sign, denom))
+        let calculated_value = numer * original_sign / denom;
+        let result_str = format!("{}/{}", numer * original_sign, denom);
+
+        Some(EstimationResult {
+            value: result_str,
+            is_exact: value == calculated_value,
+        })
     }
 }
 
@@ -388,21 +417,20 @@ mod tests {
         ];
 
         for (input, output) in in_out {
-            let result = KalkValue::from(input).estimate();
-            println!("{}", input);
+            let result = KalkValue::from(input).estimate().map(|x| x.value);
             assert_eq!(output, result);
         }
     }
 
     #[test]
     fn test_equivalent_fraction() {
-        assert_eq!(equivalent_fraction(0.5f64).unwrap(), "1/2");
-        assert_eq!(equivalent_fraction(-0.5f64).unwrap(), "-1/2");
-        assert_eq!(equivalent_fraction(1f64 / 3f64).unwrap(), "1/3");
-        assert_eq!(equivalent_fraction(4f64 / 3f64).unwrap(), "4/3");
-        assert_eq!(equivalent_fraction(7f64 / 3f64).unwrap(), "2 + 1/3");
-        assert_eq!(equivalent_fraction(-1f64 / 12f64).unwrap(), "-1/12");
-        assert_eq!(equivalent_fraction(-16f64 / -7f64).unwrap(), "2 + 2/7");
+        assert_eq!(equivalent_fraction(0.5f64).unwrap().value, "1/2");
+        assert_eq!(equivalent_fraction(-0.5f64).unwrap().value, "-1/2");
+        assert_eq!(equivalent_fraction(1f64 / 3f64).unwrap().value, "1/3");
+        assert_eq!(equivalent_fraction(4f64 / 3f64).unwrap().value, "4/3");
+        assert_eq!(equivalent_fraction(7f64 / 3f64).unwrap().value, "2 + 1/3");
+        assert_eq!(equivalent_fraction(-1f64 / 12f64).unwrap().value, "-1/12");
+        assert_eq!(equivalent_fraction(-16f64 / -7f64).unwrap().value, "2 + 2/7");
         assert!(equivalent_fraction(0.123f64).is_none());
         assert!(equivalent_fraction(1f64).is_none());
         assert!(equivalent_fraction(0.01f64).is_none());
