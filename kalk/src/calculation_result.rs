@@ -7,17 +7,19 @@ pub struct CalculationResult {
     value: KalkValue,
     radix: u8,
     is_approximation: bool,
+    equation_variable: Option<String>,
 }
 
 // Wraps around KalkValue since enums don't work
 // with the javascript bindings.
 #[wasm_bindgen]
 impl CalculationResult {
-    pub(crate) fn new(value: KalkValue, radix: u8, is_approximation: bool) -> Self {
+    pub(crate) fn new(value: KalkValue, radix: u8, is_approximation: bool, equation_variable: Option<String>) -> Self {
         CalculationResult {
             value,
             radix,
             is_approximation,
+            equation_variable,
         }
     }
 
@@ -56,10 +58,16 @@ impl CalculationResult {
             0
         };
 
-        if self.is_approximation || decimal_count == 10 {
-            format!("≈ {}", value)
+        let equation_variable = if let Some(name) = &self.equation_variable {
+            format!("{} ", name)
         } else {
-            format!("= {}", value)
+            String::new()
+        };
+
+        if self.is_approximation || decimal_count == 10 {
+            format!("{}≈ {}", equation_variable, value)
+        } else {
+            format!("{}= {}", equation_variable, value)
         }
     }
 

@@ -24,6 +24,7 @@ pub struct Context<'a> {
     is_approximation: bool,
     recursion_depth: u32,
     max_recursion_depth: u32,
+    equation_variable: Option<String>,
 }
 
 impl<'a> Context<'a> {
@@ -46,6 +47,7 @@ impl<'a> Context<'a> {
             is_approximation: false,
             recursion_depth: 0,
             max_recursion_depth: DEFAULT_MAX_RECURSION_DEPTH,
+            equation_variable: None,
         }
     }
 
@@ -60,6 +62,9 @@ impl<'a> Context<'a> {
         statements: Vec<Stmt>,
     ) -> Result<Option<CalculationResult>, KalkError> {
         for (i, stmt) in statements.iter().enumerate() {
+            self.is_approximation = false;
+            self.equation_variable = None;
+
             let num = eval_stmt(self, stmt)?;
 
             // Insert the last value into the `ans` variable.
@@ -80,7 +85,12 @@ impl<'a> Context<'a> {
 
             if i == statements.len() - 1 {
                 if let Stmt::Expr(_) = stmt {
-                    return Ok(Some(CalculationResult::new(num, 10, self.is_approximation)));
+                    return Ok(Some(CalculationResult::new(
+                        num,
+                        10,
+                        self.is_approximation,
+                        self.equation_variable.clone(),
+                    )));
                 }
             }
         }
@@ -829,6 +839,7 @@ fn eval_equation(
     unknown_var: &Identifier,
 ) -> Result<KalkValue, KalkError> {
     context.is_approximation = true;
+    context.equation_variable = Some(unknown_var.full_name.clone());
 
     let expr = Expr::Binary(
         Box::new(left.clone()),
@@ -918,18 +929,61 @@ mod tests {
 
     #[test]
     fn test_binary() {
-        let add = Stmt::Expr(binary(f64_to_float_literal(2f64), Plus, f64_to_float_literal(3f64)));
-        let sub = Stmt::Expr(binary(f64_to_float_literal(2f64), Minus, f64_to_float_literal(3f64)));
-        let mul = Stmt::Expr(binary(f64_to_float_literal(2f64), Star, f64_to_float_literal(3f64)));
-        let div = Stmt::Expr(binary(f64_to_float_literal(2f64), Slash, f64_to_float_literal(4f64)));
-        let pow = Stmt::Expr(binary(f64_to_float_literal(2f64), Power, f64_to_float_literal(3f64)));
-        let equals = Stmt::Expr(binary(f64_to_float_literal(2f64), Equals, f64_to_float_literal(3f64)));
-        let not_equals = Stmt::Expr(binary(f64_to_float_literal(2f64), NotEquals, f64_to_float_literal(3f64)));
-        let greater_than = Stmt::Expr(binary(f64_to_float_literal(2f64), GreaterThan, f64_to_float_literal(3f64)));
-        let less_than = Stmt::Expr(binary(f64_to_float_literal(2f64), LessThan, f64_to_float_literal(3f64)));
-        let greater_or_equals =
-            Stmt::Expr(binary(f64_to_float_literal(2f64), GreaterOrEquals, f64_to_float_literal(3f64)));
-        let less_or_equals = Stmt::Expr(binary(f64_to_float_literal(2f64), LessOrEquals, f64_to_float_literal(3f64)));
+        let add = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            Plus,
+            f64_to_float_literal(3f64),
+        ));
+        let sub = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            Minus,
+            f64_to_float_literal(3f64),
+        ));
+        let mul = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            Star,
+            f64_to_float_literal(3f64),
+        ));
+        let div = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            Slash,
+            f64_to_float_literal(4f64),
+        ));
+        let pow = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            Power,
+            f64_to_float_literal(3f64),
+        ));
+        let equals = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            Equals,
+            f64_to_float_literal(3f64),
+        ));
+        let not_equals = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            NotEquals,
+            f64_to_float_literal(3f64),
+        ));
+        let greater_than = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            GreaterThan,
+            f64_to_float_literal(3f64),
+        ));
+        let less_than = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            LessThan,
+            f64_to_float_literal(3f64),
+        ));
+        let greater_or_equals = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            GreaterOrEquals,
+            f64_to_float_literal(3f64),
+        ));
+        let less_or_equals = Stmt::Expr(binary(
+            f64_to_float_literal(2f64),
+            LessOrEquals,
+            f64_to_float_literal(3f64),
+        ));
 
         assert_eq!(interpret(add).unwrap().unwrap().to_f64(), 5f64);
         assert_eq!(interpret(sub).unwrap().unwrap().to_f64(), -1f64);
@@ -967,7 +1021,11 @@ mod tests {
         let stmt = Stmt::Expr(binary(
             f64_to_float_literal(5f64),
             Percent,
-            group(binary(f64_to_float_literal(3f64), Plus, unary(Percent, f64_to_float_literal(2f64)))),
+            group(binary(
+                f64_to_float_literal(3f64),
+                Plus,
+                unary(Percent, f64_to_float_literal(2f64)),
+            )),
         ));
 
         assert!(cmp(interpret(stmt).unwrap().unwrap(), 1.94f64));
@@ -984,8 +1042,14 @@ mod tests {
 
     #[test]
     fn test_angle_units() {
-        let rad_explicit = Stmt::Expr(fn_call("sin", vec![*unit("rad", f64_to_float_literal(1f64))]));
-        let deg_explicit = Stmt::Expr(fn_call("sin", vec![*unit("deg", f64_to_float_literal(1f64))]));
+        let rad_explicit = Stmt::Expr(fn_call(
+            "sin",
+            vec![*unit("rad", f64_to_float_literal(1f64))],
+        ));
+        let deg_explicit = Stmt::Expr(fn_call(
+            "sin",
+            vec![*unit("deg", f64_to_float_literal(1f64))],
+        ));
         let implicit = Stmt::Expr(fn_call("sin", vec![*f64_to_float_literal(1f64)]));
 
         assert!(cmp(interpret(rad_explicit).unwrap().unwrap(), 0.84147098));
@@ -1093,7 +1157,7 @@ mod tests {
             vec![
                 *binary(var("n"), TokenKind::Equals, f64_to_float_literal(start)),
                 *f64_to_float_literal(to),
-                *binary(var("n"), TokenKind::Plus,f64_to_float_literal(3f64)),
+                *binary(var("n"), TokenKind::Plus, f64_to_float_literal(3f64)),
             ],
         ));
 
