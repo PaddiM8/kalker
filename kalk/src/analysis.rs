@@ -293,11 +293,7 @@ fn analyse_binary(
 
             context.in_equation = false;
 
-            let var_name = if let Some(var_name) = &context.equation_variable {
-                var_name
-            } else {
-                unreachable!()
-            };
+            let var_name = context.equation_variable.as_ref().unwrap();
             let identifier = Identifier::from_full_name(var_name);
             context.equation_variable = None;
 
@@ -474,6 +470,18 @@ fn analyse_var(
         None
     };
 
+    if context.symbol_table.contains_fn(&identifier.full_name) {
+        if let Some(Expr::Group(arg)) = adjacent_factor {
+            return Ok(Expr::FnCall(identifier, vec![*arg]));
+        }
+
+        if let Some(Expr::Vector(args)) = adjacent_factor {
+            return Ok(Expr::FnCall(identifier, args));
+        }
+
+        return Ok(Expr::FnCall(identifier, vec![adjacent_factor.unwrap()]));
+    }
+
     let is_comprehension_var = if let Some(vars) = &context.comprehension_vars {
         vars.iter().any(|x| x.name == identifier.pure_name)
     } else {
@@ -538,6 +546,7 @@ fn analyse_var(
 
             if !is_parameter {
                 context.equation_variable = Some(identifier.full_name.clone());
+
                 return with_adjacent(
                     build_var(context, &identifier.full_name),
                     adjacent_factor,
@@ -711,7 +720,8 @@ fn build_var(context: &mut Context, name: &str) -> Expr {
     }
 
     let var_exists = context.symbol_table.contains_var(name);
-    if context.in_equation && !var_exists {
+    let fn_exists = context.symbol_table.contains_fn(name);
+    if context.in_equation && !var_exists && !fn_exists {
         context.equation_variable = Some(name.to_string());
     }
 

@@ -133,6 +133,7 @@ pub struct BinaryFuncInfo(
     FuncType,
 );
 
+#[allow(dead_code)]
 pub struct VectorFuncInfo(fn(KalkValue) -> Result<KalkValue, KalkError>, FuncType);
 
 impl UnaryFuncInfo {
