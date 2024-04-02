@@ -1,13 +1,21 @@
-pub fn parse_float_radix(value: &str, radix: u8) -> Option<f64> {
+use crate::{float, kalk_value::KalkFloat};
+
+pub fn parse_float_radix(value: &str, radix: u8) -> Option<KalkFloat> {
     if radix == 10 {
-        return if let Ok(result) = value.parse::<f64>() {
+        #[cfg(feature = "rug")]
+        let parsed = rug::Float::parse(value).map(|valid| crate::float!(valid));
+
+        #[cfg(not(feature = "rug"))]
+        let parsed = value.parse::<f64>();
+
+        return if let Ok(result) = parsed {
             Some(result)
         } else {
             None
         };
     }
 
-    let mut sum = 0f64;
+    let mut sum = float!(0f64);
     let length = value.find('_').unwrap_or(value.len());
     let mut i = (value.find('.').unwrap_or(length) as i32) - 1;
     for c in value.chars() {

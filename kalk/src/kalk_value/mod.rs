@@ -18,6 +18,12 @@ use self::rounding::EstimationResult;
 
 const ACCEPTABLE_COMPARISON_MARGIN: f64 = 0.00000001;
 
+#[cfg(feature = "rug")]
+pub(crate) type KalkFloat = rug::Float;
+
+#[cfg(not(feature = "rug"))]
+pub(crate) type KalkFloat = f64;
+
 #[macro_export]
 #[cfg(not(feature = "rug"))]
 macro_rules! float {

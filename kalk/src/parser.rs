@@ -4,6 +4,7 @@ use crate::analysis;
 use crate::ast::Identifier;
 use crate::calculation_result::CalculationResult;
 use crate::errors::KalkError;
+use crate::kalk_value::KalkFloat;
 use crate::{
     ast::{Expr, Stmt},
     interpreter,
@@ -770,8 +771,8 @@ fn skip_newlines(context: &mut Context) {
     }
 }
 
-#[cfg(feature = "rug")]
-fn string_to_num(value: &str) -> Result<rug::Float, KalkError> {
+fn string_to_num(value: &str) -> Result<KalkFloat, KalkError> {
+    #[cfg(feature = "rug")]
     use rug::ops::Pow;
 
     if value.contains('E') {
@@ -779,24 +780,10 @@ fn string_to_num(value: &str) -> Result<rug::Float, KalkError> {
         let left = crate::float!(string_to_num(parts[0])?);
         let right = crate::float!(string_to_num(parts[1])?);
 
+        #[cfg(feature = "rug")]
         return Ok(left * 10.pow(right));
-    }
 
-    let base = get_base(value)?;
-    if let Some(result) = crate::radix::parse_float_radix(&value.replace(' ', ""), base) {
-        Ok(crate::float!(result))
-    } else {
-        Err(KalkError::InvalidNumberLiteral(value.into()))
-    }
-}
-
-#[cfg(not(feature = "rug"))]
-fn string_to_num(value: &str) -> Result<f64, KalkError> {
-    if value.contains('E') {
-        let parts = value.split('E').collect::<Vec<_>>();
-        let left = crate::float!(string_to_num(parts[0])?);
-        let right = crate::float!(string_to_num(parts[1])?);
-
+        #[cfg(not(feature = "rug"))]
         return Ok(left * 10_f64.powf(right));
     }
 

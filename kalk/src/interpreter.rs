@@ -2,6 +2,7 @@ use crate::ast::{Expr, Stmt};
 use crate::ast::{Identifier, RangedVar};
 use crate::calculation_result::CalculationResult;
 use crate::errors::KalkError;
+use crate::kalk_value::KalkFloat;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
 use crate::parser::DECL_UNIT;
@@ -323,26 +324,18 @@ fn eval_var_expr(
 }
 
 #[allow(unused_variables)]
-#[cfg(feature = "rug")]
 fn eval_literal_expr(
     context: &mut Context,
-    value: rug::Float,
+    value: KalkFloat,
     unit: Option<&String>,
 ) -> Result<KalkValue, KalkError> {
+
+    #[allow(unused_mut)]
     let mut float = float!(value);
+    #[cfg(feature = "rug")]
     float.set_prec(context.precision);
 
     Ok(KalkValue::Number(float, float!(0), unit.cloned()))
-}
-
-#[allow(unused_variables)]
-#[cfg(not(feature = "rug"))]
-fn eval_literal_expr(
-    context: &mut Context,
-    value: f64,
-    unit: Option<&String>,
-) -> Result<KalkValue, KalkError> {
-    Ok(KalkValue::Number(float!(value), float!(0), unit.cloned()))
 }
 
 fn eval_group_expr(

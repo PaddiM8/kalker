@@ -1,4 +1,4 @@
-use crate::lexer::TokenKind;
+use crate::{kalk_value::KalkFloat, lexer::TokenKind};
 
 /// A tree structure of a statement.
 #[derive(Debug, Clone, PartialEq)]
@@ -19,10 +19,7 @@ pub enum Expr {
     Var(Identifier),
     Group(Box<Expr>),
     FnCall(Identifier, Vec<Expr>),
-    #[cfg(feature="rug")]
-    Literal(rug::Float),
-    #[cfg(not(feature="rug"))]
-    Literal(f64),
+    Literal(KalkFloat),
     Boolean(bool),
     Piecewise(Vec<ConditionalPiece>),
     Vector(Vec<Expr>),
