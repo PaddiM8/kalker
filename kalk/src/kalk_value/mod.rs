@@ -2,12 +2,10 @@
 pub mod with_rug;
 
 #[cfg(feature = "rug")]
-use rug::{Float, ops::Pow};
+use rug::{ops::Pow, Float};
 
 #[cfg(not(feature = "rug"))]
 pub mod regular;
-#[cfg(not(feature = "rug"))]
-pub use regular::*;
 
 mod rounding;
 
@@ -148,7 +146,8 @@ impl ScientificNotation {
             value,
             exponent: exponent - modulo + 1,
             imaginary: self.imaginary,
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -547,7 +546,7 @@ impl KalkValue {
         let exponent = value.abs().log10().floor() as i32 + 1;
 
         ScientificNotation {
-            value: value / (10f64.powf(exponent as f64 - 1f64) as f64),
+            value: value / (10f64.powf(exponent as f64 - 1f64)),
             // I... am not sure what else to do...
             exponent,
             imaginary: complex_number_type == ComplexNumberType::Imaginary,
@@ -936,7 +935,7 @@ impl KalkValue {
             ) => {
                 if self.has_imaginary()
                     || imaginary_rhs != &0f64
-                    || (real < 0f64 && real_rhs < &1f64)
+                    || (real_rhs > &0f64 && real_rhs < &1f64)
                 {
                     let a = real;
                     let b = imaginary;
@@ -1155,6 +1154,10 @@ pub fn format_number(input: f64) -> String {
 
 #[cfg(feature = "rug")]
 pub fn format_number_big(input: &Float) -> String {
+    if input.clone().log10() < 0f64 {
+        return input.to_f64().to_string();
+    }
+
     let input_str = input.to_string();
     let mut result = if input_str.contains('.') {
         input_str
@@ -1562,6 +1565,7 @@ mod tests {
     fn test_to_string_pretty() {
         let in_out = vec![
             (float!(0.99999), float!(0.0), "0.99999 ≈ 1"),
+            (float!(0.00000001), float!(0.0), "0.00000001 ≈ 10^-8"),
             (float!(-0.99999), float!(0.0), "-0.99999 ≈ -1"),
             (float!(0.0), float!(0.99999), "0.99999i ≈ i"),
             (float!(0.000000001), float!(0.0), "10^-9 ≈ 0"),
@@ -1601,7 +1605,8 @@ mod tests {
             (float!(3.00000000004), float!(0.0), "3"),
         ];
         for (real, imaginary, output) in in_out {
-            let result = KalkValue::Number(real, imaginary, None).to_string_pretty(ScientificNotationFormat::Normal);
+            let result = KalkValue::Number(real, imaginary, None)
+                .to_string_pretty(ScientificNotationFormat::Normal);
             assert_eq!(output, result);
         }
     }
@@ -1624,7 +1629,10 @@ mod tests {
                 imaginary: false,
             };
 
-            assert_eq!(sci.to_string_format(ScientificNotationFormat::Engineering), output);
+            assert_eq!(
+                sci.to_string_format(ScientificNotationFormat::Engineering),
+                output
+            );
         }
     }
 }
