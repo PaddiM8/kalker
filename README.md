@@ -32,8 +32,11 @@ Kalker is a calculator program/website that supports user-defined variables, fun
 
 ## Package managers
 
-### macOS
+### macOS (Homebrew)
 `brew install kalker`
+
+### macOS (MacPorts)
+`sudo port install kalker` ([info](https://ports.macports.org/port/kalker/))
 
 ### Arch Linux
 `kalker` in the AUR, eg. `yay -S kalker`
