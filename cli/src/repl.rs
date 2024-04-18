@@ -27,7 +27,12 @@ struct Context {
     mode: ScientificNotationFormat,
 }
 
-pub fn start(parser: &mut parser::Context, precision: u32, format: ScientificNotationFormat) {
+pub fn start(
+    parser: &mut parser::Context,
+    precision: u32,
+    format: ScientificNotationFormat,
+    no_leading_equal: bool
+) {
     let mut editor = Editor::<RLHelper>::new();
     editor.set_helper(Some(RLHelper {
         highlighter: LineHighlighter {},
@@ -73,7 +78,7 @@ pub fn start(parser: &mut parser::Context, precision: u32, format: ScientificNot
         match readline {
             Ok(input) => {
                 editor.add_history_entry(input.as_str());
-                eval_repl(&mut repl, parser, &input, precision);
+                eval_repl(&mut repl, parser, &input, precision, no_leading_equal);
             }
             Err(ReadlineError::Interrupted) => break,
             _ => break,
@@ -85,7 +90,13 @@ pub fn start(parser: &mut parser::Context, precision: u32, format: ScientificNot
     }
 }
 
-fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str, precision: u32) {
+fn eval_repl(
+    repl: &mut self::Context,
+    parser: &mut parser::Context,
+    input: &str,
+    precision: u32,
+    no_leading_equal: bool
+) {
     if let Some(file_name) = input.strip_prefix("load ") {
         if let Some(file_path) = crate::get_input_file_by_name(file_name) {
             crate::load_input_file(&file_path, precision, parser);
@@ -133,7 +144,7 @@ fn eval_repl(repl: &mut self::Context, parser: &mut parser::Context, input: &str
         "clear" => print!("\x1B[2J"),
         "exit" => process::exit(0),
         "help" => print_cli_help(),
-        _ => output::eval(parser, input, precision, repl.base, repl.mode),
+        _ => output::eval(parser, input, precision, repl.base, repl.mode, no_leading_equal),
     }
 }
 

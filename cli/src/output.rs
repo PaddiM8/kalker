@@ -3,7 +3,14 @@ use kalk::{kalk_value::ScientificNotationFormat, parser};
 
 pub(crate) const DEFAULT_PRECISION: u32 = 1024;
 
-pub fn eval(parser: &mut parser::Context, input: &str, precision: u32, base: u8, format: ScientificNotationFormat) {
+pub fn eval(
+    parser: &mut parser::Context,
+    input: &str,
+    precision: u32,
+    base: u8,
+    format: ScientificNotationFormat,
+    no_leading_equal: bool
+) {
     match parser::eval(parser, input, precision) {
         Ok(Some(mut result)) => {
             if base != 10 && !result.set_radix(base) {
@@ -13,7 +20,16 @@ pub fn eval(parser: &mut parser::Context, input: &str, precision: u32, base: u8,
             }
 
             if precision == DEFAULT_PRECISION {
-                println!("{}", result.to_string_pretty_format(format));
+                let mut result_str = result.to_string_pretty_format(format);
+                if no_leading_equal {
+                    result_str = result_str
+                        .trim_start_matches('=')
+                        .trim_start_matches('≈')
+                        .trim_start()
+                        .to_string();
+                }
+
+                println!("{}", result_str);
 
                 return;
             }

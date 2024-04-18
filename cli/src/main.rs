@@ -37,6 +37,10 @@ fn main() {
         .flag(
             Flag::new("max-recursion-depth", FlagType::Int)
                 .description("The maximum allowed recursion depth. This is used to avoid crashes."),
+        )
+        .flag(
+            Flag::new("no-leading-eq", FlagType::Bool)
+                .description("Don't include an equal sign at the start of results")
         );
 
     app.run(args);
@@ -83,7 +87,12 @@ fn default_action(context: &Context) {
 
     if context.args.is_empty() {
         // REPL
-        repl::start(&mut parser_context, precision, format);
+        repl::start(
+            &mut parser_context,
+            precision,
+            format,
+            context.bool_flag("no-leading-eq")
+        );
     } else {
         // Direct output
         output::eval(
@@ -92,6 +101,7 @@ fn default_action(context: &Context) {
             precision,
             10u8,
             format,
+            context.bool_flag("no-leading-eq")
         );
     }
 }
