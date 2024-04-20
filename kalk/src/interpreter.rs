@@ -166,6 +166,7 @@ pub(crate) fn eval_expr(
             context, left, conditions, vars,
         )?)),
         Expr::Equation(left, right, identifier) => eval_equation(context, left, right, identifier),
+        Expr::Preevaluated(value) => Ok(value.clone()),
     }
 }
 
@@ -548,7 +549,7 @@ pub(crate) fn eval_fn_call_expr(
                 };
                 let var_decl = Stmt::VarDecl(
                     argument_identifier,
-                    Box::new(crate::ast::build_literal_ast(&eval_expr(
+                    Box::new(Expr::Preevaluated(eval_expr(
                         context,
                         &expressions[i],
                         None,

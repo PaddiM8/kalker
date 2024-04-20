@@ -564,6 +564,11 @@ fn parse_group_fn(context: &mut Context) -> Result<Expr, KalkError> {
 
 fn parse_vector(context: &mut Context) -> Result<Expr, KalkError> {
     let kind = advance(context).kind;
+    if match_token(context, TokenKind::ClosedBracket) {
+        advance(context);
+
+        return Ok(Expr::Vector(vec![]));
+    }
 
     if kind == TokenKind::OpenBracket {
         skip_newlines(context);
@@ -617,7 +622,7 @@ fn parse_vector(context: &mut Context) -> Result<Expr, KalkError> {
 
     if rows.len() == 1 {
         let mut values = rows.pop().unwrap();
-        if values.len() == 1 {
+        if values.len() == 1 && kind == TokenKind::OpenParenthesis {
             Ok(Expr::Group(Box::new(values.pop().unwrap())))
         } else {
             Ok(Expr::Vector(values))

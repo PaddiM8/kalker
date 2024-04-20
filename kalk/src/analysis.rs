@@ -234,7 +234,11 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
                 analysed_values.push(analyse_expr(context, value)?);
             }
 
-            Expr::Vector(analysed_values)
+            if analysed_values.len() == 1 && matches!(analysed_values[0], Expr::Comprehension(_, _, _)) {
+                analysed_values.pop().unwrap()
+            } else {
+                Expr::Vector(analysed_values)
+            }
         }
         Expr::Matrix(rows) => {
             let mut analysed_rows = Vec::new();
@@ -259,6 +263,7 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
         }
         Expr::Comprehension(left, right, vars) => Expr::Comprehension(left, right, vars),
         Expr::Equation(left, right, identifier) => Expr::Equation(left, right, identifier),
+        Expr::Preevaluated(_) => expr,
     })
 }
 

@@ -1,4 +1,4 @@
-use crate::{kalk_value::KalkFloat, lexer::TokenKind};
+use crate::{kalk_value::{KalkFloat, KalkValue}, lexer::TokenKind};
 
 /// A tree structure of a statement.
 #[derive(Debug, Clone, PartialEq)]
@@ -27,6 +27,7 @@ pub enum Expr {
     Indexer(Box<Expr>, Vec<Expr>),
     Comprehension(Box<Expr>, Vec<Expr>, Vec<RangedVar>),
     Equation(Box<Expr>, Box<Expr>, Identifier),
+    Preevaluated(KalkValue),
 }
 
 #[derive(Debug, Clone, PartialEq)]

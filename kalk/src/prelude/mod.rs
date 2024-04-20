@@ -90,6 +90,7 @@ lazy_static! {
     };
     pub static ref BINARY_FUNCS: HashMap<&'static str, (BinaryFuncInfo, &'static str)> = {
         let mut m = HashMap::new();
+        m.insert("append", (BinaryFuncInfo(append, Other), ""));
         m.insert("bitand", (BinaryFuncInfo(bitand, Other), ""));
         m.insert("bitor", (BinaryFuncInfo(bitor, Other), ""));
         m.insert("bitxor", (BinaryFuncInfo(bitxor, Other), ""));
@@ -698,6 +699,17 @@ pub mod funcs {
                 1
             },
         ))
+    }
+
+    pub fn append(x: KalkValue, y: KalkValue) -> Result<KalkValue, KalkError> {
+        if let KalkValue::Vector(items) = x {
+            let mut new_items = items.clone();
+            new_items.push(y);
+
+            Ok(KalkValue::Vector(new_items))
+        } else {
+            Err(KalkError::Expected(String::from("Vector")))
+        }
     }
 
     //              ⎛           ⎞

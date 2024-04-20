@@ -94,6 +94,7 @@ fn invert(
             Err(KalkError::UnableToInvert(String::from("Comprehension")))
         }
         Expr::Equation(_, _, _) => Err(KalkError::UnableToInvert(String::from("Equation"))),
+        Expr::Preevaluated(_) => Err(KalkError::UnableToInvert(String::from("Equation"))),
     }
 }
 
@@ -402,6 +403,7 @@ pub fn contains_var(symbol_table: &SymbolTable, expr: &Expr, var_name: &str) -> 
         Expr::Indexer(_, _) => false,
         Expr::Comprehension(_, _, _) => false,
         Expr::Equation(_, _, _) => false,
+        Expr::Preevaluated(_) => false,
     }
 }
 
