@@ -793,6 +793,10 @@ fn string_to_num(value: &str) -> Result<KalkFloat, KalkError> {
     }
 
     let base = get_base(value)?;
+    
+    if base > 36 {
+        return Err(KalkError::InvalidNumberLiteral(value.into()));
+    }
     if let Some(result) = crate::radix::parse_float_radix(&value.replace(' ', ""), base) {
         Ok(crate::float!(result))
     } else {
