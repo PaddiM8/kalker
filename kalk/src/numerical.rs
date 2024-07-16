@@ -79,11 +79,11 @@ pub fn integrate(
     expr: &Expr,
     integration_variable: &str,
 ) -> Result<KalkValue, KalkError> {
-    Ok(simpsons_rule(context, a, b, expr, integration_variable)?.round_if_needed())
+    Ok(boole_rule(context, a, b, expr, integration_variable)?.round_if_needed())
 }
 
-/// Composite Simpson's 3/8 rule
-fn simpsons_rule(
+/// Composite Boole's rule
+fn boole_rule(
     context: &mut interpreter::Context,
     a_expr: &Expr,
     b_expr: &Expr,
@@ -96,8 +96,8 @@ fn simpsons_rule(
         .symbol_table
         .get_and_remove_var(integration_variable);
 
-    const N: i32 = 900;
-    let a = interpreter::eval_expr(context, a_expr, None)?;
+    const N: i32 = 1200;
+    let a: KalkValue = interpreter::eval_expr(context, a_expr, None)?;
     let b = interpreter::eval_expr(context, b_expr, None)?;
     let h = (b.sub_without_unit(&a))?.div_without_unit(&KalkValue::from(N))?;
     for i in 0..=N {
@@ -110,9 +110,10 @@ fn simpsons_rule(
         ));
 
         let factor = KalkValue::from(match i {
-            0 | N => 1,
-            _ if i % 3 == 0 => 2,
-            _ => 3,
+            0 | N => 7,
+            _ if i % 4 == 0 => 14,
+            _ if (i - 2) % 4 == 0 => 12,
+            _ => 32,
         } as f64);
 
         // factor * f(x_n)
@@ -135,8 +136,8 @@ fn simpsons_rule(
     let (h_real, h_imaginary, h_unit) = as_number_or_zero!(h);
 
     result.mul_without_unit(&KalkValue::Number(
-        3f64 / 8f64 * h_real,
-        3f64 / 8f64 * h_imaginary,
+        4f64 / 90f64 * h_real,
+        4f64 / 90f64 * h_imaginary,
         h_unit,
     ))
 }
