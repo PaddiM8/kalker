@@ -8,6 +8,8 @@ use crate::float;
 use crate::interpreter;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
+use crate::prelude::abs;
+use crate::prelude::exp;
 use crate::test_helpers::f64_to_float_literal;
 
 pub fn derive_func(
@@ -79,7 +81,170 @@ pub fn integrate(
     expr: &Expr,
     integration_variable: &str,
 ) -> Result<KalkValue, KalkError> {
-    Ok(boole_rule(context, a, b, expr, integration_variable)?.round_if_needed())
+    Ok(qthsh(context, a, b, expr, integration_variable)?.round_if_needed())
+}
+
+// https://github.com/Robert-van-Engelen/Tanh-Sinh/blob/main/qthsh.c
+// No infinate on a_expr and b_expr.
+fn qthsh(
+    context: &mut interpreter::Context,
+    a_expr: &Expr,
+    b_expr: &Expr,
+    expr: &Expr,
+    integration_variable: &str,
+) -> Result<KalkValue, KalkError> {
+    //let mut result_real = float!(0);
+    //let mut result_imaginary = float!(0);
+    //let original_variable_value = context
+    //    .symbol_table
+    //    .get_and_remove_var(integration_variable);
+
+    const FUDGE1: i32 = 160;
+    let eps = KalkValue::from(1e-9);
+    let a = interpreter::eval_expr(context, a_expr, None)?;
+    let b = interpreter::eval_expr(context, b_expr, None)?;
+
+    // const double tol = FUDGE1*eps;
+    let tol = KalkValue::from(FUDGE1).mul(context, eps.clone())?;
+
+    // double c = (a+b)/2;
+    let c = a
+        .clone()
+        .add(context, b.clone())?
+        .div(context, KalkValue::from(2))?;
+
+    // double d = (b-a)/2;
+    let d = b
+        .clone()
+        .sub(context, a.clone())?
+        .div(context, KalkValue::from(2))?;
+
+    // double s = f(c);
+    context.symbol_table.set(Stmt::VarDecl(
+        Identifier::from_full_name(integration_variable),
+        Box::new(crate::ast::build_literal_ast(&c)),
+    ));
+    let mut s = interpreter::eval_expr(context, expr, None)?;
+
+    // double p, e, v, h = 2;
+    //let mut p: KalkValue;
+    //let mut e: KalkValue;
+    let mut v: KalkValue;
+    let mut h = KalkValue::from(2);
+    let mut k = 0;
+
+    loop {
+        // double p = 0, q, fp = 0, fm = 0, t, eh;
+        let mut p: KalkValue = KalkValue::from(0);
+        let mut q: KalkValue;
+        let mut fp: KalkValue = KalkValue::from(0);
+        let mut fm: KalkValue = KalkValue::from(0);
+        let mut t: KalkValue;
+        let mut eh: KalkValue;
+
+        // h /= 2;
+        // eh = exp(h);
+        // t = eh;
+        h = h.clone().div(context, KalkValue::from(2))?;
+        eh = exp(h.clone())?;
+        t = eh.clone();
+
+        // if (k > 0)
+        //  eh *= eh;
+        if k > 0 {
+            eh = eh.clone().mul(context, eh.clone())?;
+        }
+
+        loop {
+            // double u = exp(1/t-t);      // = exp(-2*sinh(j*h)) = 1/exp(sinh(j*h))^2
+            let param_u = KalkValue::from(1)
+                .div(context, t.clone())?
+                .sub(context, t.clone())?;
+            let u = exp(param_u)?;
+
+            // double r = 2*u/(1+u);       // = 1 - tanh(sinh(j*h))
+            let param_r = u.clone().add(context, KalkValue::from(1))?;
+            let r = u
+                .clone()
+                .mul(context, KalkValue::from(2))?
+                .div(context, param_r.clone())?;
+
+            // double w = (t+1/t)*r/(1+u); // = cosh(j*h)/cosh(sinh(j*h))^2
+            // 1+u is the same as param_r
+            let param_w = KalkValue::from(1)
+                .div(context, t.clone())?
+                .add(context, t.clone())?;
+            let w = param_w
+                .mul(context, r.clone())?
+                .div(context, param_r.clone())?;
+
+            // double x = d*r;
+            let x = d.clone().mul(context, r.clone())?;
+
+            // if too close to a then reuse previous fp
+            let mut param_eval = a.clone().add(context, x.clone())?;
+            if param_eval.to_f64() > a.to_f64() {
+                // double y = f(a+x);
+                context.symbol_table.set(Stmt::VarDecl(
+                    Identifier::from_full_name(integration_variable),
+                    Box::new(crate::ast::build_literal_ast(&param_eval)),
+                ));
+                let y = interpreter::eval_expr(context, expr, None)?;
+
+                // if f(x) is finite, add to local sum
+                if y.to_f64().is_finite() {
+                    fp = y;
+                }
+            }
+
+            // if too close to b then reuse previous fm
+            param_eval = b.clone().sub(context, x.clone())?;
+            if param_eval.to_f64() < b.to_f64() {
+                // double y = f(b-x);
+                context.symbol_table.set(Stmt::VarDecl(
+                    Identifier::from_full_name(integration_variable),
+                    Box::new(crate::ast::build_literal_ast(&param_eval)),
+                ));
+                let y = interpreter::eval_expr(context, expr, None)?;
+
+                // if f(x) is finite, add to local sum
+                if y.to_f64().is_finite() {
+                    fm = y;
+                }
+            }
+
+            //q = w * (fp + fm);
+            //p += q;
+            //t *= eh;
+            let param_q = fp.clone().add(context, fm.clone())?;
+            q = w.clone().mul(context, param_q.clone())?;
+            p = p.clone().add(context, q.clone())?;
+            t = t.clone().mul(context, eh.clone())?;
+
+            // while (fabs(q) > eps*fabs(p))
+            if abs(q)?.to_f64() > eps.clone().mul(context, p.clone())?.to_f64() {
+                break;
+            }
+        }
+
+        // v = s-p;
+        // s += p;
+        // ++k;
+        v = s.clone().sub(context, p.clone())?;
+        s = s.clone().add(context, p.clone())?;
+        k += 1;
+
+        // while (fabs(v) > tol*fabs(s) && k <= n); n = 6;
+        if abs(v)?.to_f64() > tol.clone().mul(context, s.clone())?.to_f64() && k <= 7 {
+            break;
+        }
+    }
+
+    // result with estimated relative error err
+    // return d*s*h;
+    let result = d.clone().mul(context, s.clone())?.mul(context, h.clone())?;
+    print!("{}", result);
+    Ok(result)
 }
 
 /// Composite Boole's rule
@@ -97,7 +262,7 @@ fn boole_rule(
         .get_and_remove_var(integration_variable);
 
     const N: i32 = 1200;
-    let a: KalkValue = interpreter::eval_expr(context, a_expr, None)?;
+    let a = interpreter::eval_expr(context, a_expr, None)?;
     let b = interpreter::eval_expr(context, b_expr, None)?;
     let h = (b.sub_without_unit(&a))?.div_without_unit(&KalkValue::from(N))?;
     for i in 0..=N {
