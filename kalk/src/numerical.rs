@@ -84,168 +84,276 @@ pub fn integrate(
     Ok(qthsh(context, a, b, expr, integration_variable)?.round_if_needed())
 }
 
-// https://github.com/Robert-van-Engelen/Tanh-Sinh/blob/main/qthsh.c
-// No infinate on a_expr and b_expr.
-fn qthsh(
+/// Integrates a function from `a` to `b`.
+/// Uses the Tanh-Sinh quadrature over [-1, +1]
+/// and then transforms to an integral over [a, b].
+pub fn qthsh(
     context: &mut interpreter::Context,
     a_expr: &Expr,
     b_expr: &Expr,
     expr: &Expr,
     integration_variable: &str,
 ) -> Result<KalkValue, KalkError> {
-    //let mut result_real = float!(0);
-    //let mut result_imaginary = float!(0);
-    //let original_variable_value = context
-    //    .symbol_table
-    //    .get_and_remove_var(integration_variable);
+    // Apply a linear change of variables:
+    //
+    // x = c * t + d
+    //
+    // where:
+    //      c = 0.5 * (b - a)
+    //      d = 0.5 * (a + b)
 
-    const FUDGE1: i32 = 160;
-    let eps = KalkValue::from(1e-9);
     let a = interpreter::eval_expr(context, a_expr, None)?;
     let b = interpreter::eval_expr(context, b_expr, None)?;
 
-    // const double tol = FUDGE1*eps;
-    let tol = KalkValue::from(FUDGE1).mul(context, eps.clone())?;
-
-    // double c = (a+b)/2;
-    let c = a
-        .clone()
-        .add(context, b.clone())?
-        .div(context, KalkValue::from(2))?;
-
-    // double d = (b-a)/2;
-    let d = b
+    let c = b
         .clone()
         .sub(context, a.clone())?
         .div(context, KalkValue::from(2))?;
 
-    // double s = f(c);
-    context.symbol_table.set(Stmt::VarDecl(
-        Identifier::from_full_name(integration_variable),
-        Box::new(crate::ast::build_literal_ast(&c)),
-    ));
-    let mut s = interpreter::eval_expr(context, expr, None)?;
+    let d: KalkValue = a
+        .clone()
+        .add(context, b.clone())?
+        .div(context, KalkValue::from(2))?;
 
-    // double p, e, v, h = 2;
-    //let mut p: KalkValue;
-    //let mut e: KalkValue;
-    let mut v: KalkValue;
-    let mut h = KalkValue::from(2);
-    let mut k = 0;
+    let mut tanhsinhresult = KalkValue::from(0.0);
 
-    loop {
-        // double p = 0, q, fp = 0, fm = 0, t, eh;
-        let mut p: KalkValue = KalkValue::from(0);
-        let mut q: KalkValue;
-        let mut fp: KalkValue = KalkValue::from(0);
-        let mut fm: KalkValue = KalkValue::from(0);
-        let mut t: KalkValue;
-        let mut eh: KalkValue;
+    for i in 0..100 {
+        let param_out: KalkValue = c
+            .clone()
+            .mul(context, KalkValue::from(ABSCISSAE[i]))?
+            .add(context, d.clone())?;
+        context.symbol_table.set(Stmt::VarDecl(
+            Identifier::from_full_name(integration_variable),
+            Box::new(crate::ast::build_literal_ast(&param_out)),
+        ));
 
-        // h /= 2;
-        // eh = exp(h);
-        // t = eh;
-        h = h.clone().div(context, KalkValue::from(2))?;
-        eh = exp(h.clone())?;
-        t = eh.clone();
-
-        // if (k > 0)
-        //  eh *= eh;
-        if k > 0 {
-            eh = eh.clone().mul(context, eh.clone())?;
+        let mut out = interpreter::eval_expr(context, expr, None)?;
+        if !out.to_float().is_finite() {
+            out = KalkValue::from(0.0);
         }
-
-        loop {
-            // double u = exp(1/t-t);      // = exp(-2*sinh(j*h)) = 1/exp(sinh(j*h))^2
-            let param_u = KalkValue::from(1)
-                .div(context, t.clone())?
-                .sub(context, t.clone())?;
-            let u = exp(param_u)?;
-
-            // double r = 2*u/(1+u);       // = 1 - tanh(sinh(j*h))
-            let param_r = u.clone().add(context, KalkValue::from(1))?;
-            let r = u
-                .clone()
-                .mul(context, KalkValue::from(2))?
-                .div(context, param_r.clone())?;
-
-            // double w = (t+1/t)*r/(1+u); // = cosh(j*h)/cosh(sinh(j*h))^2
-            // 1+u is the same as param_r
-            let param_w = KalkValue::from(1)
-                .div(context, t.clone())?
-                .add(context, t.clone())?;
-            let w = param_w
-                .mul(context, r.clone())?
-                .div(context, param_r.clone())?;
-
-            // double x = d*r;
-            let x = d.clone().mul(context, r.clone())?;
-
-            // if too close to a then reuse previous fp
-            let mut param_eval = a.clone().add(context, x.clone())?;
-            if param_eval.to_f64() > a.to_f64() {
-                // double y = f(a+x);
-                context.symbol_table.set(Stmt::VarDecl(
-                    Identifier::from_full_name(integration_variable),
-                    Box::new(crate::ast::build_literal_ast(&param_eval)),
-                ));
-                let y = interpreter::eval_expr(context, expr, None)?;
-
-                // if f(x) is finite, add to local sum
-                if y.to_f64().is_finite() {
-                    fp = y;
-                }
-            }
-
-            // if too close to b then reuse previous fm
-            param_eval = b.clone().sub(context, x.clone())?;
-            if param_eval.to_f64() < b.to_f64() {
-                // double y = f(b-x);
-                context.symbol_table.set(Stmt::VarDecl(
-                    Identifier::from_full_name(integration_variable),
-                    Box::new(crate::ast::build_literal_ast(&param_eval)),
-                ));
-                let y = interpreter::eval_expr(context, expr, None)?;
-
-                // if f(x) is finite, add to local sum
-                if y.to_f64().is_finite() {
-                    fm = y;
-                }
-            }
-
-            //q = w * (fp + fm);
-            //p += q;
-            //t *= eh;
-            let param_q = fp.clone().add(context, fm.clone())?;
-            q = w.clone().mul(context, param_q.clone())?;
-            p = p.clone().add(context, q.clone())?;
-            t = t.clone().mul(context, eh.clone())?;
-
-            // while (fabs(q) > eps*fabs(p))
-            if abs(q)?.to_f64() > eps.clone().mul(context, p.clone())?.to_f64() {
-                break;
-            }
-        }
-
-        // v = s-p;
-        // s += p;
-        // ++k;
-        v = s.clone().sub(context, p.clone())?;
-        s = s.clone().add(context, p.clone())?;
-        k += 1;
-
-        // while (fabs(v) > tol*fabs(s) && k <= n); n = 6;
-        if abs(v)?.to_f64() > tol.clone().mul(context, s.clone())?.to_f64() && k <= 7 {
-            break;
-        }
+        let param_integral = KalkValue::from(WEIGHTS[i]).mul(context, out)?;
+        tanhsinhresult = tanhsinhresult
+            .clone()
+            .add(context, param_integral.clone())?;
     }
 
-    // result with estimated relative error err
-    // return d*s*h;
-    let result = d.clone().mul(context, s.clone())?.mul(context, h.clone())?;
-    print!("{}", result);
-    Ok(result)
+    c.mul(context, tanhsinhresult)
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ABSCISSAE & WEIGHTS
+// These are for the tanh-sinh quadrature.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// Nodes and weights from: https://keisan.casio.com/exec/system/1285151216
+
+/// Abscissae: the nodes for the sum evaluation.
+pub const ABSCISSAE: [f64; 100] = [
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -0.999_999_999_999_999_999_999_999_92,
+    -0.999_999_999_999_999_999_999_999_95,
+    -0.999_999_999_999_999_999_999_999_98,
+    -0.999_999_999_999_999_999_999_999_91,
+    -0.999_999_999_999_999_999_999_999_95,
+    -0.999_999_999_999_999_999_999_998_77,
+    -0.999_999_999_999_999_999_999_103_26,
+    -0.999_999_999_999_999_999_703_932_4,
+    -0.999_999_999_999_999_950_531_716_2,
+    -0.999_999_999_999_995_4,
+    -0.999_999_999_999_755_4,
+    -0.999_999_999_991_728_4,
+    -0.999_999_999_814_670_3,
+    -0.999_999_997_111_343_6,
+    -0.999_999_967_297_845_9,
+    -0.999_999_720_654_543_6,
+    -0.999_998_137_805_321,
+    -0.999_990_019_143_856_7,
+    -0.999_955_840_978_693_4,
+    -0.999_834_913_162_265,
+    -0.999_467_635_803_999,
+    -0.998_491_938_731_602_9,
+    -0.996_186_771_585_243_7,
+    -0.991_272_560_236_550_9,
+    -0.981_701_565_973_876_9,
+    -0.964_495_379_931_111_4,
+    -0.935_708_688_740_139_8,
+    -0.890_613_153_970_636_9,
+    -0.824_190_972_468_412_2,
+    -0.731_982_954_977_568_5,
+    -0.611_228_933_047_550_6,
+    -0.462_072_342_445_637_1,
+    -0.288_435_163_890_398_6,
+    -0.098_120_697_049_078_77,
+    0.098_120_697_049_078_75,
+    0.288_435_163_890_398_64,
+    0.462_072_342_445_637_19,
+    0.611_228_933_047_550_7,
+    0.731_982_954_977_568_5,
+    0.824_190_972_468_412_2,
+    0.890_613_153_970_636_9,
+    0.935_708_688_740_139_9,
+    0.964_495_379_931_111_5,
+    0.981_701_565_973_876_9,
+    0.991_272_560_236_551,
+    0.996_186_771_585_243_7,
+    0.998_491_938_731_603,
+    0.999_467_635_803_999,
+    0.999_834_913_162_265,
+    0.999_955_840_978_693_5,
+    0.999_990_019_143_856_8,
+    0.999_998_137_805_321_1,
+    0.999_999_720_654_543_7,
+    0.999_999_967_297_846,
+    0.999_999_997_111_343_7,
+    0.999_999_999_814_670_2,
+    0.999_999_999_991_728_4,
+    0.999_999_999_999_755_4,
+    0.999_999_999_999_995_4,
+    0.999_999_999_999_999_950_531_74,
+    0.999_999_999_999_999_999_703_94,
+    0.999_999_999_999_999_999_999_156,
+    0.999_999_999_999_999_999_999_987,
+    0.999_999_999_999_999_999_999_985,
+    0.999_999_999_999_999_999_999_951,
+    0.999_999_999_999_999_999_999_958,
+    0.999_999_999_999_999_999_999_955,
+    0.999_999_999_999_999_999_999_912,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+];
+
+/// Weights for the sum evaluation.
+pub const WEIGHTS: [f64; 100] = [
+    0.0,
+    4.575_617_930_178_338e-295,
+    3.316_994_462_570_346e-260,
+    1.865_212_622_495_173_5e-229,
+    2.479_121_672_052_092e-202,
+    2.081_537_448_295_626e-178,
+    2.628_202_011_356_882_4e-157,
+    1.072_629_885_654_983_3e-138,
+    2.779_482_305_261_637e-122,
+    8.296_418_844_663_515e-108,
+    4.824_667_051_120_648e-95,
+    8.690_880_649_537_159e-84,
+    7.300_384_623_604_137e-74,
+    4.102_662_749_806_205e-65,
+    2.120_927_715_027_845e-57,
+    1.335_824_993_406_033_2e-50,
+    1.313_406_878_320_599_1e-44,
+    2.508_807_816_395_078_6e-39,
+    1.129_193_867_059_432_8e-34,
+    1.419_894_975_881_043_8e-30,
+    5.796_754_421_896_154_4e-27,
+    8.772_732_913_927_396e-24,
+    5.532_447_125_135_289e-21,
+    1.612_026_230_404_078_1e-18,
+    2.377_241_245_744_043_6e-16,
+    1.922_871_877_455_573e-14,
+    9.158_786_378_811_089e-13,
+    2.735_019_685_607_782_3e-11,
+    5.412_036_348_700_474e-10,
+    7.452_095_495_199_113e-9,
+    7.455_643_353_281_056e-8,
+    5.630_935_258_210_419e-7,
+    3.320_892_221_887_424e-6,
+    1.575_869_255_697_420_2e-5,
+    6.178_940_879_197_28e-5,
+    2.049_612_222_935_924_2e-4,
+    5.873_088_850_232_362e-4,
+    0.001_480_856_522_480_776_8,
+    0.003_339_108_906_155_36,
+    0.006_827_704_416_155_456,
+    0.012_809_851_589_261_179,
+    0.022_262_908_367_071_66,
+    0.036_106_623_280_003_48,
+    0.054_935_001_719_810_43,
+    0.078_672_104_392_875_16,
+    0.106_225_018_644_775_54,
+    0.135_274_854_478_869_08,
+    0.162_387_107_725_986_52,
+    0.183_570_841_955_285,
+    0.195_234_233_228_838_65,
+    0.195_234_233_228_838_65,
+    0.183_570_841_955_285,
+    0.162_387_107_725_986_52,
+    0.135_274_854_478_869_08,
+    0.106_225_018_644_775_54,
+    0.078_672_104_392_875_16,
+    0.054_935_001_719_810_43,
+    0.036_106_623_280_003_48,
+    0.022_262_908_367_071_66,
+    0.012_809_851_589_261_179,
+    0.006_827_704_416_155_456,
+    0.003_339_108_906_155_36,
+    0.001_480_856_522_480_776_8,
+    5.873_088_850_232_362e-4,
+    2.049_612_222_935_924_2e-4,
+    6.178_940_879_197_28e-5,
+    1.575_869_255_697_420_2e-5,
+    3.320_892_221_887_424e-6,
+    5.630_935_258_210_419e-7,
+    7.455_643_353_281_056e-8,
+    7.452_095_495_199_113e-9,
+    5.412_036_348_700_474e-10,
+    2.735_019_685_607_782_3e-11,
+    9.158_786_378_811_089e-13,
+    1.922_871_877_455_573e-14,
+    2.377_241_245_744_043_6e-16,
+    1.612_026_230_404_078_1e-18,
+    5.532_447_125_135_289e-21,
+    8.772_732_913_927_396e-24,
+    5.796_754_421_896_154_4e-27,
+    1.419_894_975_881_043_8e-30,
+    1.129_193_867_059_432_8e-34,
+    2.508_807_816_395_078_6e-39,
+    1.313_406_878_320_599_1e-44,
+    1.335_824_993_406_033_2e-50,
+    2.120_927_715_027_845e-57,
+    4.102_662_749_806_205e-65,
+    7.300_384_623_604_137e-74,
+    8.690_880_649_537_159e-84,
+    4.824_667_051_120_648e-95,
+    8.296_418_844_663_515e-108,
+    2.779_482_305_261_637e-122,
+    1.072_629_885_654_983_3e-138,
+    2.628_202_011_356_882_4e-157,
+    2.081_537_448_295_626e-178,
+    2.479_121_672_052_092e-202,
+    1.865_212_622_495_173_5e-229,
+    3.316_994_462_570_346e-260,
+    4.575_617_930_178_338e-295,
+    0.0,
+];
 
 /// Composite Boole's rule
 fn boole_rule(
