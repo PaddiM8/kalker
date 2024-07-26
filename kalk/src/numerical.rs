@@ -1,4 +1,3 @@
-use crate::as_number_or_zero;
 use crate::ast;
 use crate::ast::Expr;
 use crate::ast::Identifier;
@@ -8,8 +7,9 @@ use crate::float;
 use crate::interpreter;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
-use crate::prelude::abs;
-use crate::prelude::exp;
+use crate::prelude::cosh;
+use crate::prelude::sinh;
+use crate::prelude::tanh;
 use crate::test_helpers::f64_to_float_literal;
 
 pub fn derive_func(
@@ -94,22 +94,18 @@ pub fn qthsh(
     expr: &Expr,
     integration_variable: &str,
 ) -> Result<KalkValue, KalkError> {
-    // Apply a linear change of variables:
-    //
-    // x = c * t + d
-    //
-    // where:
-    //      c = 0.5 * (b - a)
-    //      d = 0.5 * (a + b)
-
     let a = interpreter::eval_expr(context, a_expr, None)?;
     let b = interpreter::eval_expr(context, b_expr, None)?;
+
+    let h = 2.0;
+    // 2/200 = 0.01
+    let step = 0.01;
+    let mut k = -1.0;
 
     let c = b
         .clone()
         .sub(context, a.clone())?
         .div(context, KalkValue::from(2))?;
-
     let d: KalkValue = a
         .clone()
         .add(context, b.clone())?
@@ -117,10 +113,38 @@ pub fn qthsh(
 
     let mut tanhsinhresult = KalkValue::from(0.0);
 
-    for i in 0..100 {
+    #[cfg(feature = "rug")]
+    let pi = KalkValue::Number(
+        rug::Float::with_val(1024, rug::float::Constant::Pi),
+        rug::Float::with_val(1024, rug::float::Special::Zero),
+        None,
+    );
+    #[cfg(not(feature = "rug"))]
+    let pi = KalkValue::from(std::f64::consts::PI);
+
+    println!("pi: {} whatever {}", pi, KalkValue::from(0.9));
+
+    loop {
+        let kh = KalkValue::from(k * h);
+
+        // Calculate abscissas as tanh(0.5 π sinh(kh))
+        let param_abs = KalkValue::from(0.5)
+            .mul(context, pi.clone())?
+            .mul(context, sinh(kh.clone())?)?;
+        let abscissae = tanh(param_abs.clone())?;
+
+        // Calculate weight as
+        // \frac{0.5*h*pi*cosh(kh)}{cosh^2(0.5*pi*sinh(kh))}
+        let param_wei_top = KalkValue::from(0.5)
+            .mul(context, KalkValue::from(h))?
+            .mul(context, pi.clone())?
+            .mul(context, cosh(kh.clone())?)?;
+        let param_wei_bottom = cosh(param_abs.clone())?.pow(context, KalkValue::from(2))?;
+        let weight = param_wei_top.div(context, param_wei_bottom)?;
+
         let param_out: KalkValue = c
             .clone()
-            .mul(context, KalkValue::from(ABSCISSAE[i]))?
+            .mul(context, abscissae.clone())?
             .add(context, d.clone())?;
         context.symbol_table.set(Stmt::VarDecl(
             Identifier::from_full_name(integration_variable),
@@ -131,288 +155,28 @@ pub fn qthsh(
         if !out.to_float().is_finite() {
             out = KalkValue::from(0.0);
         }
-        let param_integral = KalkValue::from(WEIGHTS[i]).mul(context, out)?;
+        let param_integral = weight.clone().mul(context, out)?;
         tanhsinhresult = tanhsinhresult
             .clone()
             .add(context, param_integral.clone())?;
+        //println!("tanhsinhresult: {}", tanhsinhresult);
+
+        k += step;
+        println!(
+            "kh: {} k*h {} abscissae: {} original {} next_k: {}",
+            float!((k - step) * h),
+            (k - step) * h,
+            abscissae,
+            param_abs.clone(),
+            k,
+        );
+
+        if k > 1.0 {
+            break;
+        }
     }
 
     c.mul(context, tanhsinhresult)
-}
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ABSCISSAE & WEIGHTS
-// These are for the tanh-sinh quadrature.
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-// Nodes and weights from: https://keisan.casio.com/exec/system/1285151216
-
-/// Abscissae: the nodes for the sum evaluation.
-pub const ABSCISSAE: [f64; 100] = [
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -1.0,
-    -0.999_999_999_999_999_999_999_999_92,
-    -0.999_999_999_999_999_999_999_999_95,
-    -0.999_999_999_999_999_999_999_999_98,
-    -0.999_999_999_999_999_999_999_999_91,
-    -0.999_999_999_999_999_999_999_999_95,
-    -0.999_999_999_999_999_999_999_998_77,
-    -0.999_999_999_999_999_999_999_103_26,
-    -0.999_999_999_999_999_999_703_932_4,
-    -0.999_999_999_999_999_950_531_716_2,
-    -0.999_999_999_999_995_4,
-    -0.999_999_999_999_755_4,
-    -0.999_999_999_991_728_4,
-    -0.999_999_999_814_670_3,
-    -0.999_999_997_111_343_6,
-    -0.999_999_967_297_845_9,
-    -0.999_999_720_654_543_6,
-    -0.999_998_137_805_321,
-    -0.999_990_019_143_856_7,
-    -0.999_955_840_978_693_4,
-    -0.999_834_913_162_265,
-    -0.999_467_635_803_999,
-    -0.998_491_938_731_602_9,
-    -0.996_186_771_585_243_7,
-    -0.991_272_560_236_550_9,
-    -0.981_701_565_973_876_9,
-    -0.964_495_379_931_111_4,
-    -0.935_708_688_740_139_8,
-    -0.890_613_153_970_636_9,
-    -0.824_190_972_468_412_2,
-    -0.731_982_954_977_568_5,
-    -0.611_228_933_047_550_6,
-    -0.462_072_342_445_637_1,
-    -0.288_435_163_890_398_6,
-    -0.098_120_697_049_078_77,
-    0.098_120_697_049_078_75,
-    0.288_435_163_890_398_64,
-    0.462_072_342_445_637_19,
-    0.611_228_933_047_550_7,
-    0.731_982_954_977_568_5,
-    0.824_190_972_468_412_2,
-    0.890_613_153_970_636_9,
-    0.935_708_688_740_139_9,
-    0.964_495_379_931_111_5,
-    0.981_701_565_973_876_9,
-    0.991_272_560_236_551,
-    0.996_186_771_585_243_7,
-    0.998_491_938_731_603,
-    0.999_467_635_803_999,
-    0.999_834_913_162_265,
-    0.999_955_840_978_693_5,
-    0.999_990_019_143_856_8,
-    0.999_998_137_805_321_1,
-    0.999_999_720_654_543_7,
-    0.999_999_967_297_846,
-    0.999_999_997_111_343_7,
-    0.999_999_999_814_670_2,
-    0.999_999_999_991_728_4,
-    0.999_999_999_999_755_4,
-    0.999_999_999_999_995_4,
-    0.999_999_999_999_999_950_531_74,
-    0.999_999_999_999_999_999_703_94,
-    0.999_999_999_999_999_999_999_156,
-    0.999_999_999_999_999_999_999_987,
-    0.999_999_999_999_999_999_999_985,
-    0.999_999_999_999_999_999_999_951,
-    0.999_999_999_999_999_999_999_958,
-    0.999_999_999_999_999_999_999_955,
-    0.999_999_999_999_999_999_999_912,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-];
-
-/// Weights for the sum evaluation.
-pub const WEIGHTS: [f64; 100] = [
-    0.0,
-    4.575_617_930_178_338e-295,
-    3.316_994_462_570_346e-260,
-    1.865_212_622_495_173_5e-229,
-    2.479_121_672_052_092e-202,
-    2.081_537_448_295_626e-178,
-    2.628_202_011_356_882_4e-157,
-    1.072_629_885_654_983_3e-138,
-    2.779_482_305_261_637e-122,
-    8.296_418_844_663_515e-108,
-    4.824_667_051_120_648e-95,
-    8.690_880_649_537_159e-84,
-    7.300_384_623_604_137e-74,
-    4.102_662_749_806_205e-65,
-    2.120_927_715_027_845e-57,
-    1.335_824_993_406_033_2e-50,
-    1.313_406_878_320_599_1e-44,
-    2.508_807_816_395_078_6e-39,
-    1.129_193_867_059_432_8e-34,
-    1.419_894_975_881_043_8e-30,
-    5.796_754_421_896_154_4e-27,
-    8.772_732_913_927_396e-24,
-    5.532_447_125_135_289e-21,
-    1.612_026_230_404_078_1e-18,
-    2.377_241_245_744_043_6e-16,
-    1.922_871_877_455_573e-14,
-    9.158_786_378_811_089e-13,
-    2.735_019_685_607_782_3e-11,
-    5.412_036_348_700_474e-10,
-    7.452_095_495_199_113e-9,
-    7.455_643_353_281_056e-8,
-    5.630_935_258_210_419e-7,
-    3.320_892_221_887_424e-6,
-    1.575_869_255_697_420_2e-5,
-    6.178_940_879_197_28e-5,
-    2.049_612_222_935_924_2e-4,
-    5.873_088_850_232_362e-4,
-    0.001_480_856_522_480_776_8,
-    0.003_339_108_906_155_36,
-    0.006_827_704_416_155_456,
-    0.012_809_851_589_261_179,
-    0.022_262_908_367_071_66,
-    0.036_106_623_280_003_48,
-    0.054_935_001_719_810_43,
-    0.078_672_104_392_875_16,
-    0.106_225_018_644_775_54,
-    0.135_274_854_478_869_08,
-    0.162_387_107_725_986_52,
-    0.183_570_841_955_285,
-    0.195_234_233_228_838_65,
-    0.195_234_233_228_838_65,
-    0.183_570_841_955_285,
-    0.162_387_107_725_986_52,
-    0.135_274_854_478_869_08,
-    0.106_225_018_644_775_54,
-    0.078_672_104_392_875_16,
-    0.054_935_001_719_810_43,
-    0.036_106_623_280_003_48,
-    0.022_262_908_367_071_66,
-    0.012_809_851_589_261_179,
-    0.006_827_704_416_155_456,
-    0.003_339_108_906_155_36,
-    0.001_480_856_522_480_776_8,
-    5.873_088_850_232_362e-4,
-    2.049_612_222_935_924_2e-4,
-    6.178_940_879_197_28e-5,
-    1.575_869_255_697_420_2e-5,
-    3.320_892_221_887_424e-6,
-    5.630_935_258_210_419e-7,
-    7.455_643_353_281_056e-8,
-    7.452_095_495_199_113e-9,
-    5.412_036_348_700_474e-10,
-    2.735_019_685_607_782_3e-11,
-    9.158_786_378_811_089e-13,
-    1.922_871_877_455_573e-14,
-    2.377_241_245_744_043_6e-16,
-    1.612_026_230_404_078_1e-18,
-    5.532_447_125_135_289e-21,
-    8.772_732_913_927_396e-24,
-    5.796_754_421_896_154_4e-27,
-    1.419_894_975_881_043_8e-30,
-    1.129_193_867_059_432_8e-34,
-    2.508_807_816_395_078_6e-39,
-    1.313_406_878_320_599_1e-44,
-    1.335_824_993_406_033_2e-50,
-    2.120_927_715_027_845e-57,
-    4.102_662_749_806_205e-65,
-    7.300_384_623_604_137e-74,
-    8.690_880_649_537_159e-84,
-    4.824_667_051_120_648e-95,
-    8.296_418_844_663_515e-108,
-    2.779_482_305_261_637e-122,
-    1.072_629_885_654_983_3e-138,
-    2.628_202_011_356_882_4e-157,
-    2.081_537_448_295_626e-178,
-    2.479_121_672_052_092e-202,
-    1.865_212_622_495_173_5e-229,
-    3.316_994_462_570_346e-260,
-    4.575_617_930_178_338e-295,
-    0.0,
-];
-
-/// Composite Boole's rule
-fn boole_rule(
-    context: &mut interpreter::Context,
-    a_expr: &Expr,
-    b_expr: &Expr,
-    expr: &Expr,
-    integration_variable: &str,
-) -> Result<KalkValue, KalkError> {
-    let mut result_real = float!(0);
-    let mut result_imaginary = float!(0);
-    let original_variable_value = context
-        .symbol_table
-        .get_and_remove_var(integration_variable);
-
-    const N: i32 = 1200;
-    let a = interpreter::eval_expr(context, a_expr, None)?;
-    let b = interpreter::eval_expr(context, b_expr, None)?;
-    let h = (b.sub_without_unit(&a))?.div_without_unit(&KalkValue::from(N))?;
-    for i in 0..=N {
-        let variable_value = a
-            .clone()
-            .add_without_unit(&KalkValue::from(i).mul_without_unit(&h.clone())?)?;
-        context.symbol_table.set(Stmt::VarDecl(
-            Identifier::from_full_name(integration_variable),
-            Box::new(crate::ast::build_literal_ast(&variable_value)),
-        ));
-
-        let factor = KalkValue::from(match i {
-            0 | N => 7,
-            _ if i % 4 == 0 => 14,
-            _ if (i - 2) % 4 == 0 => 12,
-            _ => 32,
-        } as f64);
-
-        // factor * f(x_n)
-        let (mul_real, mul_imaginary, _) = as_number_or_zero!(
-            factor.mul_without_unit(&interpreter::eval_expr(context, expr, None)?)?
-        );
-        result_real += mul_real;
-        result_imaginary += mul_imaginary;
-    }
-
-    if let Some(value) = original_variable_value {
-        context.symbol_table.insert(value);
-    } else {
-        context
-            .symbol_table
-            .get_and_remove_var(integration_variable);
-    }
-
-    let result = KalkValue::Number(result_real, result_imaginary, None);
-    let (h_real, h_imaginary, h_unit) = as_number_or_zero!(h);
-
-    result.mul_without_unit(&KalkValue::Number(
-        4f64 / 90f64 * h_real,
-        4f64 / 90f64 * h_imaginary,
-        h_unit,
-    ))
 }
 
 pub fn find_root(
