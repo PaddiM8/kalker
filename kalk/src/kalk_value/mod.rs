@@ -571,6 +571,21 @@ impl KalkValue {
         }
     }
 
+    pub fn is_finite(&self) -> bool {
+        //#[cfg(feature = "rug")]
+        if let KalkValue::Number(real, imaginary, _) = self {
+            real.is_finite() && imaginary.is_finite()
+        } else {
+            false
+        }
+        //#[cfg(not(feature = "rug"))]
+        //if let KalkValue::Number(real, imaginary, _) = self {
+        //    real.is_finite() && imaginary.is_finite()
+        //} else {
+        //    false
+        //}
+    }
+
     pub fn to_scientific_notation(
         &self,
         complex_number_type: ComplexNumberType,
