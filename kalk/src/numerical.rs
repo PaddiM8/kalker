@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use crate::as_number_or_zero;
 use crate::ast;
 use crate::ast::Expr;
@@ -17,29 +19,47 @@ pub fn derive_func(
     name: &Identifier,
     argument: KalkValue,
 ) -> Result<KalkValue, KalkError> {
-    const H: f64 = 0.000001;
+    let h = KalkValue::from(1e-6);
 
+    let n: i64 = name.clone().prime_count as i64;
     let unit = argument.get_unit().cloned();
-    let argument_with_h = ast::build_literal_ast(&argument.clone().add_without_unit(&H.into())?);
-    let argument_without_h = ast::build_literal_ast(&argument.sub_without_unit(&H.into())?);
-    let new_identifier = Identifier::from_name_and_primes(&name.pure_name, name.prime_count - 1);
+    let new_identifier = Identifier::from_name_and_primes(&name.pure_name, 0);
 
-    let f_x_h = interpreter::eval_fn_call_expr(
-        context,
-        &new_identifier,
-        &[argument_with_h],
-        unit.as_ref(),
-    )?;
-    let f_x = interpreter::eval_fn_call_expr(
-        context,
-        &new_identifier,
-        &[argument_without_h],
-        unit.as_ref(),
-    )?;
+    // https://en.wikipedia.org/wiki/Numerical_differentiation
+    // Higher derivatives
+    let mut top = KalkValue::from(0);
+    for k in 0..=n {
+        let sign = KalkValue::from(-1).pow(context, KalkValue::from(k.add(n)))?;
 
-    Ok(f_x_h
-        .sub_without_unit(&f_x)?
-        .div_without_unit(&(2f64 * H).into())?
+        let coefficient = if k != 0 {
+            let mut first_num = 1;
+            let mut last_num = 1;
+            (1..=k).for_each(|f| first_num = first_num * f);
+            (n - k + 1..=n).for_each(|f| last_num = last_num * f);
+
+            KalkValue::from(last_num / first_num)
+        } else {
+            KalkValue::from(1)
+        };
+
+        let factor = ast::build_literal_ast(
+            &argument
+                .clone()
+                .add_without_unit(&h.clone().mul(context, KalkValue::from(k))?)?,
+        );
+
+        let f_x_kh =
+            interpreter::eval_fn_call_expr(context, &new_identifier, &[factor], unit.as_ref())?;
+
+        let to_add = sign
+            .clone()
+            .mul(context, coefficient.clone())?
+            .mul(context, f_x_kh.clone())?;
+        top = top.add(context, to_add)?;
+    }
+
+    Ok(top
+        .div_without_unit(&h.clone().pow(context, KalkValue::from(n))?)?
         .round_if_needed())
 }
 
@@ -303,6 +323,16 @@ fn boole_rule(
 
     let result = KalkValue::Number(result_real, result_imaginary, None);
     let (h_real, h_imaginary, h_unit) = as_number_or_zero!(h);
+
+    // Error term: (-3*(h^5)*(f^(4)(e)))/80
+    // Where h = (b-a)/2, e is between a and b
+    //let hpow5mul3 = b
+    //   .clone()
+    //   .sub(context, a.clone())?
+    //   .div(context, KalkValue::from(2))?
+    //   .pow(context, KalkValue::from(5))?
+    //   .mul(context, KalkValue::from(3))?;
+    //let param_err = hpow5mul3;
 
     result.mul_without_unit(&KalkValue::Number(
         4f64 / 90f64 * h_real,
