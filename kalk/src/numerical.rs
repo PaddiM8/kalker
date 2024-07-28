@@ -261,12 +261,11 @@ fn qthsh(
 
     // result with estimated relative error err
     // if (err != NULL) err = fabs(v)/(FUDGE2*fabs(s)+eps);
-    const FUDGE2: i32 = 1;
-    let param_err = abs(s.clone())?
-        .mul(context, KalkValue::from(FUDGE2))?
-        .add(context, eps)?;
-    let err = abs(v)?.div(context, param_err)?;
-    println!("Estimate err: {}.", err);
+    //const FUDGE2: i32 = 1;
+    //let param_err = abs(s.clone())?
+    //    .mul(context, KalkValue::from(FUDGE2))?
+    //    .add(context, eps)?;
+    //let err = abs(v)?.div(context, param_err)?;
 
     // return d*s*h;
     let result = d.clone().mul(context, s.clone())?.mul(context, h.clone())?;
