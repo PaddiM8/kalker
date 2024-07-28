@@ -101,12 +101,14 @@ pub fn integrate(
     expr: &Expr,
     integration_variable: &str,
 ) -> Result<KalkValue, KalkError> {
-    let mut result = boole_rule(context, a, b, expr, integration_variable)?;
+    let result = boole_rule(context, a, b, expr, integration_variable)?;
     // TODO: check whether use qthsh or not.
     if result.is_nan() {
-        result = qthsh(context, a, b, expr, integration_variable)?;
+        let qthsh_result = qthsh(context, a, b, expr, integration_variable)?.round_if_needed();
+        Ok(qthsh_result)
+    } else {
+        Ok(result)
     }
-    Ok(result.round_if_needed())
 }
 
 // Ref. https://github.com/Robert-van-Engelen/Tanh-Sinh/blob/main/qthsh.c
@@ -237,7 +239,7 @@ fn qthsh(
             t = t.clone().mul(context, eh.clone())?;
 
             // while (fabs(q) > eps*fabs(p))
-            if abs(q)?.to_f64() <= abs(p.clone())?.mul(context, eps.clone())?.to_f64() {
+            if abs(q)?.to_float() <= abs(p.clone())?.mul(context, eps.clone())?.to_float() {
                 break;
             }
         }
@@ -250,7 +252,8 @@ fn qthsh(
         k += 1;
 
         // while (fabs(v) > tol*fabs(s) && k <= n); n = 7;
-        if abs(v.clone())?.to_f64() <= abs(s.clone())?.mul(context, tol.clone())?.to_f64() && k <= 7
+        if abs(v.clone())?.to_float() <= abs(s.clone())?.mul(context, tol.clone())?.to_float()
+            || k > 7
         {
             break;
         }
