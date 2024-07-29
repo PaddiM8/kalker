@@ -1,12 +1,10 @@
 use std::ops::Add;
 
-use crate::as_number_or_zero;
 use crate::ast;
 use crate::ast::Expr;
 use crate::ast::Identifier;
 use crate::ast::Stmt;
 use crate::errors::KalkError;
-use crate::float;
 use crate::interpreter;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
@@ -270,76 +268,6 @@ fn qthsh(
     // return d*s*h;
     let result = d.clone().mul(context, s.clone())?.mul(context, h.clone())?;
     Ok(result)
-}
-
-/// Composite Boole's rule
-fn boole_rule(
-    context: &mut interpreter::Context,
-    a_expr: &Expr,
-    b_expr: &Expr,
-    expr: &Expr,
-    integration_variable: &str,
-) -> Result<KalkValue, KalkError> {
-    let mut result_real = float!(0);
-    let mut result_imaginary = float!(0);
-    let original_variable_value = context
-        .symbol_table
-        .get_and_remove_var(integration_variable);
-
-    const N: i32 = 1200;
-    let a: KalkValue = interpreter::eval_expr(context, a_expr, None)?;
-    let b = interpreter::eval_expr(context, b_expr, None)?;
-    let h = (b.sub_without_unit(&a))?.div_without_unit(&KalkValue::from(N))?;
-    for i in 0..=N {
-        let variable_value = a
-            .clone()
-            .add_without_unit(&KalkValue::from(i).mul_without_unit(&h.clone())?)?;
-        context.symbol_table.set(Stmt::VarDecl(
-            Identifier::from_full_name(integration_variable),
-            Box::new(crate::ast::build_literal_ast(&variable_value)),
-        ));
-
-        let factor = KalkValue::from(match i {
-            0 | N => 7,
-            _ if i % 4 == 0 => 14,
-            _ if (i - 2) % 4 == 0 => 12,
-            _ => 32,
-        } as f64);
-
-        // factor * f(x_n)
-        let (mul_real, mul_imaginary, _) = as_number_or_zero!(
-            factor.mul_without_unit(&interpreter::eval_expr(context, expr, None)?)?
-        );
-        result_real += mul_real;
-        result_imaginary += mul_imaginary;
-    }
-
-    if let Some(value) = original_variable_value {
-        context.symbol_table.insert(value);
-    } else {
-        context
-            .symbol_table
-            .get_and_remove_var(integration_variable);
-    }
-
-    let result = KalkValue::Number(result_real, result_imaginary, None);
-    let (h_real, h_imaginary, h_unit) = as_number_or_zero!(h);
-
-    // Error term: (-3*(h^5)*(f^(4)(e)))/80
-    // Where h = (b-a)/2, e is between a and b
-    //let hpow5mul3 = b
-    //   .clone()
-    //   .sub(context, a.clone())?
-    //   .div(context, KalkValue::from(2))?
-    //   .pow(context, KalkValue::from(5))?
-    //   .mul(context, KalkValue::from(3))?;
-    //let param_err = hpow5mul3;
-
-    result.mul_without_unit(&KalkValue::Number(
-        4f64 / 90f64 * h_real,
-        4f64 / 90f64 * h_imaginary,
-        h_unit,
-    ))
 }
 
 pub fn find_root(
