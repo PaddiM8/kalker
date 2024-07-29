@@ -456,8 +456,9 @@ mod tests {
         assert!(cmp(result.to_f64(), 6f64));
     }
 
+    // Test scripts and results to compare methods: https://www.genivia.com/files/qthsh.zip
     #[test]
-    fn test_integrate() {
+    fn test_integrate_data() {
         let test_data = [
             ("integral(0,1,1/sqrt(x),dx)","2"),
             ("integral(0,2,sqrt(4-(x^2)),dx)","3.141592654"),
@@ -1299,17 +1300,22 @@ mod tests {
             );
             assert!(cmp(result.to_f64(), i.1.parse::<f64>().unwrap()));
         }
+    }
 
-        //let result = super::integrate(
-        //    &mut context,
-        //    &f64_to_float_literal(2f64),
-        //    &f64_to_float_literal(4f64),
-        //    &var("x"),
-        //    "x",
-        //)
-        //.unwrap();
+    #[test]
+    fn test_integrate_function() {
+        let mut symbol_table = SymbolTable::new();
+        let mut context = get_context(&mut symbol_table);
+        let result = super::integrate(
+            &mut context,
+            &f64_to_float_literal(2f64),
+            &f64_to_float_literal(4f64),
+            &var("x"),
+            "x",
+        )
+        .unwrap();
 
-        //assert!(cmp(result.to_f64(), 6f64));
+        assert!(cmp(result.to_f64(), 6f64));
     }
 
     #[test]
