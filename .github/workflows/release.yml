@@ -79,7 +79,7 @@ jobs:
         run: |
           cargo build --release --verbose
           cp target/release/kalker target/release/kalker-linux
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: target/release/kalker-linux
@@ -100,7 +100,7 @@ jobs:
         run: |
           cargo build --release --verbose
           zip -r kalker-macOS.zip target/release/kalker
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: kalker-macOS.zip
@@ -147,7 +147,7 @@ jobs:
           cd cli
           cargo wix --no-build --nocapture
           mv target/wix/*.msi target/wix/kalker-windows.msi
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: cli/target/wix/kalker-windows.msi
@@ -197,7 +197,7 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
       - run: mv $(ls -Art android/app/build/outputs/apk/release/*.apk | tail -n 1) ../kalker-android.apk
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: kalker-android.apk
