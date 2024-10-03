@@ -41,6 +41,11 @@ fn main() {
         .flag(
             Flag::new("no-leading-eq", FlagType::Bool)
                 .description("Don't include an equal sign at the start of results")
+        )
+        .flag(
+            Flag::new("raw", FlagType::Bool)
+                .description("Only print a single number as the result, nothing else.")
+                .alias("r")
         );
 
     app.run(args);
@@ -91,7 +96,8 @@ fn default_action(context: &Context) {
             &mut parser_context,
             precision,
             format,
-            context.bool_flag("no-leading-eq")
+            context.bool_flag("no-leading-eq"),
+            context.bool_flag("raw")
         );
     } else {
         // Direct output
@@ -101,7 +107,8 @@ fn default_action(context: &Context) {
             precision,
             10u8,
             format,
-            context.bool_flag("no-leading-eq")
+            context.bool_flag("no-leading-eq"),
+            context.bool_flag("raw")
         );
     }
 }

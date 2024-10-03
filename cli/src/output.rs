@@ -9,7 +9,8 @@ pub fn eval(
     precision: u32,
     base: u8,
     format: ScientificNotationFormat,
-    no_leading_equal: bool
+    no_leading_equal: bool,
+    raw: bool
 ) {
     match parser::eval(parser, input, precision) {
         Ok(Some(mut result)) => {
@@ -19,7 +20,7 @@ pub fn eval(
                 return;
             }
 
-            if precision == DEFAULT_PRECISION {
+            if precision == DEFAULT_PRECISION && !raw {
                 let mut result_str = result.to_string_pretty_format(format);
                 if no_leading_equal {
                     result_str = result_str
