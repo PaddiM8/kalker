@@ -148,8 +148,8 @@ jobs:
           [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix --version 0.3.1
           cd cli
           cargo wix --no-build --nocapture
-          mkdir build
-          mv target/wix/*.msi build/kalker-windows.msi
+          mkdir ../build
+          mv target/wix/*.msi ../build/kalker-windows.msi
       - uses: actions/upload-artifact@v4
         with:
           name: win64
@@ -212,17 +212,9 @@ jobs:
     if: always()
     needs: [release_linux, release_mac, release_windows]
     runs-on: ubuntu-latest
+    permissions: write-all
     steps:
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ github.ref }}
-        draft: false
-        prerelease: false
+    - uses: actions/checkout@master
     - name: Download Artifact
       uses: actions/download-artifact@v4
       with:
@@ -231,4 +223,4 @@ jobs:
     - name: Upload Assets
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: gh release create ${{ github.ref_name }} build/**/*
+      run: gh release create ${{ github.ref_name }} build/*
