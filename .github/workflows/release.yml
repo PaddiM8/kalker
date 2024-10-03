@@ -210,7 +210,7 @@ jobs:
   create_release:
     name: Create Release
     if: always()
-    needs: [release_linux, release_mac, release_windows, release_android]
+    needs: [release_linux, release_mac, release_windows]
     runs-on: ubuntu-latest
     steps:
     - name: Create Release
