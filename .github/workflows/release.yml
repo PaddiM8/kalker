@@ -78,11 +78,12 @@ jobs:
       - name: Compile
         run: |
           cargo build --release --verbose
-          cp target/release/kalker target/release/kalker-linux
+          mkdir build
+          cp target/release/kalker build/kalker-linux
       - uses: actions/upload-artifact@v4
         with:
-          name: binaries
-          path: target/release/kalker-linux
+          name: linux
+          path: build/kalker-linux
 
   release_mac:
     name: release mac
@@ -99,11 +100,12 @@ jobs:
       - name: Compile
         run: |
           cargo build --release --verbose
-          zip -r kalker-macOS.zip target/release/kalker
+          mkdir build
+          zip -r build/kalker-macOS.zip target/release/kalker
       - uses: actions/upload-artifact@v4
         with:
-          name: binaries
-          path: kalker-macOS.zip
+          name: macOS
+          path: build/kalker-macOS.zip
 
   release_windows:
     name: release windows
@@ -146,15 +148,16 @@ jobs:
           [ ! -f /c/Users/runneradmin/.cargo/bin/cargo-wix.exe ] && cargo install cargo-wix --version 0.3.1
           cd cli
           cargo wix --no-build --nocapture
-          mv target/wix/*.msi target/wix/kalker-windows.msi
+          mkdir build
+          mv target/wix/*.msi build/kalker-windows.msi
       - uses: actions/upload-artifact@v4
         with:
-          name: binaries
-          path: cli/target/wix/kalker-windows.msi
+          name: win64
+          path: build/kalker-windows.msi
 
   release_android:
     name: release android
-    if: always()
+    if: false
     runs-on: ubuntu-latest
     needs: [publish_kalk_web]
     defaults:
@@ -196,11 +199,13 @@ jobs:
           keyPassword: ${{ secrets.KEY_PASSWORD }}
         env:
           BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
-      - run: mv $(ls -Art android/app/build/outputs/apk/release/*.apk | tail -n 1) ../kalker-android.apk
+      - run: |
+          mkdir ../build
+          mv $(ls -Art android/app/build/outputs/apk/release/*.apk | tail -n 1) ../build/kalker-android.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: binaries
-          path: kalker-android.apk
+          name: android
+          path: build/kalker-android.apk
 
   create_release:
     name: Create Release
@@ -219,12 +224,11 @@ jobs:
         draft: false
         prerelease: false
     - name: Download Artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
-        name: binaries
+        path: build
+        merge-multiple: true
     - name: Upload Assets
-      uses: softprops/action-gh-release@v1
-      with:
-        files: ./*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release create ${{ github.ref_name }} build/**/*
