@@ -276,9 +276,10 @@ fn equivalent_root(value: f64) -> Option<String> {
         .round_if_needed()
         .values()
         .0;
+    let sign = if value < 0f64 { "-" } else { "" };
 
     if squared.clone().sqrt().fract() != 0f64 && squared.clone().fract() == 0f64 {
-        Some(format!("√{}", primitive!(squared) as i32))
+        Some(format!("{}√{}", sign, primitive!(squared) as i32))
     } else {
         None
     }
