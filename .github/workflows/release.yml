@@ -90,7 +90,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@master
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry/index
@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
           path: |
@@ -166,7 +166,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             mobile/android/.gradle
