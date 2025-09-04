@@ -267,6 +267,7 @@ impl std::fmt::Display for KalkValue {
                 result.pop(); // Trailing space
                 result.pop(); // Trailing space
                 result.pop(); // Trailing comma
+                result = result.trim().to_string();
                 result.push(']');
 
                 write!(f, "{}", result)
@@ -1205,7 +1206,7 @@ pub fn format_number(input: f64) -> String {
 
 #[cfg(feature = "rug")]
 pub fn format_number_big(input: &Float) -> String {
-    if input.clone().log10() < 0f64 {
+    if input.clone().abs().log10() < 0f64 {
         return input.to_f64().to_string();
     }
 
