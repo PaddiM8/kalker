@@ -126,8 +126,6 @@ jobs:
             C:\msys64\home\paddi\kalker\target
       - uses: msys2/setup-msys2@v2
         with:
-          update: true
-          msystem: UCRT64
           install: >-
             base-devel
             pacman-mirrors
@@ -135,14 +133,9 @@ jobs:
             m4
             make
             mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-clang
             mingw-w64-x86_64-rust
         continue-on-error: true
       - shell: msys2 {0}
-        env:
-          CC: clang
-          CXX: clang++
-          ABI: "64"
         run: |
           cargo build --release --verbose
 

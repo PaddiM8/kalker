@@ -14,7 +14,8 @@ categories = ["mathematics", "parser-implementations"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-rug = { version = "1.24.0", features = ["float"], optional = true }
+rug = { version = "1.28.0", features = ["float"], optional = true }
+gmp-mpfr-sys = { version = "1.6.8", features = ["mpfr"], optional = true }
 lazy_static = "1.4.0"
 wasm-bindgen = "0.2.69"
 
