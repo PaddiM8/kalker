@@ -16,7 +16,7 @@
     "@capacitor/android": "^2.4.5",
     "@capacitor/cli": "^2.4.5",
     "@capacitor/core": "^2.4.5",
-    "@paddim8/kalk-component": "^2.2.1"
+    "@paddim8/kalk-component": "^2.2.0"
   },
   "devDependencies": {
     "@capacitor-community/electron": "^1.3.2",
