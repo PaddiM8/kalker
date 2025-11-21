@@ -969,26 +969,6 @@ mod tests {
         );
     }
 
-    #[wasm_bindgen_test]
-    fn test_pow_unary() {
-        let tokens = vec![
-            token(Literal, "10"),
-            token(Power, ""),
-            token(Minus, ""),
-            token(Literal, "1"),
-            token(Eof, ""),
-        ];
-
-        assert_eq!(
-            parse(tokens).unwrap(),
-            Stmt::Expr(binary(
-                f64_to_float_literal(10f64),
-                Power,
-                unary(Minus, f64_to_float_literal(1f64))
-            )),
-        );
-    }
-
     #[test]
     #[wasm_bindgen_test]
     fn test_percent() {

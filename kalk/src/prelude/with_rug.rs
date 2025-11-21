@@ -68,8 +68,8 @@ pub(crate) mod funcs {
         let (real, _, _) = as_number_or_return!(x);
         let (real_rhs, _, _) = as_number_or_return!(y);
 
-        let x = real.to_i32_saturating().unwrap_or(i32::MAX) as i32;
-        let y = real_rhs.to_i32_saturating().unwrap_or(i32::MAX) as i32;
+        let x = real.to_i32_saturating().unwrap_or(i32::MAX);
+        let y = real_rhs.to_i32_saturating().unwrap_or(i32::MAX);
         if y < 0 {
             Ok(KalkValue::from(x >> y.abs()))
         } else {

@@ -8,11 +8,7 @@ pub fn parse_float_radix(value: &str, radix: u8) -> Option<KalkFloat> {
         #[cfg(not(feature = "rug"))]
         let parsed = value.parse::<f64>();
 
-        return if let Ok(result) = parsed {
-            Some(result)
-        } else {
-            None
-        };
+        return parsed.ok();
     }
 
     let mut sum = float!(0f64);
