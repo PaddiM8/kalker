@@ -53,7 +53,7 @@ impl CalculationResult {
         let decimal_count = if let Some(dot_index) = value.chars().position(|c| c == '.') {
             let end_index = value.chars().position(|c| c == ' ' || c == 'i').unwrap_or(value.len()) - 1;
 
-            if end_index > dot_index { end_index - dot_index } else { 0 }
+            end_index.saturating_sub(dot_index)
         } else {
             0
         };

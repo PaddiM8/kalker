@@ -32,8 +32,8 @@ pub fn derive_func(
         let coefficient = if k != 0 {
             let mut first_num = 1;
             let mut last_num = 1;
-            (1..=k).for_each(|f| first_num = first_num * f);
-            (n - k + 1..=n).for_each(|f| last_num = last_num * f);
+            (1..=k).for_each(|f| first_num *= f);
+            (n - k + 1..=n).for_each(|f| last_num *= f);
 
             KalkValue::from(last_num / first_num)
         } else {
@@ -354,7 +354,7 @@ mod tests {
     use crate::symbol_table::SymbolTable;
     use crate::test_helpers::*;
 
-    fn get_context(symbol_table: &mut SymbolTable) -> interpreter::Context {
+    fn get_context(symbol_table: &mut SymbolTable) -> interpreter::Context<'_> {
         interpreter::Context::new(
             symbol_table,
             "",

@@ -136,7 +136,7 @@ pub fn load_input_file(file_name: &str, precision: u32, parser_context: &mut par
     // Parse the input file content, resulting in the symbol table being filled out.
     // Output is not needed here.
     if let Err(error) = parser::eval(parser_context, &file_content, precision) {
-        eprintln!("{}", error.to_string());
+        eprintln!("{}", error);
     }
 }
 

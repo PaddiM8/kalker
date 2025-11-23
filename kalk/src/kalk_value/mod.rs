@@ -634,11 +634,7 @@ impl KalkValue {
                 Some(&to_unit.to_string()),
             );
 
-            if let Ok(num) = result {
-                Some(num)
-            } else {
-                None
-            }
+            result.ok()
         } else {
             None
         }

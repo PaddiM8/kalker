@@ -45,11 +45,7 @@ pub fn is_subscript(c: &char) -> bool {
 }
 
 pub fn parse_subscript(chars: impl Iterator<Item = char>) -> Option<u8> {
-    if let Ok(result) = subscript_to_normal(chars).parse::<u8>() {
-        Some(result)
-    } else {
-        None
-    }
+    subscript_to_normal(chars).parse::<u8>().ok()
 }
 
 pub fn subscript_to_normal(chars: impl Iterator<Item = char>) -> String {
@@ -80,7 +76,7 @@ pub fn subscript_to_normal(chars: impl Iterator<Item = char>) -> String {
         });
     }
 
-    return regular.trim().to_string();
+    regular.trim().to_string()
 }
 
 pub fn normal_to_subscript(chars: impl Iterator<Item = char>) -> String {
