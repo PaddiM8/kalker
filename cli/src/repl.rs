@@ -81,7 +81,7 @@ pub fn start(
                 editor.add_history_entry(input.as_str());
                 eval_repl(&mut repl, parser, &input, precision, no_leading_equal, raw);
             }
-            Err(ReadlineError::Interrupted) => break,
+            Err(ReadlineError::Interrupted) => continue,
             _ => break,
         }
     }
