@@ -50,12 +50,8 @@ pub fn int_to_radix(value: i64, radix: u8) -> String {
 }
 
 pub fn float_to_radix(value: f64, radix: u8) -> String {
-    // Allow for negative numbers
-    let sign = if value.is_sign_negative() { "-" } else { "" };
-    let v = value.abs();
-
     let mut result = int_to_radix(value.floor() as i64, radix);
-    let mut fract = v.fract();
+    let mut fract = value.abs().fract();
     if fract != 0f64 {
         result.push('.');
         let precision = 10;
@@ -72,7 +68,7 @@ pub fn float_to_radix(value: f64, radix: u8) -> String {
         result.push_str(&frac_digits);
     }
 
-    format!("{}{}", sign, result)
+    result
 }
 
 pub fn to_radix_pretty(value: f64, radix: u8) -> String {
