@@ -51,12 +51,21 @@ pub fn int_to_radix(value: i64, radix: u8) -> String {
 
 pub fn float_to_radix(value: f64, radix: u8) -> String {
     let mut result = int_to_radix(value.floor() as i64, radix);
-    let fract = value.fract();
+    let mut fract = value.abs().fract();
     if fract != 0f64 {
         result.push('.');
         let precision = 10;
-        let fract_digits = (fract * (radix as i64).pow(precision) as f64) as i64;
-        result.push_str(int_to_radix(fract_digits, radix).trim_end_matches('0'))
+        let mut frac_digits = String::new();
+        for _ in 0..precision {
+            fract *= radix as f64;
+            let digit = fract.trunc() as u8;
+            frac_digits.push(std::char::from_digit(digit as u32, radix as u32).unwrap());
+            fract = fract.fract();
+            if fract == 0.0 {
+                break;
+            }
+        }
+        result.push_str(&frac_digits);
     }
 
     result
