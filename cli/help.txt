@@ -94,7 +94,8 @@ Predefined functions
     log - eg. log(1000, 10) is the same as log10(1000)
     root - eg. root(16, 3) is the same as 3√16
     average, perms, sort
-    transpose, trace
+    transpose
+    trace, det or determinant
     matrix - takes a vector of vectors and returns a matrix
     integrate - eg. integrate(0, pi, sin(x) dx)
     sum Eg. sum(n=1, 4, 2n), example below
@@ -152,7 +153,8 @@ Matrices
     same way as with vectors, except that two matrices multiplied result in matrix multiplication.
     It is also possible to obtain the transpose of a matrix with the syntax A^T, where A is a matrix
     and T is a literal T. The product of the diagonal of a square matrix (the trace of the matrix) can 
-    be calculated with trace(A), where A is a square matrix.
+    be calculated with trace(A), where A is a square matrix. The determinant of a square matrix can be 
+    calculated with det(A) or determinant(A), where A is a square matrix.
 
     Indexing
         A specific item can be retrieved from a matrix using an indexer, with the
