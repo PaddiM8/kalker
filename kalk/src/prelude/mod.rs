@@ -86,6 +86,9 @@ lazy_static! {
         m.insert("√", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("transpose", (UnaryFuncInfo(transpose, Other), ""));
         m.insert("trunc", (UnaryFuncInfo(trunc, Other), ""));
+        m.insert("trace", (UnaryFuncInfo(trace, Other), ""));
+        m.insert("det", (UnaryFuncInfo(determinant, Other), ""));
+        m.insert("determinant", (UnaryFuncInfo(determinant, Other), ""));
         m
     };
     pub static ref BINARY_FUNCS: HashMap<&'static str, (BinaryFuncInfo, &'static str)> = {
@@ -1066,6 +1069,64 @@ pub mod funcs {
         }
     }
 
+    pub fn trace(x: KalkValue) -> Result<KalkValue, KalkError> {
+        if let KalkValue::Matrix(rows) = x {
+            if rows.len() != rows.first().unwrap().len() {
+                Err(KalkError::IncompatibleVectorsMatrixes)
+            } else {
+                let mut product = KalkValue::Number(float!(1), float!(0), None);
+                for i in 0..rows.len() {
+                    product = product.mul_without_unit(&rows[i][i])?;
+                }
+                Ok(product)
+            }
+        } else {
+            Err(KalkError::UnexpectedType(
+                x.get_type_name(),
+                vec![String::from("matrix")],
+            ))
+        }
+    }
+
+    pub fn determinant(x: KalkValue) -> Result<KalkValue, KalkError> {
+        if let KalkValue::Matrix(rows) = x {
+            if rows.len() != rows.first().unwrap().len() {
+                Err(KalkError::IncompatibleVectorsMatrixes)
+            } else {
+                // Base case 
+                if rows.len() == 1 {
+                    return Ok(rows[0][0].clone())
+                }
+                // Perform co-factor expansion along the first row
+                let mut sum = KalkValue::Number(float!(0), float!(0), None);
+                for i in 0..rows[0].len() {
+                    // Select the Minor matrix
+                    let mut minor: Vec<Vec<KalkValue>> = Vec::new();
+                    // Exclude the first row
+                    for row in &rows[1..] {
+                        let mut new_row: Vec<KalkValue> = Vec::new();
+                        for (col, value) in row.iter().enumerate() {
+                            if col == i { continue; } // Exclude the ith column
+                            new_row.push(value.clone());
+                        }
+                        minor.push(new_row);
+                    }
+                    // I have no idea what the name of this bit is
+                    let other_cofactor_part = KalkValue::Number(float!(-1), float!(0), None).pow_without_unit(&KalkValue::Number(float!(i + 1 + 1), float!(0), None))?;
+                    let cofactor = determinant(KalkValue::Matrix(minor))?.mul_without_unit(&other_cofactor_part)?;
+
+                    sum = sum.add_without_unit(&rows[0][i].clone().mul_without_unit(&cofactor)?)?;
+                }
+                Ok(sum)
+            }
+        } else {
+            Err(KalkError::UnexpectedType(
+                x.get_type_name(),
+                vec![String::from("matrix")],
+            ))
+        }
+    }
+
     pub fn trunc(x: KalkValue) -> Result<KalkValue, KalkError> {
         let (real, imaginary, unit) = as_number_or_return!(x);
         Ok(KalkValue::Number(real.trunc(), imaginary.trunc(), unit))
@@ -1231,6 +1292,74 @@ mod tests {
             transpose(to_matrix(vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]])).unwrap(),
             to_matrix(vec![vec![1, 4, 7], vec![2, 5, 8], vec![3, 6, 9]])
         );
+    }
+
+    #[test]
+    fn test_trace() -> Result<(), KalkError>{
+        fn to_matrix(rows: Vec<Vec<i32>>) -> KalkValue {
+            let mut new_rows = Vec::new();
+            for row in rows {
+                let mut new_row = Vec::new();
+                for value in row {
+                    new_row.push(KalkValue::from(value as f64));
+                }
+
+                new_rows.push(new_row);
+            }
+
+            KalkValue::Matrix(new_rows)
+        }
+
+        assert!(cmp(
+            trace(to_matrix(vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]]))?.to_f64(),
+            45.0f64
+        ));
+
+        assert!(cmp(
+            trace(to_matrix(vec![vec![1, 2, 3, 7], vec![4, 5, 6, 12], vec![7, 8, 9, 0], vec![11, 2, 0, 0]]))?.to_f64(),
+            0f64
+        ));
+
+        assert!(cmp(
+            trace(to_matrix(vec![vec![7, 7, -9], vec![9, -3, -4], vec![-4, 2, 5]]))?.to_f64(),
+            -105f64
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_determinant() -> Result<(), KalkError> {
+        fn to_matrix(rows: Vec<Vec<i32>>) -> KalkValue {
+            let mut new_rows = Vec::new();
+            for row in rows {
+                let mut new_row = Vec::new();
+                for value in row {
+                    new_row.push(KalkValue::from(value as f64));
+                }
+
+                new_rows.push(new_row);
+            }
+
+            KalkValue::Matrix(new_rows)
+        }
+        
+        assert!(cmp(
+            determinant(to_matrix(vec![vec![9, 10, -4], vec![-6, -2, 1], vec![-2, -2, 1]]))?.to_f64(),
+            8f64
+        ));
+
+        assert!(cmp(
+            determinant(to_matrix(vec![vec![3, 1, -4], vec![2, 5, 6], vec![1, 4, 8]]))?.to_f64(),
+            26f64
+        ));
+
+        assert!(cmp(
+            determinant(to_matrix(vec![vec![-10, -9, -2, 1], vec![-8, 0, -9, 4], vec![-9, -7, -10, 9], vec![-7, -1, 7, -3]]))?.to_f64(),
+            4506f64
+        ));
+
+        Ok(())
     }
 
     #[test]
