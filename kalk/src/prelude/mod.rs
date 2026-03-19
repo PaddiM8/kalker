@@ -86,6 +86,7 @@ lazy_static! {
         m.insert("√", (UnaryFuncInfo(sqrt, Other), ""));
         m.insert("transpose", (UnaryFuncInfo(transpose, Other), ""));
         m.insert("trunc", (UnaryFuncInfo(trunc, Other), ""));
+        m.insert("trace", (UnaryFuncInfo(trace, Other), ""));
         m
     };
     pub static ref BINARY_FUNCS: HashMap<&'static str, (BinaryFuncInfo, &'static str)> = {
@@ -1058,6 +1059,25 @@ pub mod funcs {
             }
 
             Ok(KalkValue::Matrix(result))
+        } else {
+            Err(KalkError::UnexpectedType(
+                x.get_type_name(),
+                vec![String::from("matrix")],
+            ))
+        }
+    }
+
+    pub fn trace(x: KalkValue) -> Result<KalkValue, KalkError> {
+        if let KalkValue::Matrix(rows) = x {
+            if rows.len() != rows.first().unwrap().len() {
+                Err(KalkError::IncompatibleVectorsMatrixes)
+            } else {
+                let mut product = KalkValue::Number(float!(1), float!(0), None);
+                for i in 0..rows.len() {
+                    product = product.mul_without_unit(&rows[i][i])?;
+                }
+                Ok(product)
+            }
         } else {
             Err(KalkError::UnexpectedType(
                 x.get_type_name(),
