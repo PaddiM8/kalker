@@ -1295,6 +1295,74 @@ mod tests {
     }
 
     #[test]
+    fn test_trace() -> Result<(), KalkError>{
+        fn to_matrix(rows: Vec<Vec<i32>>) -> KalkValue {
+            let mut new_rows = Vec::new();
+            for row in rows {
+                let mut new_row = Vec::new();
+                for value in row {
+                    new_row.push(KalkValue::from(value as f64));
+                }
+
+                new_rows.push(new_row);
+            }
+
+            KalkValue::Matrix(new_rows)
+        }
+
+        assert!(cmp(
+            trace(to_matrix(vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]]))?.to_f64(),
+            45.0f64
+        ));
+
+        assert!(cmp(
+            trace(to_matrix(vec![vec![1, 2, 3, 7], vec![4, 5, 6, 12], vec![7, 8, 9, 0], vec![11, 2, 0, 0]]))?.to_f64(),
+            0f64
+        ));
+
+        assert!(cmp(
+            trace(to_matrix(vec![vec![7, 7, -9], vec![9, -3, -4], vec![-4, 2, 5]]))?.to_f64(),
+            -105f64
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_determinant() -> Result<(), KalkError> {
+        fn to_matrix(rows: Vec<Vec<i32>>) -> KalkValue {
+            let mut new_rows = Vec::new();
+            for row in rows {
+                let mut new_row = Vec::new();
+                for value in row {
+                    new_row.push(KalkValue::from(value as f64));
+                }
+
+                new_rows.push(new_row);
+            }
+
+            KalkValue::Matrix(new_rows)
+        }
+        
+        assert!(cmp(
+            determinant(to_matrix(vec![vec![9, 10, -4], vec![-6, -2, 1], vec![-2, -2, 1]]))?.to_f64(),
+            8f64
+        ));
+
+        assert!(cmp(
+            determinant(to_matrix(vec![vec![3, 1, -4], vec![2, 5, 6], vec![1, 4, 8]]))?.to_f64(),
+            26f64
+        ));
+
+        assert!(cmp(
+            determinant(to_matrix(vec![vec![-10, -9, -2, 1], vec![-8, 0, -9, 4], vec![-9, -7, -10, 9], vec![-7, -1, 7, -3]]))?.to_f64(),
+            4506f64
+        ));
+
+        Ok(())
+    }
+
+    #[test]
     #[allow(clippy::approx_constant)]
     fn test_trig_funcs() {
         // Auto-generated using kalk/scripts/generate_funcs_test_cases.py
