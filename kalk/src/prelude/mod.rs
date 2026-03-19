@@ -87,6 +87,8 @@ lazy_static! {
         m.insert("transpose", (UnaryFuncInfo(transpose, Other), ""));
         m.insert("trunc", (UnaryFuncInfo(trunc, Other), ""));
         m.insert("trace", (UnaryFuncInfo(trace, Other), ""));
+        m.insert("det", (UnaryFuncInfo(determinant, Other), ""));
+        m.insert("determinant", (UnaryFuncInfo(determinant, Other), ""));
         m
     };
     pub static ref BINARY_FUNCS: HashMap<&'static str, (BinaryFuncInfo, &'static str)> = {
@@ -1077,6 +1079,45 @@ pub mod funcs {
                     product = product.mul_without_unit(&rows[i][i])?;
                 }
                 Ok(product)
+            }
+        } else {
+            Err(KalkError::UnexpectedType(
+                x.get_type_name(),
+                vec![String::from("matrix")],
+            ))
+        }
+    }
+
+    pub fn determinant(x: KalkValue) -> Result<KalkValue, KalkError> {
+        if let KalkValue::Matrix(rows) = x {
+            if rows.len() != rows.first().unwrap().len() {
+                Err(KalkError::IncompatibleVectorsMatrixes)
+            } else {
+                // Base case 
+                if rows.len() == 1 {
+                    return Ok(rows[0][0].clone())
+                }
+                // Perform co-factor expansion along the first row
+                let mut sum = KalkValue::Number(float!(0), float!(0), None);
+                for i in 0..rows[0].len() {
+                    // Select the Minor matrix
+                    let mut minor: Vec<Vec<KalkValue>> = Vec::new();
+                    // Exclude the first row
+                    for row in &rows[1..] {
+                        let mut new_row: Vec<KalkValue> = Vec::new();
+                        for (col, value) in row.iter().enumerate() {
+                            if col == i { continue; } // Exclude the ith column
+                            new_row.push(value.clone());
+                        }
+                        minor.push(new_row);
+                    }
+                    // I have no idea what the name of this bit is
+                    let other_cofactor_part = KalkValue::Number(float!(-1), float!(0), None).pow_without_unit(&KalkValue::Number(float!(i + 1 + 1), float!(0), None))?;
+                    let cofactor = determinant(KalkValue::Matrix(minor))?.mul_without_unit(&other_cofactor_part)?;
+
+                    sum = sum.add_without_unit(&rows[0][i].clone().mul_without_unit(&cofactor)?)?;
+                }
+                Ok(sum)
             }
         } else {
             Err(KalkError::UnexpectedType(
