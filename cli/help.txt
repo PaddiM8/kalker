@@ -152,7 +152,7 @@ Matrices
     enter will not submit if there is no closing square bracket. Operations on matrices work the
     same way as with vectors, except that two matrices multiplied result in matrix multiplication.
     It is also possible to obtain the transpose of a matrix with the syntax A^T, where A is a matrix
-    and T is a literal T. The product of the diagonal of a square matrix (the trace of the matrix) can 
+    and T is a literal T. The sum of the diagonal of a square matrix (the trace of the matrix) can 
     be calculated with trace(A), where A is a square matrix. The determinant of a square matrix can be 
     calculated with det(A) or determinant(A), where A is a square matrix.
 
