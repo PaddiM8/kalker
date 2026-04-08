@@ -1074,11 +1074,11 @@ pub mod funcs {
             if rows.len() != rows.first().unwrap().len() {
                 Err(KalkError::IncompatibleVectorsMatrixes)
             } else {
-                let mut product = KalkValue::Number(float!(1), float!(0), None);
+                let mut sum = KalkValue::Number(float!(0), float!(0), None);
                 for i in 0..rows.len() {
-                    product = product.mul_without_unit(&rows[i][i])?;
+                    sum = sum.add_without_unit(&rows[i][i])?;
                 }
-                Ok(product)
+                Ok(sum)
             }
         } else {
             Err(KalkError::UnexpectedType(
@@ -1312,17 +1312,17 @@ mod tests {
 
         assert!(cmp(
             trace(to_matrix(vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]]))?.to_f64(),
-            45.0f64
+            15f64
         ));
 
         assert!(cmp(
             trace(to_matrix(vec![vec![1, 2, 3, 7], vec![4, 5, 6, 12], vec![7, 8, 9, 0], vec![11, 2, 0, 0]]))?.to_f64(),
-            0f64
+            15f64
         ));
 
         assert!(cmp(
             trace(to_matrix(vec![vec![7, 7, -9], vec![9, -3, -4], vec![-4, 2, 5]]))?.to_f64(),
-            -105f64
+            9f64
         ));
 
         Ok(())
