@@ -27,6 +27,7 @@ pub enum Expr {
     Indexer(Box<Expr>, Vec<Expr>),
     Comprehension(Box<Expr>, Vec<Expr>, Vec<RangedVar>),
     Equation(Box<Expr>, Box<Expr>, Identifier),
+    EquationSystem(Vec<(Box<Expr>, Box<Expr>)>, Vec<Identifier>),
     Preevaluated(KalkValue),
 }
 

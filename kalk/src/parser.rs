@@ -527,6 +527,7 @@ fn parse_factorial(context: &mut Context) -> Result<Expr, KalkError> {
 fn parse_primary(context: &mut Context) -> Result<Expr, KalkError> {
     let expr = match peek(context).kind {
         TokenKind::OpenParenthesis | TokenKind::OpenBracket => parse_vector(context)?,
+        TokenKind::OpenBrace => parse_equation_system(context)?,
         TokenKind::Pipe | TokenKind::OpenCeil | TokenKind::OpenFloor => parse_group_fn(context)?,
         TokenKind::Identifier => parse_identifier(context)?,
         TokenKind::Literal => Expr::Literal(string_to_num(&advance(context).value)?),
@@ -630,6 +631,26 @@ fn parse_vector(context: &mut Context) -> Result<Expr, KalkError> {
     } else {
         Ok(Expr::Matrix(rows))
     }
+}
+
+fn parse_equation_system(context: &mut Context) -> Result<Expr, KalkError> {
+    let _kind = advance(context).kind;
+    let first_eq = parse_expr(context)?;
+    let mut equations = vec![first_eq];
+    
+    while match_token(context, TokenKind::Semicolon) {
+        advance(context);
+        skip_newlines(context);
+        let eq = parse_expr(context)?;
+        equations.push(eq);
+    }
+    
+    skip_newlines(context);
+    if match_token(context, TokenKind::ClosedBrace) { //Will maybe choose to close with a dot instead of a `}`
+        advance(context);
+    }
+    
+    Ok(Expr::Vector(equations))
 }
 
 fn parse_identifier(context: &mut Context) -> Result<Expr, KalkError> {
