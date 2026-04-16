@@ -26,6 +26,7 @@ pub struct Context<'a> {
     recursion_depth: u32,
     max_recursion_depth: u32,
     equation_variable: Option<String>,
+    equation_system_vars: Option<Vec<String>>,
 }
 
 impl<'a> Context<'a> {
@@ -49,6 +50,7 @@ impl<'a> Context<'a> {
             recursion_depth: 0,
             max_recursion_depth: DEFAULT_MAX_RECURSION_DEPTH,
             equation_variable: None,
+            equation_system_vars: None,
         }
     }
 
@@ -65,6 +67,7 @@ impl<'a> Context<'a> {
         for (i, stmt) in statements.iter().enumerate() {
             self.is_approximation = false;
             self.equation_variable = None;
+            self.equation_system_vars = None;
 
             let num = eval_stmt(self, stmt)?;
 
@@ -86,11 +89,26 @@ impl<'a> Context<'a> {
 
             if i == statements.len() - 1 {
                 if let Stmt::Expr(_) = stmt {
+                    if let Some(ref vars) = self.equation_system_vars {
+                        let eq_var = if vars.len() == 1 {
+                            vars.first().cloned()
+                        } else {
+                            None
+                        };
+                        return Ok(Some(CalculationResult::new(
+                            num,
+                            10,
+                            self.is_approximation,
+                            eq_var,
+                            vars.clone(),
+                        )));
+                    }
                     return Ok(Some(CalculationResult::new(
                         num,
                         10,
                         self.is_approximation,
                         self.equation_variable.clone(),
+                        vec![],
                     )));
                 }
             }
@@ -166,6 +184,7 @@ pub(crate) fn eval_expr(
             context, left, conditions, vars,
         )?)),
         Expr::Equation(left, right, identifier) => eval_equation(context, left, right, identifier),
+        Expr::EquationSystem(equations, variables) => eval_equation_system(context, equations.clone(), variables.clone()),
         Expr::Preevaluated(value) => Ok(value.clone()),
     }
 }
@@ -841,6 +860,173 @@ fn eval_equation(
         Box::new(right.clone()),
     );
     numerical::find_root(context, &expr, &unknown_var.full_name)
+}
+
+fn eval_equation_system(
+    context: &mut Context,
+    equations: Vec<(Box<Expr>, Box<Expr>)>,
+    variables: Vec<Identifier>,
+) -> Result<KalkValue, KalkError> {
+    context.is_approximation = true;
+    context.equation_system_vars = Some(variables.iter().map(|v| v.full_name.clone()).collect());
+    
+    let n = variables.len();
+    if n == 0 {
+        return Err(KalkError::UnableToSolveEquation(String::from("No variables found")));
+    }
+    
+    let mut guesses: Vec<f64> = vec![1.0; n];
+    let tolerance = 1e-10;
+    let max_iterations = 100;
+    
+    for iteration in 0..max_iterations {
+        let mut f_values: Vec<f64> = Vec::new();
+        
+        for (i, var) in variables.iter().enumerate() {
+            context.symbol_table.set(Stmt::VarDecl(
+                var.clone(),
+                Box::new(Expr::Literal(float!(guesses[i])))
+            ));
+        }
+        
+        for (left, right) in &equations {
+            if let (Ok(lv), Ok(rv)) = (eval_expr(context, left, None), eval_expr(context, right, None)) {
+                if let Ok(d) = lv.sub(context, rv) {
+                    f_values.push(d.to_f64());
+                }
+            }
+        }
+        
+        for var in &variables {
+            context.symbol_table.get_and_remove_var(&var.full_name);
+        }
+        
+        if f_values.is_empty() {
+            return Err(KalkError::UnableToSolveEquation(String::from("No equations evaluated successfully")));
+        }
+        
+        let max_error = f_values.iter().map(|f| f.abs()).fold(0.0f64, |a, b| a.max(b));
+        if max_error < tolerance {
+            let mut result_values = Vec::new();
+            for guess in &guesses {
+                result_values.push(KalkValue::from(*guess));
+            }
+            return Ok(KalkValue::Vector(result_values));
+        }
+        
+        let mut jacobian: Vec<Vec<f64>> = vec![vec![0.0; n]; n];
+        let h = 1e-8;
+        
+        for j in 0..n {
+            let original_guess = guesses[j];
+            guesses[j] = original_guess + h;
+            
+            for (i, var) in variables.iter().enumerate() {
+                context.symbol_table.set(Stmt::VarDecl(
+                    var.clone(),
+                    Box::new(Expr::Literal(float!(guesses[i])))
+                ));
+            }
+            
+            let mut f_plus_values: Vec<f64> = Vec::new();
+            for (left, right) in &equations {
+                if let (Ok(lv), Ok(rv)) = (eval_expr(context, left, None), eval_expr(context, right, None)) {
+                    if let Ok(d) = lv.sub(context, rv) {
+                        f_plus_values.push(d.to_f64());
+                        continue;
+                    }
+                }
+                f_plus_values.push(0.0);
+            }
+            
+            guesses[j] = original_guess - h;
+            
+            for (i, var) in variables.iter().enumerate() {
+                context.symbol_table.set(Stmt::VarDecl(
+                    var.clone(),
+                    Box::new(Expr::Literal(float!(guesses[i])))
+                ));
+            }
+            
+            let mut f_minus_values: Vec<f64> = Vec::new();
+            for (left, right) in &equations {
+                if let (Ok(lv), Ok(rv)) = (eval_expr(context, left, None), eval_expr(context, right, None)) {
+                    if let Ok(d) = lv.sub(context, rv) {
+                        f_minus_values.push(d.to_f64());
+                        continue;
+                    }
+                }
+                f_minus_values.push(0.0);
+            }
+            
+            for eq_idx in 0..equations.len() {
+                jacobian[eq_idx][j] = (f_plus_values[eq_idx] - f_minus_values[eq_idx]) / (2.0 * h);
+            }
+            guesses[j] = original_guess;
+            
+            for var in &variables {
+                context.symbol_table.get_and_remove_var(&var.full_name);
+            }
+        }
+        
+        if let Some(solution) = solve_linear_system(&jacobian, &f_values) {
+            for i in 0..n {
+                guesses[i] -= solution[i];
+            }
+        } else {
+            return Err(KalkError::UnableToSolveEquation(String::from("Failed to solve linear system")));
+        }
+        
+        if iteration == max_iterations - 1 {
+            return Err(KalkError::UnableToSolveEquation(String::from("Max iterations reached")));
+        }
+    }
+    
+    Err(KalkError::UnableToSolveEquation(String::from("Failed to converge")))
+}
+
+fn solve_linear_system(a: &[Vec<f64>], b: &[f64]) -> Option<Vec<f64>> {
+    let n = b.len();
+    let mut augmented: Vec<Vec<f64>> = a.iter()
+        .enumerate()
+        .map(|(i, row)| {
+            let mut new_row = row.clone();
+            new_row.push(b[i]);
+            new_row
+        })
+        .collect();
+    
+    for i in 0..n {
+        let mut max_row = i;
+        for k in (i + 1)..n {
+            if augmented[k][i].abs() > augmented[max_row][i].abs() {
+                max_row = k;
+            }
+        }
+        augmented.swap(i, max_row);
+        
+        if augmented[i][i].abs() < 1e-12 {
+            return None;
+        }
+        
+        for k in (i + 1)..n {
+            let factor = augmented[k][i] / augmented[i][i];
+            for j in i..(n + 1) {
+                augmented[k][j] -= factor * augmented[i][j];
+            }
+        }
+    }
+    
+    let mut x = vec![0.0; n];
+    for i in (0..n).rev() {
+        x[i] = augmented[i][n];
+        for j in (i + 1)..n {
+            x[i] -= augmented[i][j] * x[j];
+        }
+        x[i] /= augmented[i][i];
+    }
+    
+    Some(x)
 }
 
 #[cfg(test)]

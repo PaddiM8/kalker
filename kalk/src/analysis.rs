@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     ast::{ConditionalPiece, Expr, Identifier, RangedVar, Stmt},
     errors::KalkError,
@@ -236,6 +238,40 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
 
             if analysed_values.len() == 1 && matches!(analysed_values[0], Expr::Comprehension(_, _, _)) {
                 analysed_values.pop().unwrap()
+            } else if is_equation_or_binary_equation(&analysed_values) {
+                let mut equations = Vec::new();
+                let mut variables = Vec::new();
+                let mut seen_vars = std::collections::HashSet::new();
+                
+                for value in analysed_values {
+                    match value {
+                        Expr::Equation(left, right, _) => {
+                            extract_equation_vars(&left, &mut seen_vars, context);
+                            extract_equation_vars(&right, &mut seen_vars, context);
+                            equations.push((left.clone(), right.clone()));
+                        }
+                        Expr::Binary(left, TokenKind::Equals, right) => {
+                            context.in_equation = true;
+                            let left_analyzed = analyse_expr(context, *left)?;
+                            let right_analyzed = analyse_expr(context, *right)?;
+                            context.in_equation = false;
+                            
+                            extract_equation_vars(&left_analyzed, &mut seen_vars, context);
+                            extract_equation_vars(&right_analyzed, &mut seen_vars, context);
+                            
+                            equations.push((Box::new(left_analyzed), Box::new(right_analyzed)));
+                        }
+                        _ => {}
+                    }
+                }
+                
+                let mut sorted_vars: Vec<_> = seen_vars.into_iter().collect();
+                sorted_vars.sort();
+                for var_name in sorted_vars {
+                    variables.push(Identifier::from_full_name(&var_name));
+                }
+                
+                Expr::EquationSystem(equations, variables)
             } else {
                 Expr::Vector(analysed_values)
             }
@@ -263,8 +299,53 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
         }
         Expr::Comprehension(left, right, vars) => Expr::Comprehension(left, right, vars),
         Expr::Equation(left, right, identifier) => Expr::Equation(left, right, identifier),
+        Expr::EquationSystem(_, _) => expr,
         Expr::Preevaluated(_) => expr,
     })
+}
+
+fn is_equation_or_binary_equation(values: &[Expr]) -> bool {
+    values.iter().all(|v| {
+        match v {
+            Expr::Equation(_, _, _) => true,
+            Expr::Binary(_, TokenKind::Equals, _) => true,
+            _ => false,
+        }
+    })
+}
+
+fn extract_equation_vars(expr: &Expr, vars: &mut HashSet<String>, context: &mut Context) {
+    match expr {
+        Expr::Var(identifier) => {
+            if !context.symbol_table.contains_var(&identifier.full_name)
+                && !context.symbol_table.contains_fn(&identifier.full_name)
+                && !prelude::is_constant(&identifier.full_name)
+            {
+                vars.insert(identifier.full_name.clone());
+            }
+        }
+        Expr::Binary(left, _, right) => {
+            extract_equation_vars(left, vars, context);
+            extract_equation_vars(right, vars, context);
+        }
+        Expr::Unary(_, value) => {
+            extract_equation_vars(value, vars, context);
+        }
+        Expr::FnCall(_, args) => {
+            for arg in args {
+                extract_equation_vars(arg, vars, context);
+            }
+        }
+        Expr::Group(value) => {
+            extract_equation_vars(value, vars, context);
+        }
+        Expr::Vector(values) => {
+            for v in values {
+                extract_equation_vars(v, vars, context);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn analyse_binary(

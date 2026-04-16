@@ -304,7 +304,7 @@ pub fn find_root(
     context.symbol_table.get_and_remove_var(var_name);
 
     if test_real.is_nan() || test_real.abs() > 0.0001f64 || test_imaginary.abs() > 0.0001f64 {
-        return Err(KalkError::UnableToSolveEquation);
+        return Err(KalkError::UnableToSolveEquation(String::from("Root not found")));
     }
 
     Ok(approx)
