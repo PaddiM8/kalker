@@ -304,6 +304,7 @@ fn analyse_expr(context: &mut Context, expr: Expr) -> Result<Expr, KalkError> {
     })
 }
 
+/// Check if all expressions in the slice are equations or binary equations
 fn is_equation_or_binary_equation(values: &[Expr]) -> bool {
     values.iter().all(|v| {
         match v {
@@ -314,6 +315,8 @@ fn is_equation_or_binary_equation(values: &[Expr]) -> bool {
     })
 }
 
+/// Recursively extract variable names from an expression
+/// Variables that are not already defined in the symbol table are collected
 fn extract_equation_vars(expr: &Expr, vars: &mut HashSet<String>, context: &mut Context) {
     match expr {
         Expr::Var(identifier) => {

@@ -13,17 +13,25 @@ pub struct CalculationResult {
 
 // Wraps around KalkValue since enums don't work
 // with the javascript bindings.
-#[wasm_bindgen]
-impl CalculationResult {
-    pub(crate) fn new(value: KalkValue, radix: u8, is_approximation: bool, equation_variable: Option<String>, equation_variables: Vec<String>) -> Self {
-        CalculationResult {
-            value,
-            radix,
-            is_approximation,
-            equation_variable,
-            equation_variables,
+    #[wasm_bindgen]
+    impl CalculationResult {
+        /// Create a new CalculationResult
+        /// 
+        /// # Arguments
+        /// * `value` - The calculated value
+        /// * `radix` - The numerical base for display
+        /// * `is_approximation` - Whether the result is an approximation
+        /// * `equation_variable` - Single variable name (for backward compatibility)
+        /// * `equation_variables` - Vector of variable names (for equation systems)
+        pub(crate) fn new(value: KalkValue, radix: u8, is_approximation: bool, equation_variable: Option<String>, equation_variables: Vec<String>) -> Self {
+            CalculationResult {
+                value,
+                radix,
+                is_approximation,
+                equation_variable,
+                equation_variables,
+            }
         }
-    }
 
     #[allow(dead_code)]
     pub(crate) fn get_value(self) -> KalkValue {
