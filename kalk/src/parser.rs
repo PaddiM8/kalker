@@ -634,7 +634,8 @@ fn parse_vector(context: &mut Context) -> Result<Expr, KalkError> {
 }
 
 fn parse_equation_system(context: &mut Context) -> Result<Expr, KalkError> {
-    let _kind = advance(context).kind;
+    advance(context); // Open brace
+    skip_newlines(context);
     let first_eq = parse_expr(context)?;
     let mut equations = vec![first_eq];
     
@@ -642,6 +643,7 @@ fn parse_equation_system(context: &mut Context) -> Result<Expr, KalkError> {
         advance(context);
         skip_newlines(context);
         let eq = parse_expr(context)?;
+        skip_newlines(context);
         equations.push(eq);
     }
     
