@@ -8,20 +8,30 @@ pub struct CalculationResult {
     radix: u8,
     is_approximation: bool,
     equation_variable: Option<String>,
+    equation_variables: Vec<String>,
 }
 
 // Wraps around KalkValue since enums don't work
 // with the javascript bindings.
-#[wasm_bindgen]
-impl CalculationResult {
-    pub(crate) fn new(value: KalkValue, radix: u8, is_approximation: bool, equation_variable: Option<String>) -> Self {
-        CalculationResult {
-            value,
-            radix,
-            is_approximation,
-            equation_variable,
+    #[wasm_bindgen]
+    impl CalculationResult {
+        /// Create a new CalculationResult
+        /// 
+        /// # Arguments
+        /// * `value` - The calculated value
+        /// * `radix` - The numerical base for display
+        /// * `is_approximation` - Whether the result is an approximation
+        /// * `equation_variable` - Single variable name (for backward compatibility)
+        /// * `equation_variables` - Vector of variable names (for equation systems)
+        pub(crate) fn new(value: KalkValue, radix: u8, is_approximation: bool, equation_variable: Option<String>, equation_variables: Vec<String>) -> Self {
+            CalculationResult {
+                value,
+                radix,
+                is_approximation,
+                equation_variable,
+                equation_variables,
+            }
         }
-    }
 
     #[allow(dead_code)]
     pub(crate) fn get_value(self) -> KalkValue {
@@ -64,10 +74,21 @@ impl CalculationResult {
             String::new()
         };
 
-        if self.is_approximation || decimal_count == 10 {
-            format!("{}≈ {}", equation_variable, value)
+        let vars_display = if self.equation_variables.len() > 1 {
+            let sorted_vars = {
+                let mut v = self.equation_variables.clone();
+                v.sort();
+                v
+            };
+            format!("({}) ", sorted_vars.join(", "))
         } else {
-            format!("{}= {}", equation_variable, value)
+            String::new()
+        };
+
+        if self.is_approximation || decimal_count == 10 {
+            format!("{}{}≈ {}", vars_display, equation_variable, value)
+        } else {
+            format!("{}{}= {}", vars_display, equation_variable, value)
         }
     }
 

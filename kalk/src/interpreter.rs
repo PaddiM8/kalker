@@ -26,6 +26,7 @@ pub struct Context<'a> {
     recursion_depth: u32,
     max_recursion_depth: u32,
     equation_variable: Option<String>,
+    equation_system_vars: Option<Vec<String>>,
 }
 
 impl<'a> Context<'a> {
@@ -49,6 +50,7 @@ impl<'a> Context<'a> {
             recursion_depth: 0,
             max_recursion_depth: DEFAULT_MAX_RECURSION_DEPTH,
             equation_variable: None,
+            equation_system_vars: None,
         }
     }
 
@@ -65,6 +67,7 @@ impl<'a> Context<'a> {
         for (i, stmt) in statements.iter().enumerate() {
             self.is_approximation = false;
             self.equation_variable = None;
+            self.equation_system_vars = None;
 
             let num = eval_stmt(self, stmt)?;
 
@@ -86,11 +89,26 @@ impl<'a> Context<'a> {
 
             if i == statements.len() - 1 {
                 if let Stmt::Expr(_) = stmt {
+                    if let Some(ref vars) = self.equation_system_vars {
+                        let eq_var = if vars.len() == 1 {
+                            vars.first().cloned()
+                        } else {
+                            None
+                        };
+                        return Ok(Some(CalculationResult::new(
+                            num,
+                            10,
+                            self.is_approximation,
+                            eq_var,
+                            vars.clone(),
+                        )));
+                    }
                     return Ok(Some(CalculationResult::new(
                         num,
                         10,
                         self.is_approximation,
                         self.equation_variable.clone(),
+                        vec![],
                     )));
                 }
             }
@@ -166,6 +184,7 @@ pub(crate) fn eval_expr(
             context, left, conditions, vars,
         )?)),
         Expr::Equation(left, right, identifier) => eval_equation(context, left, right, identifier),
+        Expr::EquationSystem(equations, variables) => eval_equation_system(context, equations.clone(), variables.clone()),
         Expr::Preevaluated(value) => Ok(value.clone()),
     }
 }
@@ -841,6 +860,27 @@ fn eval_equation(
         Box::new(right.clone()),
     );
     numerical::find_root(context, &expr, &unknown_var.full_name)
+}
+
+/// Solve a system of equations using the Newton-Raphson method
+/// 
+/// # Arguments
+/// * `context` - The evaluation context
+/// * `equations` - Vector of equation pairs (left side, right side)
+/// * `variables` - Vector of variables to solve for
+/// 
+/// # Returns
+/// * Ok(KalkValue::Vector) containing the solution values
+/// * Err(KalkError::UnableToSolveEquation) if solving fails
+fn eval_equation_system(
+    context: &mut Context,
+    equations: Vec<(Box<Expr>, Box<Expr>)>,
+    variables: Vec<Identifier>,
+) -> Result<KalkValue, KalkError> {
+    context.is_approximation = true;
+    context.equation_system_vars = Some(variables.iter().map(|v| v.full_name.clone()).collect());
+    
+    numerical::solve_equation_system(context, equations, variables)
 }
 
 #[cfg(test)]

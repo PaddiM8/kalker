@@ -47,6 +47,7 @@ mod tests {
     #[test_case("comparisons")]
     #[test_case("comprehensions")]
     #[test_case("equations")]
+    #[test_case("equation_systems")]
     #[test_case("derivation")]
     #[test_case("functions")]
     #[test_case("groups")]
