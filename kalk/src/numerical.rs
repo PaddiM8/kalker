@@ -5,6 +5,7 @@ use crate::ast::Expr;
 use crate::ast::Identifier;
 use crate::ast::Stmt;
 use crate::errors::KalkError;
+use crate::float;
 use crate::interpreter;
 use crate::kalk_value::KalkValue;
 use crate::lexer::TokenKind;
@@ -340,6 +341,220 @@ fn newton_method(
         initial.sub_without_unit(&f.div_without_unit(&f_prime)?)?,
         false,
     ))
+}
+
+/// Solve a system of equations using the Newton-Raphson method
+/// 
+/// # Arguments
+/// * `context` - The evaluation context
+/// * `equations` - Vector of equation pairs (left side, right side)
+/// * `variables` - Vector of variables to solve for
+/// 
+/// # Returns
+/// * Ok(KalkValue::Vector) containing the solution values
+/// * Err(KalkError::UnableToSolveEquation) if solving fails
+pub fn solve_equation_system(
+    context: &mut interpreter::Context,
+    equations: Vec<(Box<Expr>, Box<Expr>)>,
+    variables: Vec<Identifier>,
+) -> Result<KalkValue, KalkError> {
+    let n = variables.len();
+    if n == 0 {
+        return Err(KalkError::UnableToSolveEquation(String::from("No variables found")));
+    }
+    
+    // Initial guesses for all variables (start with 1.0)
+    let mut guesses: Vec<f64> = vec![1.0; n];
+    let tolerance = 1e-10;  // Convergence tolerance
+    let max_iterations = 100; // Maximum iterations to prevent infinite loops
+    
+    // Newton-Raphson iteration
+    for iteration in 0..max_iterations {
+        let mut f_values: Vec<f64> = Vec::new();
+        
+        // Set variable values in symbol table for evaluation
+        for (i, var) in variables.iter().enumerate() {
+            context.symbol_table.set(Stmt::VarDecl(
+                var.clone(),
+                Box::new(Expr::Literal(float!(guesses[i])))
+            ));
+        }
+        
+        // Evaluate all equations: f(x) = left - right
+        for (left, right) in &equations {
+            if let (Ok(lv), Ok(rv)) = (interpreter::eval_expr(context, left, None), interpreter::eval_expr(context, right, None)) {
+                if let Ok(d) = lv.sub(context, rv) {
+                    f_values.push(d.to_f64());
+                }
+            }
+        }
+        
+        // Clean up temporary variable bindings
+        for var in &variables {
+            context.symbol_table.get_and_remove_var(&var.full_name);
+        }
+        
+        // Check if we couldn't evaluate any equations
+        if f_values.is_empty() {
+            return Err(KalkError::UnableToSolveEquation(String::from("No equations evaluated successfully")));
+        }
+        
+        // Check for convergence: max |f(x)| < tolerance
+        let max_error = f_values.iter().map(|f| f.abs()).fold(0.0f64, |a, b| a.max(b));
+        if max_error < tolerance {
+            // Convert guesses to KalkValue vector for result
+            let mut result_values = Vec::new();
+            for guess in &guesses {
+                result_values.push(KalkValue::from(*guess));
+            }
+            return Ok(KalkValue::Vector(result_values));
+        }
+        
+        // Compute Jacobian matrix numerically using central differences
+        let mut jacobian: Vec<Vec<f64>> = vec![vec![0.0; n]; n];
+        let h = 1e-8; // Step size for numerical differentiation
+        
+        for j in 0..n {
+            // Perturb j-th variable
+            let original_guess = guesses[j];
+            guesses[j] = original_guess + h;
+            
+            // Set perturbed variable values
+            for (i, var) in variables.iter().enumerate() {
+                context.symbol_table.set(Stmt::VarDecl(
+                    var.clone(),
+                    Box::new(Expr::Literal(float!(guesses[i])))
+                ));
+            }
+            
+            // Evaluate f(x + h)
+            let mut f_plus_values: Vec<f64> = Vec::new();
+            for (left, right) in &equations {
+                if let (Ok(lv), Ok(rv)) = (interpreter::eval_expr(context, left, None), interpreter::eval_expr(context, right, None)) {
+                    if let Ok(d) = lv.sub(context, rv) {
+                        f_plus_values.push(d.to_f64());
+                        continue;
+                    }
+                }
+                f_plus_values.push(0.0);
+            }
+            
+            // Perturb in negative direction
+            guesses[j] = original_guess - h;
+            
+            // Set negatively perturbed variable values
+            for (i, var) in variables.iter().enumerate() {
+                context.symbol_table.set(Stmt::VarDecl(
+                    var.clone(),
+                    Box::new(Expr::Literal(float!(guesses[i])))
+                ));
+            }
+            
+            // Evaluate f(x - h)
+            let mut f_minus_values: Vec<f64> = Vec::new();
+            for (left, right) in &equations {
+                if let (Ok(lv), Ok(rv)) = (interpreter::eval_expr(context, left, None), interpreter::eval_expr(context, right, None)) {
+                    if let Ok(d) = lv.sub(context, rv) {
+                        f_minus_values.push(d.to_f64());
+                        continue;
+                    }
+                }
+                f_minus_values.push(0.0);
+            }
+            
+            // Compute central difference approximation of Jacobian
+            for eq_idx in 0..equations.len() {
+                jacobian[eq_idx][j] = (f_plus_values[eq_idx] - f_minus_values[eq_idx]) / (2.0 * h);
+            }
+            
+            // Reset variable to original value
+            guesses[j] = original_guess;
+            
+            // Clean up temporary variable bindings
+            for var in &variables {
+                context.symbol_table.get_and_remove_var(&var.full_name);
+            }
+        }
+        
+        // Solve J * dx = -f(x) for dx, then update x = x + dx
+        if let Some(solution) = solve_linear_system(&jacobian, &f_values) {
+            for i in 0..n {
+                guesses[i] -= solution[i]; // x = x - J^(-1) * f(x)
+            }
+        } else {
+            return Err(KalkError::UnableToSolveEquation(String::from("Failed to solve linear system")));
+        }
+        
+        // Max iterations reached without convergence
+        if iteration == max_iterations - 1 {
+            return Err(KalkError::UnableToSolveEquation(String::from("Max iterations reached")));
+        }
+    }
+    
+    // Failed to converge
+    Err(KalkError::UnableToSolveEquation(String::from("Failed to converge")))
+}
+
+/// Solve a linear system Ax = b using Gaussian elimination with partial pivoting
+/// 
+/// # Arguments
+/// * `a` - Coefficient matrix (n x n)
+/// * `b` - Right-hand side vector (n)
+/// 
+/// # Returns
+/// * Some(x) - Solution vector if the system has a unique solution
+/// * None - If the matrix is singular or nearly singular
+fn solve_linear_system(a: &[Vec<f64>], b: &[f64]) -> Option<Vec<f64>> {
+    let n = b.len();
+    // Create augmented matrix [A|b]
+    let mut augmented: Vec<Vec<f64>> = a.iter()
+        .enumerate()
+        .map(|(i, row)| {
+            let mut new_row = row.clone();
+            new_row.push(b[i]);
+            new_row
+        })
+        .collect();
+    
+    // Forward elimination with partial pivoting
+    for i in 0..n {
+        // Find pivot row (row with largest absolute value in column i)
+        let mut max_row = i;
+        for k in (i + 1)..n {
+            if augmented[k][i].abs() > augmented[max_row][i].abs() {
+                max_row = k;
+            }
+        }
+        // Swap current row with pivot row
+        augmented.swap(i, max_row);
+        
+        // Check for singular or nearly singular matrix
+        if augmented[i][i].abs() < 1e-12 {
+            return None;
+        }
+        
+        // Eliminate below pivot
+        for k in (i + 1)..n {
+            let factor = augmented[k][i] / augmented[i][i];
+            for j in i..(n + 1) {
+                augmented[k][j] -= factor * augmented[i][j];
+            }
+        }
+    }
+    
+    // Back substitution
+    let mut x = vec![0.0; n];
+    for i in (0..n).rev() {
+        x[i] = augmented[i][n]; // Start with right-hand side
+        // Subtract contributions from already solved variables
+        for j in (i + 1)..n {
+            x[i] -= augmented[i][j] * x[j];
+        }
+        // Divide by diagonal coefficient
+        x[i] /= augmented[i][i];
+    }
+    
+    Some(x)
 }
 
 #[cfg(test)]
