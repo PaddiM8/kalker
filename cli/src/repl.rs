@@ -20,7 +20,6 @@ use std::borrow::Cow;
 use std::borrow::Cow::Owned;
 use std::collections::HashMap;
 use std::fs;
-use std::process;
 
 struct Context {
     base: u8,
@@ -78,6 +77,9 @@ pub fn start(
 
         match readline {
             Ok(input) => {
+                if input == "exit" {
+                    break;
+                }
                 editor.add_history_entry(input.as_str());
                 eval_repl(&mut repl, parser, &input, precision, no_leading_equal, raw);
             }
@@ -144,7 +146,6 @@ fn eval_repl(
     match input {
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
-        "exit" => process::exit(0),
         "help" => print_cli_help(),
         _ => output::eval(parser, input, precision, repl.base, repl.mode, no_leading_equal, raw),
     }
