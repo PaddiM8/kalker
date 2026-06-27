@@ -21,6 +21,11 @@ seahorse = "1.1.1"
 atty = "0.2.14"
 dirs = "3.0.2"
 
+[features]
+default = []
+# Link against system GMP/MPFR instead of building them from source.
+use-system-libs = ["kalk/use-system-libs"]
+
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 
