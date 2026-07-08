@@ -4,6 +4,7 @@ use crate::lexer::TokenKind;
 #[derive(Debug, Clone, PartialEq)]
 pub enum KalkError {
     CannotIndexByImaginary,
+    CannotShiftByImaginary,
     CanOnlyIndexX,
     Expected(String),
     ExpectedDx,
@@ -42,6 +43,7 @@ impl std::fmt::Display for KalkError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             KalkError::CannotIndexByImaginary => write!(f, "Cannot index by imaginary numbers."),
+            KalkError::CannotShiftByImaginary => write!(f, "Cannot shift by imaginary"),
             KalkError::CanOnlyIndexX => write!(f, "Indexing (getting an item with a specific index) is only possible on vectors and matrices."),
             KalkError::Expected(description) => write!(f, "Expected: {}", description),
             KalkError::ExpectedDx => write!(f, "Expected eg. dx, to specify for which variable the operation is being done to. Example with integration: ∫(0, 1, x dx) or ∫(0, 1, x, dx). You may need to put parenthesis around the expression before dx/dy/du/etc."),

@@ -676,6 +676,42 @@ impl KalkValue {
         self.div_without_unit(&right)
     }
 
+    fn shift(op: &str, lhs: &KalkValue, rhs: KalkValue) -> Result<KalkValue, KalkError> {
+        if lhs.has_imaginary() || rhs.has_imaginary() {
+            return Err(KalkError::CannotShiftByImaginary);
+        }
+
+        if let KalkValue::Number(_, _, _) = lhs {
+            if let KalkValue::Number(right_real, i, s) = rhs {
+                return Ok(KalkValue::Number(pow(float!(2),right_real), i, s));
+            }
+        }
+
+        Err(KalkError::IncompatibleTypesForOperation(
+            String::from(op),
+            lhs.get_type_name(),
+            rhs.get_type_name(),
+        ))
+    }
+
+    pub(crate) fn shl(
+        self,
+        context: &mut crate::interpreter::Context,
+        rhs: KalkValue,
+    ) -> Result<KalkValue, KalkError> {
+        let power = Self::shift("left shift", &self, rhs)?;
+        self.mul(context, power)
+    }
+
+    pub(crate) fn shr(
+        self,
+        context: &mut crate::interpreter::Context,
+        rhs: KalkValue,
+    ) -> Result<KalkValue, KalkError> {
+        let power = Self::shift("right shift", &self, rhs)?;
+        self.div(context, power)
+    }
+
     pub(crate) fn pow(
         self,
         context: &mut crate::interpreter::Context,
