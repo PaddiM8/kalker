@@ -225,6 +225,8 @@ fn eval_binary_expr(
         TokenKind::Minus => left.sub(context, right),
         TokenKind::Star => left.mul(context, right),
         TokenKind::Slash => left.div(context, right),
+        TokenKind::ShiftLeft => left.shl(context, right),
+        TokenKind::ShiftRight => left.shr(context, right),
         TokenKind::Percent => left.rem(context, right),
         TokenKind::Power => left.pow(context, right),
         TokenKind::Equals => left.eq(context, right),
@@ -863,12 +865,12 @@ fn eval_equation(
 }
 
 /// Solve a system of equations using the Newton-Raphson method
-/// 
+///
 /// # Arguments
 /// * `context` - The evaluation context
 /// * `equations` - Vector of equation pairs (left side, right side)
 /// * `variables` - Vector of variables to solve for
-/// 
+///
 /// # Returns
 /// * Ok(KalkValue::Vector) containing the solution values
 /// * Err(KalkError::UnableToSolveEquation) if solving fails
@@ -879,7 +881,7 @@ fn eval_equation_system(
 ) -> Result<KalkValue, KalkError> {
     context.is_approximation = true;
     context.equation_system_vars = Some(variables.iter().map(|v| v.full_name.clone()).collect());
-    
+
     numerical::solve_equation_system(context, equations, variables)
 }
 

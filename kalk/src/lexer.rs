@@ -13,6 +13,8 @@ pub enum TokenKind {
     Minus,
     Star,
     Slash,
+    ShiftLeft,
+    ShiftRight,
     Power,
     Exclamation,
     Percent,
@@ -194,6 +196,14 @@ impl<'a> Lexer<'a> {
             (TokenKind::Star, Some('⋅')) => {
                 self.advance();
                 return build(TokenKind::Power, "", span);
+            }
+            (TokenKind::LessThan, Some('<')) => {
+                self.advance();
+                return build(TokenKind::ShiftLeft, "", span);
+            }
+            (TokenKind::GreaterThan, Some('>')) => {
+                self.advance();
+                return build(TokenKind::ShiftRight, "", span);
             }
             (TokenKind::OpenBracket, Some('[')) => {
                 self.advance();

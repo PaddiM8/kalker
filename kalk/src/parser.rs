@@ -315,7 +315,7 @@ fn parse_and(context: &mut Context) -> Result<Expr, KalkError> {
 
 fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
     let at_start_of_line = context.current_stmt_start_pos == context.pos;
-    let mut left = parse_to(context)?;
+    let mut left = parse_shift(context)?;
 
     // Equality check
     while match_token(context, TokenKind::Equals)
@@ -373,6 +373,19 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
             ),
             _ => Expr::Binary(Box::new(left), op, Box::new(right)),
         }
+    }
+
+    Ok(left)
+}
+
+fn parse_shift(context: &mut Context) -> Result<Expr, KalkError> {
+    let left = parse_to(context)?;
+
+    if match_token(context, TokenKind::ShiftLeft) || match_token(context, TokenKind::ShiftRight) {
+        let op = advance(context).kind;
+        skip_newlines(context);
+        let right = Box::new(parse_shift(context)?); // right associative like "and" and or
+        return Ok(Expr::Binary(Box::new(left), op, right));
     }
 
     Ok(left)
@@ -638,7 +651,7 @@ fn parse_equation_system(context: &mut Context) -> Result<Expr, KalkError> {
     skip_newlines(context);
     let first_eq = parse_expr(context)?;
     let mut equations = vec![first_eq];
-    
+
     while match_token(context, TokenKind::Semicolon) {
         advance(context);
         skip_newlines(context);
@@ -646,12 +659,13 @@ fn parse_equation_system(context: &mut Context) -> Result<Expr, KalkError> {
         skip_newlines(context);
         equations.push(eq);
     }
-    
+
     skip_newlines(context);
-    if match_token(context, TokenKind::ClosedBrace) { //Will maybe choose to close with a dot instead of a `}`
+    if match_token(context, TokenKind::ClosedBrace) {
+        //Will maybe choose to close with a dot instead of a `}`
         advance(context);
     }
-    
+
     Ok(Expr::Vector(equations))
 }
 
@@ -816,7 +830,7 @@ fn string_to_num(value: &str) -> Result<KalkFloat, KalkError> {
     }
 
     let base = get_base(value)?;
-    
+
     if base > 36 {
         return Err(KalkError::InvalidNumberLiteral(value.into()));
     }
@@ -928,6 +942,10 @@ mod tests {
             token(Literal, "4"),
             token(Slash, ""),
             token(Literal, "5"),
+            token(ShiftLeft, ""),
+            token(Literal, "8"),
+            token(ShiftRight, ""),
+            token(Literal, "3"),
             token(ClosedParenthesis, ""),
             token(Eof, ""),
         ];
@@ -941,12 +959,20 @@ mod tests {
                     f64_to_float_literal(2f64),
                     Star,
                     group(binary(
-                        f64_to_float_literal(3f64),
-                        Minus,
                         binary(
-                            f64_to_float_literal(4f64),
-                            Slash,
-                            f64_to_float_literal(5f64)
+                            f64_to_float_literal(3f64),
+                            Minus,
+                            binary(
+                                f64_to_float_literal(4f64),
+                                Slash,
+                                f64_to_float_literal(5f64),
+                            )
+                        ),
+                        ShiftLeft,
+                        binary(
+                            f64_to_float_literal(8f64),
+                            ShiftRight,
+                            f64_to_float_literal(3f64),
                         )
                     ))
                 )
