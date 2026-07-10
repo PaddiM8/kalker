@@ -44,7 +44,7 @@ jobs:
           cd kalk
           wasm-pack build --scope paddim8 -- --no-default-features
           cd pkg
-      - run: npm ci
+      - run: npm install
       - run: npm publish --provenance
       - run: cd ../..
 
@@ -65,7 +65,7 @@ jobs:
       - name: build
         run: |
           cd web
-          npm ci
+          npm install
           npm publish --provenance
           cd ..
 
