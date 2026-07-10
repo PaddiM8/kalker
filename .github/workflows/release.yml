@@ -26,6 +26,9 @@ jobs:
   publish_npm:
     name: publish to npm
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@master
       - uses: Swatinem/rust-cache@v1.0.1
@@ -40,18 +43,19 @@ jobs:
           yarn install
           cd kalk
           wasm-pack build --scope paddim8 -- --no-default-features
-          cd ..
-      - uses: JS-DevTools/npm-publish@v1
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: ./kalk/pkg/package.json
-          access: public
+          cd pkg
+      - run: npm ci
+      - run: npm publish --provenance
+      - run: cd ../..
 
   publish_kalk_web:
     name: publish kalk_web
     if: always()
     runs-on: ubuntu-latest
     needs: [publish_npm]
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-node@v1
@@ -61,13 +65,9 @@ jobs:
       - name: build
         run: |
           cd web
-          npm install
+          npm ci
+          npm publish --provenance
           cd ..
-      - uses: JS-DevTools/npm-publish@v1
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: ./web/package.json
-          access: public
 
   release_linux:
     name: release linux
