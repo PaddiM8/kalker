@@ -161,16 +161,15 @@ impl ScientificNotation {
 
 impl std::fmt::Display for ScientificNotation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let digits_and_mul = if self.value == 1f64 {
-            String::new()
-        } else {
-            format!("{}×", format_number(self.value))
-        };
-
+        if self.value == 0.0 {
+            return write!(f, "0{}", if self.imaginary { "i" } else { "" });
+        }
+        if self.value == 1f64 {
+            write!(f, "{}×", format_number(self.value))?;
+        }
         write!(
             f,
-            "{}10^{}{}",
-            digits_and_mul,
+            "10^{}{}",
             self.exponent - 1,
             if self.imaginary { " i" } else { "" }
         )
@@ -595,6 +594,13 @@ impl KalkValue {
             ComplexNumberType::Real => self.to_f64(),
             ComplexNumberType::Imaginary => self.imaginary_to_f64(),
         };
+        if !value.is_finite() || value == 0.0 {
+            return ScientificNotation {
+                value: 0.0,
+                exponent: 0,
+                imaginary: complex_number_type == ComplexNumberType::Imaginary,
+            };
+        }
         let exponent = value.abs().log10().floor() as i32 + 1;
 
         ScientificNotation {
@@ -683,7 +689,7 @@ impl KalkValue {
 
         if let KalkValue::Number(_, _, _) = lhs {
             if let KalkValue::Number(right_real, i, s) = rhs {
-                return Ok(KalkValue::Number(pow(float!(2),right_real), i, s));
+                return Ok(KalkValue::Number(pow(float!(2), right_real), i, s));
             }
         }
 
