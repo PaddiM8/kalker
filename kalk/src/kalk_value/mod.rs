@@ -164,7 +164,7 @@ impl std::fmt::Display for ScientificNotation {
         if self.value == 0.0 {
             return write!(f, "0{}", if self.imaginary { "i" } else { "" });
         }
-        if self.value == 1f64 {
+        if self.value != 1f64 {
             write!(f, "{}×", format_number(self.value))?;
         }
         write!(
