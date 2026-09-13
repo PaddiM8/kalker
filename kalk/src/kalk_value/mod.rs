@@ -147,7 +147,7 @@ impl ScientificNotation {
 
     fn to_string_eng(&self) -> String {
         let exponent = self.exponent - 1;
-        let modulo = exponent % 3;
+        let modulo = exponent.rem_euclid(3);
         let value = self.value * 10_f64.powi(modulo);
 
         ScientificNotation {
@@ -1706,19 +1706,44 @@ mod tests {
     #[test]
     fn test_eng_mode() {
         let in_out = vec![
-            (1.23, 0, "1.23×10^0"),
-            (1.23, 1, "12.3×10^0"),
-            (1.23, 2, "123×10^0"),
-            (1.23, 3, "1.23×10^3"),
-            (1.23, 4, "12.3×10^3"),
-            (1.23, 5, "123×10^3"),
-            (1.23, 6, "1.23×10^6"),
+            
+            (0.0, 0, false, "0"),
+            // Tests the rem_euclid implementation (Negative exponent)
+            (1.23, -1, false, "123×10^-3"),  
+            (1.23, -2, false, "12.3×10^-3"), 
+            (1.23, -3, false, "1.23×10^-3"), 
+            (1.23, -4, false, "123×10^-6"),
+
+            // Positive Exponents
+            (1.23, 0, false, "1.23×10^0"),
+            (1.23, 1, false, "12.3×10^0"),
+            (1.23, 2, false, "123×10^0"),
+            (1.23, 3, false, "1.23×10^3"),
+            (1.23, 4, false, "12.3×10^3"),
+            (1.23, 5, false, "123×10^3"),
+            (1.23, 6, false, "1.23×10^6"),
+            // Negative Mantissa
+            (-1.23, 0, false, "-1.23×10^0"),
+            (-1.23, 1, false, "-12.3×10^0"),
+            (-1.23, 2, false, "-123×10^0"),
+            (-1.23, 3, false, "-1.23×10^3"),
+            (-1.23, 4, false, "-12.3×10^3"),
+            (-1.23, 5, false, "-123×10^3"),
+            (-1.23, 6, false, "-1.23×10^6"),
+            
+            // Imaginary Numbers
+            (5.0, 0, true, "5×10^0 i"),
+            (5.0, 1, true, "50×10^0 i"),
+            (5.0, 2, true, "500×10^0 i"),
+            (5.0, 3, true, "5×10^3 i"),
+            (1.23,0, true, "1.23×10^0 i"),
+            (0.0, 0, true, "0i")
         ];
-        for (value, exponent, output) in in_out {
+        for (value, exponent, imaginary, output) in in_out {
             let sci = ScientificNotation {
                 value,
                 exponent: exponent + 1,
-                imaginary: false,
+                imaginary,
             };
 
             assert_eq!(
