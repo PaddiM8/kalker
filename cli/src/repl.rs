@@ -31,7 +31,7 @@ pub fn start(
     precision: u32,
     format: ScientificNotationFormat,
     no_leading_equal: bool,
-    raw: bool
+    raw: bool,
 ) {
     let mut editor = Editor::<RLHelper>::new();
     editor.set_helper(Some(RLHelper {
@@ -55,10 +55,11 @@ pub fn start(
 
     // If in tty, print the welcome message
     if atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout) {
-        println!("kalker");
-        println!(
-            "{}",
-            ansi_term::Color::Fixed(246).paint("Type 'help' for instructions.")
+        output::println_stdout("kalker");
+        output::println_stdout(
+            &ansi_term::Color::Fixed(246)
+                .paint("Type 'help' for instructions.")
+                .to_string(),
         );
     }
 
@@ -99,13 +100,13 @@ fn eval_repl(
     input: &str,
     precision: u32,
     no_leading_equal: bool,
-    raw: bool
+    raw: bool,
 ) {
     if let Some(file_name) = input.strip_prefix("load ") {
         if let Some(file_path) = crate::get_input_file_by_name(file_name) {
             crate::load_input_file(&file_path, precision, parser);
         } else {
-            eprintln!("Unable to find '{}'", file_name);
+            print_err(&format!("Unable to find '{}'", file_name));
         }
 
         return;
@@ -120,7 +121,7 @@ fn eval_repl(
                 }
             }
 
-            eprintln!("Invalid number base");
+            print_err("Invalid number base");
 
             return;
         }
@@ -135,7 +136,7 @@ fn eval_repl(
                 print_err("Invalid mode name. Available modes: normal, eng");
 
                 return;
-            },
+            }
         };
 
         repl.mode = mode;
@@ -144,16 +145,24 @@ fn eval_repl(
     }
 
     match input {
-        "" => eprint!(""),
-        "clear" => print!("\x1B[2J"),
+        "" => {}
+        "clear" => output::print_stdout("\x1B[2J"),
         "help" => print_cli_help(),
-        _ => output::eval(parser, input, precision, repl.base, repl.mode, no_leading_equal, raw),
+        _ => output::eval(
+            parser,
+            input,
+            precision,
+            repl.base,
+            repl.mode,
+            no_leading_equal,
+            raw,
+        ),
     }
 }
 
 fn print_cli_help() {
     let help_text = include_str!("../help.txt");
-    println!("{}", help_text);
+    output::println_stdout(help_text);
 }
 
 struct LineHighlighter {}
