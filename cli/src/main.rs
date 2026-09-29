@@ -36,7 +36,7 @@ fn main() {
         )
         .flag(
             Flag::new("max-recursion-depth", FlagType::Int)
-                .description("The maximum allowed recursion depth. This is used to avoid crashes."),
+                .description("The maximum allowed recursion depth when parsing and evaluating expressions. This is used to avoid crashes."),
         )
         .flag(
             Flag::new("no-leading-eq", FlagType::Bool)
@@ -52,6 +52,25 @@ fn main() {
 }
 
 fn default_action(context: &Context) {
+    // Parsing and evaluating expressions is recursive, so deeply nested
+    // input can use a lot of stack space. Run everything on a dedicated
+    // thread with a large stack so that the recursion depth limit is
+    // reached before the stack actually runs out. The default stack size
+    // differs between platforms and is as small as ~1 MB on Windows.
+    std::thread::scope(|scope| {
+        let handle = std::thread::Builder::new()
+            .name("kalker".into())
+            .stack_size(64 * 1024 * 1024)
+            .spawn_scoped(scope, || run(context))
+            .expect("Failed to spawn thread");
+
+        if let Err(payload) = handle.join() {
+            std::panic::resume_unwind(payload);
+        }
+    });
+}
+
+fn run(context: &Context) {
     #[cfg(windows)]
     ansi_term::enable_ansi_support().unwrap_or_default();
 
@@ -97,7 +116,7 @@ fn default_action(context: &Context) {
             precision,
             format,
             context.bool_flag("no-leading-eq"),
-            context.bool_flag("raw")
+            context.bool_flag("raw"),
         );
     } else {
         // Direct output
@@ -108,7 +127,7 @@ fn default_action(context: &Context) {
             10u8,
             format,
             context.bool_flag("no-leading-eq"),
-            context.bool_flag("raw")
+            context.bool_flag("raw"),
         );
     }
 }
@@ -136,7 +155,7 @@ pub fn load_input_file(file_name: &str, precision: u32, parser_context: &mut par
     // Parse the input file content, resulting in the symbol table being filled out.
     // Output is not needed here.
     if let Err(error) = parser::eval(parser_context, &file_content, precision) {
-        eprintln!("{}", error);
+        output::print_err(&error.to_string());
     }
 }
 

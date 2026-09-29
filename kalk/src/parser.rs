@@ -16,6 +16,14 @@ use wasm_bindgen::prelude::*;
 pub const DECL_UNIT: &str = ".u";
 pub const DEFAULT_ANGLE_UNIT: &str = "rad";
 
+/// The maximum depth the parser is allowed to recurse while parsing an
+/// expression. The parser uses recursive descent, so deeply nested input
+/// like `((((...))))` would otherwise overflow the stack and crash.
+/// This default is used unless `Context::set_max_recursion_depth` is
+/// called, in which case that value is used for both parsing and
+/// evaluation.
+pub const DEFAULT_MAX_PARSE_DEPTH: u32 = 512;
+
 /// Struct containing the current state of the parser. It stores user-defined functions and variables.
 #[wasm_bindgen]
 pub struct Context {
@@ -34,6 +42,9 @@ pub struct Context {
     other_radix: Option<u8>,
     current_stmt_start_pos: usize,
     max_recursion_depth: Option<u32>,
+    /// The current amount of recursion during parsing.
+    /// Used to avoid overflowing the stack when parsing deeply nested input.
+    parse_depth: u32,
 }
 
 #[wasm_bindgen]
@@ -51,6 +62,7 @@ impl Context {
             other_radix: None,
             current_stmt_start_pos: 0,
             max_recursion_depth: None,
+            parse_depth: 0,
         };
 
         parse(&mut context, crate::prelude::INIT).unwrap();
@@ -140,6 +152,7 @@ pub fn parse(context: &mut Context, input: &str) -> Result<Vec<Stmt>, KalkError>
     let mut lexer = Lexer::new(input);
     context.tokens = lexer.lex();
     context.pos = 0;
+    context.parse_depth = 0;
     context.parsing_unit_decl = false;
     context.unit_decl_base_unit = None;
     context.other_radix = lexer.get_other_radix();
@@ -267,7 +280,7 @@ fn parse_comprehension(context: &mut Context) -> Result<Expr, KalkError> {
     if match_token(context, TokenKind::Colon) {
         let op = advance(context).kind;
         skip_newlines(context);
-        let right = Box::new(parse_comprehension_comma(context)?);
+        let right = Box::new(with_depth(context, parse_comprehension_comma)?);
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
 
@@ -280,7 +293,7 @@ fn parse_comprehension_comma(context: &mut Context) -> Result<Expr, KalkError> {
     if match_token(context, TokenKind::Comma) {
         let op = advance(context).kind;
         skip_newlines(context);
-        let right = Box::new(parse_comprehension_comma(context)?);
+        let right = Box::new(with_depth(context, parse_comprehension_comma)?);
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
 
@@ -293,7 +306,7 @@ fn parse_or(context: &mut Context) -> Result<Expr, KalkError> {
     if match_token(context, TokenKind::Or) {
         let op = advance(context).kind;
         skip_newlines(context);
-        let right = Box::new(parse_or(context)?);
+        let right = Box::new(with_depth(context, parse_or)?);
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
 
@@ -306,7 +319,7 @@ fn parse_and(context: &mut Context) -> Result<Expr, KalkError> {
     if match_token(context, TokenKind::And) {
         let op = advance(context).kind;
         skip_newlines(context);
-        let right = Box::new(parse_and(context)?);
+        let right = Box::new(with_depth(context, parse_and)?);
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
 
@@ -346,7 +359,7 @@ fn parse_comparison(context: &mut Context) -> Result<Expr, KalkError> {
             return Err(KalkError::WasStmt(fn_decl));
         };
 
-        let right = parse_comparison(context)?;
+        let right = with_depth(context, parse_comparison)?;
 
         left = match right {
             Expr::Binary(
@@ -384,7 +397,7 @@ fn parse_shift(context: &mut Context) -> Result<Expr, KalkError> {
     if match_token(context, TokenKind::ShiftLeft) || match_token(context, TokenKind::ShiftRight) {
         let op = advance(context).kind;
         skip_newlines(context);
-        let right = Box::new(parse_shift(context)?); // right associative like "and" and or
+        let right = Box::new(with_depth(context, parse_shift)?); // right associative like "and" and or
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
 
@@ -483,7 +496,7 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, KalkError> {
 
     if match_token(context, TokenKind::Power) {
         let op = advance(context).kind;
-        let right = Box::new(parse_exponent(context)?);
+        let right = Box::new(with_depth(context, parse_exponent)?);
 
         return Ok(Expr::Binary(Box::new(left), op, right));
     }
@@ -494,7 +507,7 @@ fn parse_exponent(context: &mut Context) -> Result<Expr, KalkError> {
 fn parse_unary(context: &mut Context) -> Result<Expr, KalkError> {
     if match_token(context, TokenKind::Minus) || match_token(context, TokenKind::Not) {
         let op = advance(context).kind;
-        let expr = Box::new(parse_unary(context)?);
+        let expr = Box::new(with_depth(context, parse_unary)?);
 
         return Ok(Expr::Unary(op, expr));
     }
@@ -537,7 +550,38 @@ fn parse_factorial(context: &mut Context) -> Result<Expr, KalkError> {
     })
 }
 
+/// Increase the parse depth count, run the given parser function, and
+/// decrease the count again. Returns an error if the depth exceeds the
+/// maximum allowed recursion depth. The parser uses recursive descent,
+/// so deeply nested input like `((((...))))` would otherwise overflow
+/// the stack and crash.
+fn with_depth<T>(
+    context: &mut Context,
+    f: impl FnOnce(&mut Context) -> Result<T, KalkError>,
+) -> Result<T, KalkError> {
+    let max_depth = context
+        .max_recursion_depth
+        .unwrap_or(DEFAULT_MAX_PARSE_DEPTH);
+
+    if context.parse_depth >= max_depth {
+        return Err(KalkError::StackOverflow);
+    }
+
+    context.parse_depth += 1;
+    let result = f(context);
+    context.parse_depth -= 1;
+
+    result
+}
+
 fn parse_primary(context: &mut Context) -> Result<Expr, KalkError> {
+    // Every level of nesting (parentheses, vectors, etc.) goes through
+    // `parse_primary`. `parse_expr` is not used here since eg. `a or b or
+    // c` recurses without going through it.
+    with_depth(context, parse_primary_expr)
+}
+
+fn parse_primary_expr(context: &mut Context) -> Result<Expr, KalkError> {
     let expr = match peek(context).kind {
         TokenKind::OpenParenthesis | TokenKind::OpenBracket => parse_vector(context)?,
         TokenKind::OpenBrace => parse_equation_system(context)?,
@@ -1147,5 +1191,39 @@ mod tests {
                 f64_to_float_literal(3f64)
             ))
         );
+    }
+
+    #[test]
+    fn test_deeply_nested_expression() {
+        // Run on a thread with a large stack so that the depth limit is
+        // reached before the stack runs out, even on unoptimized builds
+        // where each recursion level uses much more stack space.
+        std::thread::Builder::new()
+            .stack_size(128 * 1024 * 1024)
+            .spawn(|| {
+                let mut context = Context::new();
+
+                // Extremely deep nesting should give an error rather than
+                // overflowing the stack and crashing.
+                let deep_input = format!("{}1{}", "(".repeat(600), ")".repeat(600));
+                assert!(matches!(
+                    super::parse(&mut context, &deep_input),
+                    Err(KalkError::StackOverflow)
+                ));
+
+                // Deep right-recursion should give an error as well.
+                let deep_ops = format!("1{}", " or 1".repeat(600));
+                assert!(matches!(
+                    super::parse(&mut context, &deep_ops),
+                    Err(KalkError::StackOverflow)
+                ));
+
+                // Moderately nested expressions should still parse.
+                let ok_input = format!("{}1{}", "(".repeat(400), ")".repeat(400));
+                assert!(super::parse(&mut context, &ok_input).is_ok());
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 }
