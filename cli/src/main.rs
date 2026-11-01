@@ -22,7 +22,7 @@ fn main() {
         )
         .flag(
             Flag::new("precision", FlagType::Int)
-                .description("Specify number precision")
+                .description("Specify the number of significant figures")
                 .alias("p"),
         )
         .flag(
@@ -69,9 +69,9 @@ fn default_action(context: &Context) {
     let mut parser_context = parser::Context::new()
         .set_angle_unit(&angle_unit)
         .set_timeout(None);
-    let precision = context
+    let significant_figures = context
         .int_flag("precision")
-        .unwrap_or(output::DEFAULT_PRECISION as isize) as u32;
+        .unwrap_or(0) as u32;
     let format = if context.bool_flag("eng") {
         ScientificNotationFormat::Engineering
     } else {
@@ -83,18 +83,18 @@ fn default_action(context: &Context) {
     }
 
     if let Some(input_file_path) = get_input_file_by_name("default") {
-        load_input_file(&input_file_path, precision, &mut parser_context);
+        load_input_file(&input_file_path, &mut parser_context);
     }
 
     if let Ok(input_file_path) = context.string_flag("input-file") {
-        load_input_file(&input_file_path, precision, &mut parser_context);
+        load_input_file(&input_file_path, &mut parser_context);
     }
 
     if context.args.is_empty() {
         // REPL
         repl::start(
             &mut parser_context,
-            precision,
+            significant_figures,
             format,
             context.bool_flag("no-leading-eq"),
             context.bool_flag("raw")
@@ -104,7 +104,7 @@ fn default_action(context: &Context) {
         output::eval(
             &mut parser_context,
             &context.args.join(" "),
-            precision,
+            significant_figures,
             10u8,
             format,
             context.bool_flag("no-leading-eq"),
@@ -126,7 +126,7 @@ pub(crate) fn get_input_file_by_name(name: &str) -> Option<String> {
     }
 }
 
-pub fn load_input_file(file_name: &str, precision: u32, parser_context: &mut parser::Context) {
+pub fn load_input_file(file_name: &str, parser_context: &mut parser::Context) {
     let mut file_content = String::new();
     File::open(file_name)
         .expect("Couldn't find file.")
@@ -135,7 +135,11 @@ pub fn load_input_file(file_name: &str, precision: u32, parser_context: &mut par
 
     // Parse the input file content, resulting in the symbol table being filled out.
     // Output is not needed here.
-    if let Err(error) = parser::eval(parser_context, &file_content, precision) {
+    if let Err(error) = parser::eval(
+        parser_context,
+        &file_content,
+        output::CALCULATION_PRECISION,
+    ) {
         eprintln!("{}", error);
     }
 }

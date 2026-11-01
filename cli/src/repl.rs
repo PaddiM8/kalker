@@ -28,7 +28,7 @@ struct Context {
 
 pub fn start(
     parser: &mut parser::Context,
-    precision: u32,
+    significant_figures: u32,
     format: ScientificNotationFormat,
     no_leading_equal: bool,
     raw: bool
@@ -81,7 +81,14 @@ pub fn start(
                     break;
                 }
                 editor.add_history_entry(input.as_str());
-                eval_repl(&mut repl, parser, &input, precision, no_leading_equal, raw);
+                eval_repl(
+                    &mut repl,
+                    parser,
+                    &input,
+                    significant_figures,
+                    no_leading_equal,
+                    raw,
+                );
             }
             Err(ReadlineError::Interrupted) => continue,
             _ => break,
@@ -97,13 +104,13 @@ fn eval_repl(
     repl: &mut self::Context,
     parser: &mut parser::Context,
     input: &str,
-    precision: u32,
+    significant_figures: u32,
     no_leading_equal: bool,
     raw: bool
 ) {
     if let Some(file_name) = input.strip_prefix("load ") {
         if let Some(file_path) = crate::get_input_file_by_name(file_name) {
-            crate::load_input_file(&file_path, precision, parser);
+            crate::load_input_file(&file_path, parser);
         } else {
             eprintln!("Unable to find '{}'", file_name);
         }
@@ -147,7 +154,15 @@ fn eval_repl(
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
         "help" => print_cli_help(),
-        _ => output::eval(parser, input, precision, repl.base, repl.mode, no_leading_equal, raw),
+        _ => output::eval(
+            parser,
+            input,
+            significant_figures,
+            repl.base,
+            repl.mode,
+            no_leading_equal,
+            raw,
+        ),
     }
 }
 
