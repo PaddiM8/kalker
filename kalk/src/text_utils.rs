@@ -109,3 +109,61 @@ pub fn normal_to_subscript(chars: impl Iterator<Item = char>) -> String {
 
     subscript
 }
+
+pub fn superscript_to_normal(chars: impl Iterator<Item = char>) -> String {
+    chars
+        .map(|c| match c {
+            '⁰' => '0',
+            '¹' => '1',
+            '²' => '2',
+            '³' => '3',
+            '⁴' => '4',
+            '⁵' => '5',
+            '⁶' => '6',
+            '⁷' => '7',
+            '⁸' => '8',
+            '⁹' => '9',
+            '⁺' => '+',
+            '⁻' => '-',
+            '⁼' => '=',
+            '⁽' => '(',
+            '⁾' => ')',
+            other => other,
+        })
+        .collect()
+}
+
+pub fn normal_to_superscript(chars: impl Iterator<Item = char>) -> String {
+    chars
+        .map(|c| match c {
+            '0' => '⁰',
+            '1' => '¹',
+            '2' => '²',
+            '3' => '³',
+            '4' => '⁴',
+            '5' => '⁵',
+            '6' => '⁶',
+            '7' => '⁷',
+            '8' => '⁸',
+            '9' => '⁹',
+            '+' => '⁺',
+            '-' => '⁻',
+            '=' => '⁼',
+            '(' => '⁽',
+            ')' => '⁾',
+            other => other,
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{normal_to_superscript, superscript_to_normal};
+
+    #[test]
+    fn superscript_conversion_round_trips_signed_exponents() {
+        let superscript = normal_to_superscript("-123".chars());
+        assert_eq!("⁻¹²³", superscript);
+        assert_eq!("-123", superscript_to_normal(superscript.chars()));
+    }
+}
