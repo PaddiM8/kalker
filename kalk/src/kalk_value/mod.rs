@@ -1747,6 +1747,22 @@ mod tests {
     }
 
     #[test]
+    fn test_calculation_with_three_significant_figures() {
+        let mut context = crate::parser::Context::new();
+        let result = crate::parser::eval(
+            &mut context,
+            "(175*5)/(0.8206*293.3)",
+            1024,
+        )
+        .unwrap()
+        .unwrap()
+        .get_value();
+
+        assert!((result.to_f64() - 3.635502749312599).abs() < 1e-12);
+        assert_eq!("3.64", result.to_string_sigfigs(3));
+    }
+
+    #[test]
     fn test_eng_mode() {
         let in_out = vec![
             
