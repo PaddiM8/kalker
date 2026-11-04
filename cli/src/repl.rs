@@ -16,6 +16,14 @@ use rustyline::validate::ValidationContext;
 use rustyline::validate::ValidationResult;
 use rustyline::validate::Validator;
 use rustyline::{Editor, Helper};
+use reedline::{
+    ColumnarMenu, Completer as ReedlineCompleter, DefaultCompleter, FileBackedHistory,
+    KeyCode, KeyModifiers, MenuBuilder, Prompt,
+    PromptEditMode, PromptHistorySearch, PromptHistorySearchStatus, PromptViMode, Reedline,
+    ReedlineEvent, ReedlineMenu, Signal, Span, StyledText, Suggestion,
+    ValidationResult as ReedlineValidationResult, Validator as ReedlineValidator, Vi,
+};
+use nu_ansi_term::{Color as NuColor, Style as NuStyle};
 use std::borrow::Cow;
 use std::borrow::Cow::Owned;
 use std::collections::HashMap;
@@ -31,8 +39,20 @@ pub fn start(
     precision: u32,
     format: ScientificNotationFormat,
     no_leading_equal: bool,
-    raw: bool
+    raw: bool,
+    vim_mode: bool,
 ) {
+    if vim_mode {
+        start_vim(
+            parser,
+            precision,
+            format,
+            no_leading_equal,
+            raw,
+        );
+        return;
+    }
+
     let mut editor = Editor::<RLHelper>::new();
     editor.set_helper(Some(RLHelper {
         highlighter: LineHighlighter {},
@@ -81,7 +101,14 @@ pub fn start(
                     break;
                 }
                 editor.add_history_entry(input.as_str());
-                eval_repl(&mut repl, parser, &input, precision, no_leading_equal, raw);
+                eval_repl(
+                    &mut repl,
+                    parser,
+                    &input,
+                    precision,
+                    no_leading_equal,
+                    raw,
+                );
             }
             Err(ReadlineError::Interrupted) => continue,
             _ => break,
@@ -90,6 +117,258 @@ pub fn start(
 
     if let Some(history_path) = history_path {
         editor.save_history(&history_path).ok();
+    }
+}
+
+struct VimPrompt;
+
+impl Prompt for VimPrompt {
+    fn render_prompt_left(&self) -> std::borrow::Cow<'_, str> {
+        "".into()
+    }
+
+    fn render_prompt_right(&self) -> std::borrow::Cow<'_, str> {
+        "".into()
+    }
+
+    fn render_prompt_indicator(&self, edit_mode: PromptEditMode) -> std::borrow::Cow<'_, str> {
+        match edit_mode {
+            PromptEditMode::Vi(PromptViMode::Normal) => "[N] >> ".into(),
+            PromptEditMode::Vi(PromptViMode::Insert) => "[I] >> ".into(),
+            _ => "[I] >> ".into(),
+        }
+    }
+
+    fn render_prompt_multiline_indicator(&self) -> std::borrow::Cow<'_, str> {
+        "... ".into()
+    }
+
+    fn render_prompt_history_search_indicator(
+        &self,
+        search: PromptHistorySearch,
+    ) -> std::borrow::Cow<'_, str> {
+        let status = match search.status {
+            PromptHistorySearchStatus::Passing => "",
+            PromptHistorySearchStatus::Failing => "failing ",
+        };
+        format!("({}reverse-search: {}) ", status, search.term).into()
+    }
+}
+
+struct VimHighlighter;
+
+impl reedline::Highlighter for VimHighlighter {
+    fn highlight(&self, line: &str, _cursor: usize) -> StyledText {
+        let regex = Regex::new(
+            r"(?x)
+            (?P<op>([+\-/*%^!×÷⋅∧∨¬ᵀ]|if|otherwise|\b(and|or|mod|true|false|not)\b|load|exit|clear|help)) |
+            (?P<radix>0[box][a-zA-Z0-9]+) |
+            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ᵀ]+(_\d+)?)",
+        )
+        .expect("valid syntax highlighting regex");
+        let mut output = StyledText::new();
+        let mut previous_end = 0;
+
+        for captures in regex.captures_iter(line) {
+            let matched = captures.get(0).expect("match has a full capture");
+            if matched.start() > previous_end {
+                output.push((NuStyle::new(), line[previous_end..matched.start()].into()));
+            }
+            let style = if captures.name("op").is_some() {
+                NuStyle::new().fg(NuColor::Fixed(172))
+            } else if captures.name("identifier").is_some() {
+                match matched.as_str() {
+                    "rad" | "deg" | "°" => NuStyle::new().fg(NuColor::Yellow),
+                    _ => NuStyle::new().fg(NuColor::Fixed(32)),
+                }
+            } else {
+                NuStyle::new()
+            };
+            output.push((style, matched.as_str().into()));
+            previous_end = matched.end();
+        }
+
+        if previous_end < line.len() {
+            output.push((NuStyle::new(), line[previous_end..].into()));
+        }
+        output
+    }
+}
+
+struct VimCompleter {
+    completions: DefaultCompleter,
+}
+
+impl ReedlineCompleter for VimCompleter {
+    fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
+        for key in COMPLETION_FUNCS.keys() {
+            let slice = &line[..pos];
+            if slice.ends_with(key) {
+                let value = COMPLETION_FUNCS.get(key).expect("completion key exists");
+                return vec![Suggestion {
+                    value: (*value).to_string(),
+                    span: Span::new(pos - key.len(), pos),
+                    ..Suggestion::default()
+                }];
+            }
+            if key.starts_with(' ') && slice.len() == key.len() - 1 && slice == &key[1..] {
+                let value = &COMPLETION_FUNCS.get(key).expect("completion key exists")[1..];
+                return vec![Suggestion {
+                    value: value.to_string(),
+                    span: Span::new(pos - key.len() + 1, pos),
+                    ..Suggestion::default()
+                }];
+            }
+
+            let digits: String = slice.chars().rev().take_while(char::is_ascii_digit).collect();
+            if !digits.is_empty() && pos > digits.len() {
+                let subscript = kalk::text_utils::normal_to_subscript(digits.chars().rev());
+                return vec![Suggestion {
+                    value: subscript,
+                    span: Span::new(pos - digits.len(), pos),
+                    ..Suggestion::default()
+                }];
+            }
+        }
+
+        self.completions.complete(line, pos)
+    }
+}
+
+struct KalkerValidator;
+
+impl ReedlineValidator for KalkerValidator {
+    fn validate(&self, line: &str) -> ReedlineValidationResult {
+        let mut expected = Vec::new();
+        let mut in_string = false;
+        let mut escaped = false;
+
+        for character in line.chars() {
+            if escaped {
+                escaped = false;
+                continue;
+            }
+            if character == '\\' && in_string {
+                escaped = true;
+                continue;
+            }
+            if character == '"' {
+                in_string = !in_string;
+                continue;
+            }
+            if in_string {
+                continue;
+            }
+
+            match character {
+                '(' => expected.push(')'),
+                '[' => expected.push(']'),
+                '{' => expected.push('}'),
+                '⌈' => expected.push('⌉'),
+                '⌊' => expected.push('⌋'),
+                ')' | ']' | '}' | '⌋' | '⌉' => {
+                    if expected.last() == Some(&character) {
+                        expected.pop();
+                    }
+                }
+                '|' => {
+                    if expected.last() == Some(&'|') {
+                        expected.pop();
+                    } else {
+                        expected.push('|');
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if in_string || !expected.is_empty() {
+            ReedlineValidationResult::Incomplete
+        } else {
+            ReedlineValidationResult::Complete
+        }
+    }
+}
+
+fn start_vim(
+    parser: &mut parser::Context,
+    precision: u32,
+    format: ScientificNotationFormat,
+    no_leading_equal: bool,
+    raw: bool,
+) {
+    let mut history_path = dirs::cache_dir().map(|mut path| {
+        path.push("kalker");
+        path.push("history.txt");
+        path
+    });
+    let history = history_path
+        .take()
+        .and_then(|path| FileBackedHistory::with_file(30, path).ok())
+        .or_else(|| FileBackedHistory::new(30).ok())
+        .expect("unable to initialize REPL history");
+
+    let mut completer = VimCompleter {
+        completions: DefaultCompleter::default(),
+    };
+    completer
+        .completions
+        .insert(COMPLETION_FUNCS.keys().map(|key| (*key).to_string()).collect());
+    let menu = Box::new(ColumnarMenu::default().with_name("completion_menu"));
+    let mut insert_bindings = reedline::default_vi_insert_keybindings();
+    insert_bindings.add_binding(
+        KeyModifiers::NONE,
+        KeyCode::Tab,
+        ReedlineEvent::Menu("completion_menu".into()),
+    );
+
+    let mut line_editor = Reedline::create()
+        .with_history(Box::new(history))
+        .with_completer(Box::new(completer))
+        .with_menu(ReedlineMenu::EngineCompleter(menu))
+        .with_highlighter(Box::new(VimHighlighter))
+        .with_validator(Box::new(KalkerValidator))
+        .with_edit_mode(Box::new(Vi::new(
+            insert_bindings,
+            reedline::default_vi_normal_keybindings(),
+        )));
+    let prompt = VimPrompt;
+
+    if atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout) {
+        println!("kalker");
+        println!(
+            "{}",
+            ansi_term::Color::Fixed(246).paint("Type 'help' for instructions.")
+        );
+    }
+
+    let mut repl = Context {
+        base: 10,
+        mode: format,
+    };
+
+    loop {
+        match line_editor.read_line(&prompt) {
+            Ok(Signal::Success(input)) => {
+                if input == "exit" {
+                    break;
+                }
+                eval_repl(
+                    &mut repl,
+                    parser,
+                    &input,
+                    precision,
+                    no_leading_equal,
+                    raw,
+                );
+            }
+            Ok(Signal::CtrlC) => println!(),
+            Ok(Signal::CtrlD) => break,
+            Err(error) => {
+                print_err(&format!("REPL error: {}", error));
+                break;
+            }
+        }
     }
 }
 
@@ -344,5 +623,34 @@ impl Validator for RLHelper {
 
     fn validate_while_typing(&self) -> bool {
         self.validator.validate_while_typing()
+    }
+}
+
+#[cfg(test)]
+mod vim_tests {
+    use super::{KalkerValidator, Prompt, PromptEditMode, PromptViMode, ReedlineValidationResult, VimPrompt};
+    use reedline::Validator;
+
+    #[test]
+    fn vim_prompt_indicator_tracks_editor_mode() {
+        let prompt = VimPrompt;
+
+        assert_eq!(
+            "[N] >> ",
+            prompt.render_prompt_indicator(PromptEditMode::Vi(PromptViMode::Normal))
+        );
+        assert_eq!(
+            "[I] >> ",
+            prompt.render_prompt_indicator(PromptEditMode::Vi(PromptViMode::Insert))
+        );
+    }
+
+    #[test]
+    fn vim_validator_requests_continuation_for_open_groups_and_strings() {
+        let validator = KalkerValidator;
+
+        assert!(matches!(validator.validate("(1 + 2"), ReedlineValidationResult::Incomplete));
+        assert!(matches!(validator.validate("\"unfinished"), ReedlineValidationResult::Incomplete));
+        assert!(matches!(validator.validate("(1 + 2)"), ReedlineValidationResult::Complete));
     }
 }

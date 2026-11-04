@@ -46,6 +46,10 @@ fn main() {
             Flag::new("raw", FlagType::Bool)
                 .description("Only print a single number as the result, nothing else.")
                 .alias("r")
+        )
+        .flag(
+            Flag::new("vim", FlagType::Bool)
+                .description("Enable Vim-style insert and normal modes in the REPL")
         );
 
     app.run(args);
@@ -97,7 +101,8 @@ fn default_action(context: &Context) {
             precision,
             format,
             context.bool_flag("no-leading-eq"),
-            context.bool_flag("raw")
+            context.bool_flag("raw"),
+            context.bool_flag("vim"),
         );
     } else {
         // Direct output
