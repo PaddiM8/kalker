@@ -1,18 +1,18 @@
 use ansi_term::Colour::Red;
 use kalk::{kalk_value::ScientificNotationFormat, parser};
 
-pub(crate) const DEFAULT_PRECISION: u32 = 1024;
+pub(crate) const CALCULATION_PRECISION: u32 = 1024;
 
 pub fn eval(
     parser: &mut parser::Context,
     input: &str,
-    precision: u32,
+    significant_figures: u32,
     base: u8,
     format: ScientificNotationFormat,
     no_leading_equal: bool,
     raw: bool
 ) {
-    match parser::eval(parser, input, precision) {
+    match parser::eval(parser, input, CALCULATION_PRECISION) {
         Ok(Some(mut result)) => {
             if base != 10 && !result.set_radix(base) {
                 print_err("Invalid base. Change it by typing eg. `base 10`.");
@@ -20,7 +20,7 @@ pub fn eval(
                 return;
             }
 
-            if precision == DEFAULT_PRECISION && !raw {
+            if significant_figures == 0 && !raw {
                 let mut result_str = result.to_string_pretty_format(format);
                 if no_leading_equal {
                     result_str = result_str
@@ -35,7 +35,11 @@ pub fn eval(
                 return;
             }
 
-            println!("{}", result.to_string_big())
+            if significant_figures > 0 {
+                println!("{}", result.to_string_sigfigs(significant_figures as usize));
+            } else {
+                println!("{}", result.to_string_big());
+            }
         }
         Ok(None) => print!(""),
         Err(err) => print_err(&err.to_string()),

@@ -314,6 +314,41 @@ impl KalkValue {
         }
     }
 
+    /// Format numeric values to a requested number of significant figures.
+    pub fn to_string_sigfigs(&self, digits: usize) -> String {
+        let digits = digits.max(1);
+        match self {
+            KalkValue::Number(real, imaginary, unit) => {
+                #[cfg(feature = "rug")]
+                let format = |value: &Float| value.to_string_radix(10, Some(digits));
+                #[cfg(not(feature = "rug"))]
+                let format = |value: &f64| format!("{:.*e}", digits.saturating_sub(1), value);
+
+                let real_str = format(real).replace('e', "E");
+                let imaginary_str = format(imaginary).replace('e', "E");
+                let number = if imaginary == &0f64 {
+                    real_str
+                } else if real == &0f64 {
+                    format!("{}i", imaginary_str)
+                } else {
+                    format!(
+                        "{} {} {}i",
+                        real_str,
+                        if imaginary < &0f64 { "-" } else { "+" },
+                        imaginary_str.trim_start_matches('-')
+                    )
+                };
+
+                if let Some(unit) = unit {
+                    format!("{} {}", number, unit)
+                } else {
+                    number
+                }
+            }
+            _ => self.to_string(),
+        }
+    }
+
     pub fn to_string_real(&self, radix: u8) -> String {
         radix::to_radix_pretty(self.to_f64(), radix)
     }
@@ -1701,6 +1736,30 @@ mod tests {
                 .to_string_pretty(ScientificNotationFormat::Normal);
             assert_eq!(output, result);
         }
+    }
+
+    #[test]
+    fn test_to_string_sigfigs() {
+        let result = KalkValue::Number(float!(0.3047038659), float!(0), None);
+        assert_eq!("3.05E-1", result.to_string_sigfigs(3));
+        assert_eq!("3.0E-1", result.to_string_sigfigs(2));
+        assert_eq!("3E-1", result.to_string_sigfigs(1));
+    }
+
+    #[test]
+    fn test_calculation_with_three_significant_figures() {
+        let mut context = crate::parser::Context::new();
+        let result = crate::parser::eval(
+            &mut context,
+            "(175*5)/(0.8206*293.3)",
+            1024,
+        )
+        .unwrap()
+        .unwrap()
+        .get_value();
+
+        assert!((result.to_f64() - 3.635502749312599).abs() < 1e-12);
+        assert_eq!("3.64", result.to_string_sigfigs(3));
     }
 
     #[test]

@@ -48,6 +48,11 @@ pub struct CalculationResult {
         self.value.to_string_big()
     }
 
+    #[wasm_bindgen(js_name = toStringSigfigs)]
+    pub fn to_string_sigfigs(&self, digits: usize) -> String {
+        self.value.to_string_sigfigs(digits)
+    }
+
     #[wasm_bindgen(js_name = toPrettyStringWithFormat)]
     pub fn to_string_pretty_format(&self, format: ScientificNotationFormat) -> String {
         let value = if self.radix == 10 {
