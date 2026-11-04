@@ -72,6 +72,54 @@ pub struct Lexer<'a> {
     has_backtracked: bool,
 }
 
+fn is_numeric_superscript(character: char) -> bool {
+    matches!(
+        character,
+        '⁰' | '¹' | '²' | '³' | '⁴' | '⁵' | '⁶' | '⁷' | '⁸' | '⁹' | '⁺' | '⁻'
+    )
+}
+
+fn is_inverse_function_notation(identifier: &str) -> bool {
+    matches!(
+        identifier,
+        "sin⁻¹"
+            | "cos⁻¹"
+            | "tan⁻¹"
+            | "cot⁻¹"
+            | "cosec⁻¹"
+            | "sec⁻¹"
+            | "sinh⁻¹"
+            | "cosh⁻¹"
+            | "tanh⁻¹"
+            | "coth⁻¹"
+            | "cosech⁻¹"
+            | "sech⁻¹"
+    )
+}
+
+fn push_superscript_power(tokens: &mut Vec<Token>, superscript: &str, span: (usize, usize)) {
+    let exponent = crate::text_utils::superscript_to_normal(superscript.chars());
+    tokens.push(build(TokenKind::Power, "", span));
+    if let Some(sign) = exponent.chars().next().filter(|c| matches!(c, '+' | '-')) {
+        tokens.push(build(
+            if sign == '-' {
+                TokenKind::Minus
+            } else {
+                TokenKind::Plus
+            },
+            "",
+            span,
+        ));
+        tokens.push(build(
+            TokenKind::Literal,
+            &exponent[sign.len_utf8()..],
+            span,
+        ));
+    } else {
+        tokens.push(build(TokenKind::Literal, &exponent, span));
+    }
+}
+
 impl<'a> Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
         Lexer {
@@ -93,6 +141,27 @@ impl<'a> Lexer<'a> {
                 let span = next.span;
                 tokens.push(next);
                 tokens.push(build(TokenKind::Identifier, &value, span));
+            } else if next.kind == TokenKind::Identifier {
+                if is_inverse_function_notation(&next.value) {
+                    tokens.push(next);
+                    continue;
+                }
+                let split_at = next
+                    .value
+                    .char_indices()
+                    .find(|(_, character)| is_numeric_superscript(*character))
+                    .map(|(index, _)| index);
+                if let Some(split_at) = split_at {
+                    let (base, superscript) = next.value.split_at(split_at);
+                    if superscript.chars().all(is_numeric_superscript) {
+                        if !base.is_empty() {
+                            tokens.push(build(TokenKind::Identifier, base, next.span));
+                        }
+                        push_superscript_power(&mut tokens, superscript, next.span);
+                        continue;
+                    }
+                }
+                tokens.push(next);
             } else if TokenKind::Eof == next.kind {
                 tokens.push(next);
                 break;
@@ -130,6 +199,15 @@ impl<'a> Lexer<'a> {
 
         if c.is_ascii_digit() || c == '.' {
             return self.next_number_literal();
+        }
+
+        if is_numeric_superscript(c) {
+            let start = self.index;
+            let mut value = String::new();
+            while self.peek().map(is_numeric_superscript).unwrap_or(false) {
+                value.push(self.advance().unwrap());
+            }
+            return build(TokenKind::Identifier, &value, (start, self.index));
         }
 
         if is_valid_identifier(Some(c)) {
@@ -359,7 +437,9 @@ impl<'a> Lexer<'a> {
                 break;
             }
 
-            if is_subscript(&c) {
+            if is_numeric_superscript(c) {
+                break;
+            } else if is_subscript(&c) {
                 subscript.push(c);
             } else {
                 value.push(c);
@@ -549,6 +629,35 @@ mod tests {
 
         assert_eq!(&tokens[0].value, input);
         match_tokens(tokens, expected);
+    }
+
+    #[test]
+    fn superscript_numbers_are_power_expressions() {
+        let tokens = Lexer::new("10²").lex();
+        assert_eq!(tokens[0].kind, TokenKind::Literal);
+        assert_eq!(tokens[1].kind, TokenKind::Power);
+        assert_eq!(tokens[2].kind, TokenKind::Literal);
+
+        #[cfg(feature = "rug")]
+        {
+            let mut context = crate::parser::Context::new();
+            let result = crate::parser::eval(&mut context, "10²", 128)
+                .unwrap()
+                .unwrap()
+                .get_value();
+            assert_eq!(100.0, result.to_f64());
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "rug")]
+    fn signed_superscript_exponents_are_supported() {
+        let mut context = crate::parser::Context::new();
+        let result = crate::parser::eval(&mut context, "10⁻²", 128)
+            .unwrap()
+            .unwrap()
+            .get_value();
+        assert!((0.01 - result.to_f64()).abs() < 1e-10);
     }
 
     #[test_case("x")]

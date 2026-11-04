@@ -16,10 +16,12 @@ ansi_term = "0.12.1"
 kalk = { path = "../kalk", version = "^3.2.3" }
 lazy_static = "1.4.0"
 regex = "1"
-rustyline = "7.1.0"
 seahorse = "1.1.1"
 atty = "0.2.14"
 dirs = "3.0.2"
+reedline = "0.40.0"
+nu-ansi-term = "0.50.0"
+crossterm = "0.28.1"
 
 [features]
 default = []

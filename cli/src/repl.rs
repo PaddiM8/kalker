@@ -1,25 +1,21 @@
 use crate::output;
 use crate::output::print_err;
-use ansi_term::Colour::{self, Cyan};
+use crossterm::event::{Event as CrosstermEvent, KeyCode as CrosstermKeyCode};
 use kalk::kalk_value::ScientificNotationFormat;
 use kalk::parser;
 use lazy_static::lazy_static;
-use regex::Captures;
+use nu_ansi_term::{Color as NuColor, Style as NuStyle};
+use reedline::{
+    default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
+    ColumnarMenu, Completer as ReedlineCompleter, DefaultCompleter, EditCommand, EditMode, Emacs,
+    FileBackedHistory, KeyCode, KeyModifiers, Keybindings, MenuBuilder, Prompt, PromptEditMode,
+    PromptHistorySearch, PromptHistorySearchStatus, PromptViMode, Reedline, ReedlineEvent,
+    ReedlineMenu, Signal, Span, StyledText, Suggestion,
+    ValidationResult as ReedlineValidationResult, Validator as ReedlineValidator, Vi,
+};
 use regex::Regex;
-use rustyline::completion::Completer;
-use rustyline::config::Configurer;
-use rustyline::error::ReadlineError;
-use rustyline::highlight::Highlighter;
-use rustyline::hint::Hinter;
-use rustyline::validate::MatchingBracketValidator;
-use rustyline::validate::ValidationContext;
-use rustyline::validate::ValidationResult;
-use rustyline::validate::Validator;
-use rustyline::{Editor, Helper};
-use std::borrow::Cow;
-use std::borrow::Cow::Owned;
 use std::collections::HashMap;
-use std::fs;
+use std::convert::TryFrom;
 
 struct Context {
     base: u8,
@@ -31,29 +27,247 @@ pub fn start(
     precision: u32,
     format: ScientificNotationFormat,
     no_leading_equal: bool,
-    raw: bool
+    raw: bool,
+    vim_mode: bool,
 ) {
-    let mut editor = Editor::<RLHelper>::new();
-    editor.set_helper(Some(RLHelper {
-        highlighter: LineHighlighter {},
-        validator: MatchingBracketValidator::new(),
-    }));
-    editor.set_max_history_size(30);
+    start_reedline(parser, precision, format, no_leading_equal, raw, vim_mode);
+}
 
-    // Load history
-    let mut history_path = None;
-    if let Some(cache_path) = dirs::cache_dir() {
-        let mut cache_path = cache_path;
-        cache_path.push("kalker");
-        if fs::create_dir_all(cache_path.as_path()).is_ok() {
-            cache_path.push("history.txt");
-            let history = cache_path.into_os_string().into_string().unwrap();
-            editor.load_history(&history).ok();
-            history_path = Some(history)
+struct VimPrompt {
+    vim_mode: bool,
+}
+
+impl Prompt for VimPrompt {
+    fn render_prompt_left(&self) -> std::borrow::Cow<'_, str> {
+        "".into()
+    }
+
+    fn render_prompt_right(&self) -> std::borrow::Cow<'_, str> {
+        "".into()
+    }
+
+    fn render_prompt_indicator(&self, edit_mode: PromptEditMode) -> std::borrow::Cow<'_, str> {
+        if !self.vim_mode {
+            return ">> ".into();
+        }
+        match edit_mode {
+            PromptEditMode::Vi(PromptViMode::Normal) => "[N] >> ".into(),
+            PromptEditMode::Vi(PromptViMode::Insert) => "[I] >> ".into(),
+            _ => "[I] >> ".into(),
         }
     }
 
-    // If in tty, print the welcome message
+    fn render_prompt_multiline_indicator(&self) -> std::borrow::Cow<'_, str> {
+        "... ".into()
+    }
+
+    fn render_prompt_history_search_indicator(
+        &self,
+        search: PromptHistorySearch,
+    ) -> std::borrow::Cow<'_, str> {
+        let status = match search.status {
+            PromptHistorySearchStatus::Passing => "",
+            PromptHistorySearchStatus::Failing => "failing ",
+        };
+        format!("({}reverse-search: {}) ", status, search.term).into()
+    }
+}
+
+struct VimHighlighter;
+
+impl reedline::Highlighter for VimHighlighter {
+    fn highlight(&self, line: &str, _cursor: usize) -> StyledText {
+        let regex = Regex::new(
+            r"(?x)
+            (?P<op>([+\-/*%^!×÷⋅∧∨¬ᵀ]|if|otherwise|\b(and|or|mod|true|false|not)\b|load|exit|clear|help)) |
+            (?P<radix>0[box][a-zA-Z0-9]+) |
+            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ᵀ]+(_\d+)?)",
+        )
+        .expect("valid syntax highlighting regex");
+        let mut output = StyledText::new();
+        let mut previous_end = 0;
+
+        for captures in regex.captures_iter(line) {
+            let matched = captures.get(0).expect("match has a full capture");
+            if matched.start() > previous_end {
+                output.push((NuStyle::new(), line[previous_end..matched.start()].into()));
+            }
+            let style = if captures.name("op").is_some() {
+                NuStyle::new().fg(NuColor::Fixed(172))
+            } else if captures.name("identifier").is_some() {
+                match matched.as_str() {
+                    "rad" | "deg" | "°" => NuStyle::new().fg(NuColor::Yellow),
+                    _ => NuStyle::new().fg(NuColor::Fixed(32)),
+                }
+            } else {
+                NuStyle::new()
+            };
+            output.push((style, matched.as_str().into()));
+            previous_end = matched.end();
+        }
+
+        if previous_end < line.len() {
+            output.push((NuStyle::new(), line[previous_end..].into()));
+        }
+        output
+    }
+}
+
+struct VimCompleter {
+    completions: DefaultCompleter,
+}
+
+impl ReedlineCompleter for VimCompleter {
+    fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
+        for key in COMPLETION_FUNCS.keys() {
+            let slice = &line[..pos];
+            if slice.ends_with(key) {
+                let value = COMPLETION_FUNCS.get(key).expect("completion key exists");
+                return vec![Suggestion {
+                    value: (*value).to_string(),
+                    span: Span::new(pos - key.len(), pos),
+                    ..Suggestion::default()
+                }];
+            }
+            if key.starts_with(' ') && slice.len() == key.len() - 1 && slice == &key[1..] {
+                let value = &COMPLETION_FUNCS.get(key).expect("completion key exists")[1..];
+                return vec![Suggestion {
+                    value: value.to_string(),
+                    span: Span::new(pos - key.len() + 1, pos),
+                    ..Suggestion::default()
+                }];
+            }
+
+            let digits: String = slice
+                .chars()
+                .rev()
+                .take_while(char::is_ascii_digit)
+                .collect();
+            if !digits.is_empty() && pos > digits.len() {
+                let subscript = kalk::text_utils::normal_to_subscript(digits.chars().rev());
+                return vec![Suggestion {
+                    value: subscript,
+                    span: Span::new(pos - digits.len(), pos),
+                    ..Suggestion::default()
+                }];
+            }
+        }
+
+        self.completions.complete(line, pos)
+    }
+}
+
+struct KalkerValidator;
+
+impl ReedlineValidator for KalkerValidator {
+    fn validate(&self, line: &str) -> ReedlineValidationResult {
+        let mut expected = Vec::new();
+        let mut in_string = false;
+        let mut escaped = false;
+
+        for character in line.chars() {
+            if escaped {
+                escaped = false;
+                continue;
+            }
+            if character == '\\' && in_string {
+                escaped = true;
+                continue;
+            }
+            if character == '"' {
+                in_string = !in_string;
+                continue;
+            }
+            if in_string {
+                continue;
+            }
+
+            match character {
+                '(' => expected.push(')'),
+                '[' => expected.push(']'),
+                '{' => expected.push('}'),
+                '⌈' => expected.push('⌉'),
+                '⌊' => expected.push('⌋'),
+                ')' | ']' | '}' | '⌋' | '⌉' => {
+                    if expected.last() == Some(&character) {
+                        expected.pop();
+                    }
+                }
+                '|' => {
+                    if expected.last() == Some(&'|') {
+                        expected.pop();
+                    } else {
+                        expected.push('|');
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if in_string || !expected.is_empty() {
+            ReedlineValidationResult::Incomplete
+        } else {
+            ReedlineValidationResult::Complete
+        }
+    }
+}
+
+fn start_reedline(
+    parser: &mut parser::Context,
+    precision: u32,
+    format: ScientificNotationFormat,
+    no_leading_equal: bool,
+    raw: bool,
+    vim_mode: bool,
+) {
+    let mut history_path = dirs::cache_dir().map(|mut path| {
+        path.push("kalker");
+        path.push("history.txt");
+        path
+    });
+    let history = history_path
+        .take()
+        .and_then(|path| FileBackedHistory::with_file(30, path).ok())
+        .or_else(|| FileBackedHistory::new(30).ok())
+        .expect("unable to initialize REPL history");
+
+    let mut completer = VimCompleter {
+        completions: DefaultCompleter::default(),
+    };
+    completer.completions.insert(
+        COMPLETION_FUNCS
+            .keys()
+            .map(|key| (*key).to_string())
+            .collect(),
+    );
+    let menu = Box::new(ColumnarMenu::default().with_name("completion_menu"));
+    let edit_mode: Box<dyn EditMode> = if vim_mode {
+        let mut insert_bindings = default_vi_insert_keybindings();
+        insert_bindings.add_binding(
+            KeyModifiers::NONE,
+            KeyCode::Tab,
+            ReedlineEvent::Menu("completion_menu".into()),
+        );
+        Box::new(ScriptInputMode::vi(insert_bindings))
+    } else {
+        let mut emacs_bindings = default_emacs_keybindings();
+        emacs_bindings.add_binding(
+            KeyModifiers::NONE,
+            KeyCode::Tab,
+            ReedlineEvent::Menu("completion_menu".into()),
+        );
+        Box::new(ScriptInputMode::emacs(emacs_bindings))
+    };
+
+    let mut line_editor = Reedline::create()
+        .with_history(Box::new(history))
+        .with_completer(Box::new(completer))
+        .with_menu(ReedlineMenu::EngineCompleter(menu))
+        .with_highlighter(Box::new(VimHighlighter))
+        .with_validator(Box::new(KalkerValidator))
+        .with_edit_mode(edit_mode);
+    let prompt = VimPrompt { vim_mode };
+
     if atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout) {
         println!("kalker");
         println!(
@@ -63,33 +277,208 @@ pub fn start(
     }
 
     let mut repl = Context {
-        base: 10u8,
+        base: 10,
         mode: format,
     };
 
     loop {
-        let prompt = if cfg!(windows) {
-            String::from(">> ")
-        } else {
-            Cyan.paint(">> ").to_string()
-        };
-        let readline = editor.readline(&prompt);
-
-        match readline {
-            Ok(input) => {
+        match line_editor.read_line(&prompt) {
+            Ok(Signal::Success(input)) => {
                 if input == "exit" {
                     break;
                 }
-                editor.add_history_entry(input.as_str());
                 eval_repl(&mut repl, parser, &input, precision, no_leading_equal, raw);
             }
-            Err(ReadlineError::Interrupted) => continue,
-            _ => break,
+            Ok(Signal::CtrlC) => println!(),
+            Ok(Signal::CtrlD) => break,
+            Err(error) => {
+                print_err(&format!("REPL error: {}", error));
+                break;
+            }
+        }
+    }
+}
+
+enum WrappedEditMode {
+    Emacs(Emacs),
+    Vi(Vi),
+}
+
+struct ScriptInputMode {
+    editor: WrappedEditMode,
+    previous_marker: Option<char>,
+    active_script: Option<char>,
+}
+
+impl ScriptInputMode {
+    fn emacs(keybindings: Keybindings) -> Self {
+        Self {
+            editor: WrappedEditMode::Emacs(Emacs::new(keybindings)),
+            previous_marker: None,
+            active_script: None,
         }
     }
 
-    if let Some(history_path) = history_path {
-        editor.save_history(&history_path).ok();
+    fn vi(insert_keybindings: Keybindings) -> Self {
+        Self {
+            editor: WrappedEditMode::Vi(Vi::new(
+                insert_keybindings,
+                default_vi_normal_keybindings(),
+            )),
+            previous_marker: None,
+            active_script: None,
+        }
+    }
+
+    fn is_insert_mode(&self) -> bool {
+        match &self.editor {
+            WrappedEditMode::Emacs(_) => true,
+            WrappedEditMode::Vi(editor) => {
+                matches!(editor.edit_mode(), PromptEditMode::Vi(PromptViMode::Insert))
+            }
+        }
+    }
+}
+
+impl EditMode for ScriptInputMode {
+    fn parse_event(&mut self, event: reedline::ReedlineRawEvent) -> ReedlineEvent {
+        let raw_event: CrosstermEvent = event.into();
+        let typed_char = match &raw_event {
+            CrosstermEvent::Key(key) if self.is_insert_mode() => match key.code {
+                CrosstermKeyCode::Char(c)
+                    if key.modifiers == KeyModifiers::NONE
+                        || key.modifiers == KeyModifiers::SHIFT =>
+                {
+                    Some(if key.modifiers == KeyModifiers::SHIFT {
+                        c.to_ascii_uppercase()
+                    } else {
+                        c
+                    })
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+
+        let event = reedline::ReedlineRawEvent::try_from(raw_event)
+            .expect("raw terminal key events should already be validated");
+        let parsed = match &mut self.editor {
+            WrappedEditMode::Emacs(editor) => editor.parse_event(event),
+            WrappedEditMode::Vi(editor) => editor.parse_event(event),
+        };
+
+        let Some(character) = typed_char else {
+            self.active_script = None;
+            if let Some(marker) = self.previous_marker.take() {
+                return match parsed {
+                    ReedlineEvent::Edit(mut commands) => {
+                        commands.insert(0, EditCommand::InsertChar(marker));
+                        ReedlineEvent::Edit(commands)
+                    }
+                    other => ReedlineEvent::Multiple(vec![
+                        ReedlineEvent::Edit(vec![EditCommand::InsertChar(marker)]),
+                        other,
+                    ]),
+                };
+            }
+            return parsed;
+        };
+
+        if character == '^' || character == '_' {
+            self.previous_marker = Some(character);
+            self.active_script = None;
+            return ReedlineEvent::None;
+        }
+
+        if let Some(script_type) = self.previous_marker.or(self.active_script) {
+            if self.previous_marker.is_some() && matches!(character, ' ' | '\t' | '\n' | '\r') {
+                self.previous_marker = None;
+                self.active_script = None;
+                return parsed;
+            }
+            let starts_sign =
+                self.previous_marker.is_some() && (character == '-' || character == '+');
+            if character.is_ascii_digit() || starts_sign {
+                let converted = if script_type == '^' {
+                    superscript_character(character)
+                } else {
+                    subscript_character(character)
+                };
+                self.previous_marker = None;
+                self.active_script = Some(script_type);
+                return ReedlineEvent::Edit(vec![EditCommand::InsertChar(converted)]);
+            }
+            if self.previous_marker == Some('^') && character == 'T' {
+                self.previous_marker = None;
+                self.active_script = None;
+                return ReedlineEvent::Edit(vec![EditCommand::InsertChar('ᵀ')]);
+            }
+            if let Some(marker) = self.previous_marker {
+                self.previous_marker = None;
+                self.active_script = None;
+                return match parsed {
+                    ReedlineEvent::Edit(mut commands) => {
+                        commands.insert(0, EditCommand::InsertChar(marker));
+                        ReedlineEvent::Edit(commands)
+                    }
+                    other => ReedlineEvent::Multiple(vec![
+                        ReedlineEvent::Edit(vec![EditCommand::InsertChar(marker)]),
+                        other,
+                    ]),
+                };
+            }
+            self.previous_marker = None;
+            self.active_script = None;
+        }
+
+        self.previous_marker = None;
+        if !matches!(character, '0'..='9' | '+' | '-') {
+            self.active_script = None;
+        }
+        parsed
+    }
+
+    fn edit_mode(&self) -> PromptEditMode {
+        match &self.editor {
+            WrappedEditMode::Emacs(editor) => editor.edit_mode(),
+            WrappedEditMode::Vi(editor) => editor.edit_mode(),
+        }
+    }
+}
+
+fn superscript_character(digit: char) -> char {
+    match digit {
+        '0' => '⁰',
+        '1' => '¹',
+        '2' => '²',
+        '3' => '³',
+        '4' => '⁴',
+        '5' => '⁵',
+        '6' => '⁶',
+        '7' => '⁷',
+        '8' => '⁸',
+        '9' => '⁹',
+        '-' => '⁻',
+        '+' => '⁺',
+        _ => digit,
+    }
+}
+
+fn subscript_character(digit: char) -> char {
+    match digit {
+        '0' => '₀',
+        '1' => '₁',
+        '2' => '₂',
+        '3' => '₃',
+        '4' => '₄',
+        '5' => '₅',
+        '6' => '₆',
+        '7' => '₇',
+        '8' => '₈',
+        '9' => '₉',
+        '-' => '₋',
+        '+' => '₊',
+        _ => digit,
     }
 }
 
@@ -99,7 +488,7 @@ fn eval_repl(
     input: &str,
     precision: u32,
     no_leading_equal: bool,
-    raw: bool
+    raw: bool,
 ) {
     if let Some(file_name) = input.strip_prefix("load ") {
         if let Some(file_path) = crate::get_input_file_by_name(file_name) {
@@ -135,7 +524,7 @@ fn eval_repl(
                 print_err("Invalid mode name. Available modes: normal, eng");
 
                 return;
-            },
+            }
         };
 
         repl.mode = mode;
@@ -147,7 +536,15 @@ fn eval_repl(
         "" => eprint!(""),
         "clear" => print!("\x1B[2J"),
         "help" => print_cli_help(),
-        _ => output::eval(parser, input, precision, repl.base, repl.mode, no_leading_equal, raw),
+        _ => output::eval(
+            parser,
+            input,
+            precision,
+            repl.base,
+            repl.mode,
+            no_leading_equal,
+            raw,
+        ),
     }
 }
 
@@ -155,46 +552,6 @@ fn print_cli_help() {
     let help_text = include_str!("../help.txt");
     println!("{}", help_text);
 }
-
-struct LineHighlighter {}
-
-impl Highlighter for LineHighlighter {
-    fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
-        let mut coloured = line.to_string();
-
-        let reg = Regex::new(
-            r"(?x)
-            (?P<op>([+\-/*%^!×÷⋅∧∨¬ᵀ]|if|otherwise|\b(and|or|mod|true|false|not)\b|load|exit|clear|help)) |
-            (?P<radix>0[box][a-zA-Z0-9]+) |
-            (?P<identifier>[^!-@\s_|^⌊⌋⌈⌉\[\]\{\}⟦⟧≠≥≤⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ᵀ]+(_\d+)?)",
-        )
-        .unwrap();
-
-        coloured = reg
-            .replace_all(&coloured, |caps: &Captures| {
-                if let Some(cap) = caps.name("identifier") {
-                    match cap.as_str() {
-                        "rad" | "deg" | "°" => Colour::Yellow.paint(cap.as_str()).to_string(),
-                        _ => Colour::Fixed(32).paint(cap.as_str()).to_string(),
-                    }
-                } else if let Some(cap) = caps.name("op") {
-                    Colour::Fixed(172).paint(cap.as_str()).to_string()
-                } else {
-                    caps[0].to_string()
-                }
-            })
-            .to_string();
-
-        Owned(coloured)
-    }
-}
-
-struct RLHelper {
-    highlighter: LineHighlighter,
-    validator: MatchingBracketValidator,
-}
-
-impl Helper for RLHelper {}
 
 lazy_static! {
     pub static ref COMPLETION_FUNCS: HashMap<&'static str, &'static str> = {
@@ -239,110 +596,93 @@ lazy_static! {
     };
 }
 
-impl Completer for RLHelper {
-    type Candidate = String;
-    fn complete(
-        &self,
-        line: &str,
-        pos: usize,
-        _ctx: &rustyline::Context<'_>,
-    ) -> Result<(usize, Vec<Self::Candidate>), ReadlineError> {
-        for key in COMPLETION_FUNCS.keys() {
-            let slice = &line[..pos];
-            if slice.ends_with(key) {
-                let value = *COMPLETION_FUNCS.get(key).unwrap();
-                return Ok((pos - key.len(), vec![value.to_string()]));
-            }
+#[cfg(test)]
+mod vim_tests {
+    use super::{
+        KalkerValidator, Prompt, PromptEditMode, PromptViMode, ReedlineValidationResult,
+        ScriptInputMode, VimPrompt,
+    };
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+    use reedline::{EditCommand, EditMode, ReedlineEvent, ReedlineRawEvent, Validator};
+    use std::convert::TryFrom;
 
-            // If the key starts with a space, it should also be expanded
-            // if it is at the start of the line. To do this, the strings
-            // are compared with the space removed in these situations.
-            if key.starts_with(' ') && slice.len() == key.len() - 1 && slice == &key[1..] {
-                let value = &(*COMPLETION_FUNCS.get(key).unwrap())[1..];
-                return Ok((pos - (key.len() - 1), vec![value.to_string()]));
-            }
+    #[test]
+    fn vim_prompt_indicator_tracks_editor_mode() {
+        let prompt = VimPrompt { vim_mode: true };
 
-            let mut subscript_digits = String::new();
-            for c in slice.chars().rev() {
-                if c.is_ascii_digit() {
-                    subscript_digits.insert(0, c);
-                } else {
-                    break;
-                }
-            }
-
-            let subscript_char_count = subscript_digits.chars().count();
-            if subscript_char_count > 0 && pos - subscript_char_count > 0 {
-                let value = kalk::text_utils::normal_to_subscript(subscript_digits.chars());
-                return Ok((pos - subscript_char_count - 1, vec![value]));
-            }
-        }
-
-        Ok((0, vec![line.to_string()]))
+        assert_eq!(
+            "[N] >> ",
+            prompt.render_prompt_indicator(PromptEditMode::Vi(PromptViMode::Normal))
+        );
+        assert_eq!(
+            "[I] >> ",
+            prompt.render_prompt_indicator(PromptEditMode::Vi(PromptViMode::Insert))
+        );
     }
 
-    fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
-        line.backspace(line.pos() - start);
-        line.insert_str(line.pos(), elected);
-        line.move_forward(if elected.ends_with(')') || elected.ends_with('⟧') {
-            elected.chars().count() - 1
+    #[test]
+    fn vim_validator_requests_continuation_for_open_groups_and_strings() {
+        let validator = KalkerValidator;
+
+        assert!(matches!(
+            validator.validate("(1 + 2"),
+            ReedlineValidationResult::Incomplete
+        ));
+        assert!(matches!(
+            validator.validate("\"unfinished"),
+            ReedlineValidationResult::Incomplete
+        ));
+        assert!(matches!(
+            validator.validate("(1 + 2)"),
+            ReedlineValidationResult::Complete
+        ));
+    }
+
+    #[test]
+    fn scripts_convert_ascii_markers_to_display_glyphs() {
+        assert_eq!('²', super::superscript_character('2'));
+        assert_eq!('⁻', super::superscript_character('-'));
+        assert_eq!('₁', super::subscript_character('1'));
+        assert_eq!('₊', super::subscript_character('+'));
+    }
+
+    #[test]
+    fn typed_power_marker_converts_to_superscript_but_evaluates_as_power() {
+        let mut input = ScriptInputMode::emacs(reedline::default_emacs_keybindings());
+        assert!(matches!(type_char(&mut input, '1'), ReedlineEvent::Edit(_)));
+        assert!(matches!(type_char(&mut input, '0'), ReedlineEvent::Edit(_)));
+        assert!(matches!(type_char(&mut input, '^'), ReedlineEvent::None));
+        assert_eq!(
+            ReedlineEvent::Edit(vec![EditCommand::InsertChar('²')]),
+            type_char(&mut input, '2')
+        );
+
+        let mut context = kalk::parser::Context::new();
+        let value = kalk::parser::eval(&mut context, "10²", 128)
+            .unwrap()
+            .unwrap();
+        assert_eq!(100.0, value.to_f64());
+    }
+
+    #[test]
+    fn typed_base_marker_converts_to_subscript() {
+        let mut input = ScriptInputMode::emacs(reedline::default_emacs_keybindings());
+        type_char(&mut input, '1');
+        type_char(&mut input, '0');
+        assert!(matches!(type_char(&mut input, '_'), ReedlineEvent::None));
+        assert_eq!(
+            ReedlineEvent::Edit(vec![EditCommand::InsertChar('₂')]),
+            type_char(&mut input, '2')
+        );
+    }
+
+    fn type_char(input: &mut ScriptInputMode, character: char) -> ReedlineEvent {
+        let key = if character == '^' || character == '_' {
+            KeyEvent::new(KeyCode::Char(character), KeyModifiers::SHIFT)
         } else {
-            elected.chars().count()
-        });
-    }
-}
-
-impl Highlighter for RLHelper {
-    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        Owned(Colour::Fixed(244).paint(hint).to_string())
-    }
-
-    fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
-        self.highlighter.highlight(line, pos)
-    }
-
-    fn highlight_candidate<'c>(
-        &self,
-        candidate: &'c str,
-        _completion: rustyline::CompletionType,
-    ) -> Cow<'c, str> {
-        self.highlighter.highlight(candidate, 0)
-    }
-
-    fn highlight_char(&self, line: &str, _: usize) -> bool {
-        !line.is_empty()
-    }
-}
-
-impl Hinter for RLHelper {
-    type Hint = String;
-
-    fn hint(&self, _: &str, _: usize, _: &rustyline::Context) -> Option<String> {
-        None
-    }
-}
-
-impl Validator for RLHelper {
-    fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
-        let mut group_symbol_count = vec![0i32, 0i32, 0i32];
-
-        for c in ctx.input().chars() {
-            match c {
-                '⌈' | '⌉' => group_symbol_count[0] += 1,
-                '⌊' | '⌋' => group_symbol_count[1] += 1,
-                '|' => group_symbol_count[2] += 1,
-                _ => (),
-            }
-        }
-
-        if !group_symbol_count.into_iter().all(|x| x % 2 == 0) {
-            Ok(ValidationResult::Incomplete)
-        } else {
-            self.validator.validate(ctx)
-        }
-    }
-
-    fn validate_while_typing(&self) -> bool {
-        self.validator.validate_while_typing()
+            KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE)
+        };
+        let event = ReedlineRawEvent::try_from(Event::Key(key)).unwrap();
+        input.parse_event(event)
     }
 }
